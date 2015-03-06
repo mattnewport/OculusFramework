@@ -18,8 +18,7 @@ void ThrowOnFailure(HRESULT hr) {
     }
 }
 
-DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer,
-                              size_t size)
+DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size)
     : Size(size) {
     D3D11_BUFFER_DESC desc{};
     desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -33,17 +32,16 @@ DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* bu
     SetDebugObjectName(D3DBuffer, "DataBuffer::D3DBuffer");
 }
 
-void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
-                                size_t size) {
+void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size) {
     D3D11_MAPPED_SUBRESOURCE map;
     deviceContext->Map(D3DBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
     memcpy((void*)map.pData, buffer, size);
     deviceContext->Unmap(D3DBuffer, 0);
 }
 
-ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
-                                bool rendertarget, bool depth, Sizei size, int mipLevels,
-                                unsigned char* data)
+ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device,
+                         ID3D11DeviceContext* deviceContext, bool rendertarget, bool depth,
+                         Sizei size, int mipLevels, unsigned char* data)
     : name(name_), Size(size) {
     CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM, size.w,
                                  size.h, 1, mipLevels);
@@ -67,8 +65,7 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, ID3D11DeviceCo
         if (depth) {
             device->CreateDepthStencilView(Tex, nullptr, &TexDsv);
             SetDebugObjectName(TexDsv, string("ImageBuffer::TexDsv - ") + name);
-        }
-        else {
+        } else {
             device->CreateRenderTargetView(Tex, nullptr, &TexRtv);
             SetDebugObjectName(TexRtv, string("ImageBuffer::TexRtv - ") + name);
         }
@@ -172,7 +169,7 @@ LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
-    Window = [hinst, vp, windowed, this]{
+    Window = [hinst, vp, windowed, this] {
         const auto className = L"OVRAppWindow";
         WNDCLASSW wc{};
         wc.lpszClassName = className;
@@ -184,8 +181,8 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
         RECT winSize = {0, 0, vp.w / sizeDivisor, vp.h / sizeDivisor};
         AdjustWindowRect(&winSize, wsStyle, false);
         return CreateWindowW(className, L"OculusRoomTiny", wsStyle | WS_VISIBLE, vp.x, vp.y,
-            winSize.right - winSize.left, winSize.bottom - winSize.top, nullptr,
-            nullptr, hinst, this);
+                             winSize.right - winSize.left, winSize.bottom - winSize.top, nullptr,
+                             nullptr, hinst, this);
     }();
     if (!Window) return false;
 
@@ -206,10 +203,10 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
         ThrowOnFailure(DXGIFactory->EnumAdapters(0, &Adapter));
 
         const UINT creationFlags = [] {
-#ifdef _DEBUG 
-        return D3D11_CREATE_DEVICE_DEBUG;
-#else 
-        return 0u;
+#ifdef _DEBUG
+            return D3D11_CREATE_DEVICE_DEBUG;
+#else
+            return 0u;
 #endif
         }();
 
@@ -249,7 +246,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
     UniformBufferGen = std::make_unique<DataBuffer>(Device, D3D11_BIND_CONSTANT_BUFFER, nullptr,
                                                     2000);  // make sure big enough
 
-    [this]{
+    [this] {
         CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
         ID3D11RasterizerStatePtr Rasterizer;
         ThrowOnFailure(Device->CreateRasterizerState(&rs, &Rasterizer));
@@ -257,7 +254,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
         Context->RSSetState(Rasterizer);
     }();
 
-    [this]{
+    [this] {
         CD3D11_DEPTH_STENCIL_DESC dss{D3D11_DEFAULT};
         ID3D11DepthStencilStatePtr DepthState;
         ThrowOnFailure(Device->CreateDepthStencilState(&dss, &DepthState));
@@ -278,30 +275,33 @@ void SecondWindow::Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceCont
     width = 640;
     height = 360;
 
-    Window = [this]{
+    Window = [this] {
         WNDCLASSW wc{};
         wc.lpszClassName = className;
         wc.lpfnWndProc = SystemWindowProc;
         RegisterClassW(&wc);
 
         const DWORD wsStyle = WS_POPUP | WS_OVERLAPPEDWINDOW;
-        RECT winSize = { 0, 0, width, height };
+        RECT winSize = {0, 0, width, height};
         AdjustWindowRect(&winSize, wsStyle, false);
         return CreateWindowW(className, L"OculusRoomTiny", wsStyle | WS_VISIBLE, 100, 100,
-            winSize.right - winSize.left, winSize.bottom - winSize.top, nullptr,
-            nullptr, hinst, nullptr);
+                             winSize.right - winSize.left, winSize.bottom - winSize.top, nullptr,
+                             nullptr, hinst, nullptr);
     }();
-    if (!Window) throw runtime_error{ "Failed to create second window!" };
+    if (!Window) throw runtime_error{"Failed to create second window!"};
 
     [this, device] {
         IDXGIDevice1Ptr DXGIDevice;
-        ThrowOnFailure(device->QueryInterface(__uuidof(IDXGIDevice1), reinterpret_cast<void**>(&DXGIDevice)));
+        ThrowOnFailure(
+            device->QueryInterface(__uuidof(IDXGIDevice1), reinterpret_cast<void**>(&DXGIDevice)));
 
         IDXGIAdapterPtr Adapter;
-        ThrowOnFailure(DXGIDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(&Adapter)));
+        ThrowOnFailure(
+            DXGIDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(&Adapter)));
 
         IDXGIFactoryPtr DXGIFactory;
-        ThrowOnFailure(Adapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&DXGIFactory)));
+        ThrowOnFailure(
+            Adapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&DXGIFactory)));
 
         DXGI_SWAP_CHAIN_DESC scDesc{};
         scDesc.BufferCount = 2;
@@ -326,8 +326,8 @@ void SecondWindow::Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceCont
     ThrowOnFailure(device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
     SetDebugObjectName(BackBufferRT, "SecondWindow::BackBufferRT");
 
-    DepthBuffer = std::make_unique<ImageBuffer>("SecondWindow::DepthBuffer", device, Context, true, true,
-        Sizei(width, height));
+    DepthBuffer = std::make_unique<ImageBuffer>("SecondWindow::DepthBuffer", device, Context, true,
+                                                true, Sizei(width, height));
 }
 
 void DirectX11::InitSecondWindow(HINSTANCE hinst) {
@@ -346,13 +346,13 @@ void DirectX11::Render(ShaderFill* fill, DataBuffer* vertices, DataBuffer* indic
     ID3D11Buffer* vsConstantBuffers[] = {UniformBufferGen->D3DBuffer};
     Context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    const vector<D3D11_INPUT_ELEMENT_DESC> modelVertexDesc {
-        D3D11_INPUT_ELEMENT_DESC{ "Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Model::Vertex, Pos),
-        D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        D3D11_INPUT_ELEMENT_DESC{ "Color", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(Model::Vertex, C),
-        D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        D3D11_INPUT_ELEMENT_DESC{ "TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Model::Vertex, U),
-        D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    const vector<D3D11_INPUT_ELEMENT_DESC> modelVertexDesc{
+        D3D11_INPUT_ELEMENT_DESC{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+                                 offsetof(Model::Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
+        D3D11_INPUT_ELEMENT_DESC{"Color", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0,
+                                 offsetof(Model::Vertex, C), D3D11_INPUT_PER_VERTEX_DATA, 0},
+        D3D11_INPUT_ELEMENT_DESC{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
+                                 offsetof(Model::Vertex, U), D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     Context->IASetInputLayout(VShader->GetInputLayout(Device, modelVertexDesc));
     Context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
@@ -418,7 +418,7 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<ImageBuffer>&& t, b
     device->CreateSamplerState(&ss, &SamplerState);
 }
 
-VertexShader::VertexShader(ID3D11Device* device, ID3D10Blob* s) : byteCode{ s }, numUniformInfo(0) {
+VertexShader::VertexShader(ID3D11Device* device, ID3D10Blob* s) : byteCode{s}, numUniformInfo(0) {
     device->CreateVertexShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DVert);
 
     ID3D11ShaderReflectionPtr ref;
@@ -450,12 +450,14 @@ void VertexShader::SetUniform(const char* name, int n, const float* v) {
     }
 }
 
-ID3D11InputLayout* VertexShader::GetInputLayout(ID3D11Device* device, const InputLayoutKey& inputLayoutKey) {
+ID3D11InputLayout* VertexShader::GetInputLayout(ID3D11Device* device,
+                                                const InputLayoutKey& inputLayoutKey) {
     auto findIt = inputLayoutMap.find(inputLayoutKey);
     if (findIt != end(inputLayoutMap)) return findIt->second;
     ID3D11InputLayoutPtr inputLayout;
-    device->CreateInputLayout(&inputLayoutKey[0], inputLayoutKey.size(), byteCode->GetBufferPointer(),
-        byteCode->GetBufferSize(), &inputLayout);
+    device->CreateInputLayout(&inputLayoutKey[0], inputLayoutKey.size(),
+                              byteCode->GetBufferPointer(), byteCode->GetBufferSize(),
+                              &inputLayout);
     inputLayoutMap[inputLayoutKey] = inputLayout;
     return inputLayout;
 }
@@ -570,11 +572,10 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
                     tex_pixels[3][j * texWidthHeight + i] =
                         Model::Color(128, 128, 128, 255);  // blank
             }
-        std::unique_ptr<ImageBuffer> t = std::make_unique<ImageBuffer>("generated_texture",
-            device, deviceContext, false, false, Sizei(texWidthHeight, texWidthHeight), 8,
-            (unsigned char*)tex_pixels[k]);
-        generated_texture[k] = std::make_unique<ShaderFill>(
-            device, std::move(t));
+        std::unique_ptr<ImageBuffer> t = std::make_unique<ImageBuffer>(
+            "generated_texture", device, deviceContext, false, false,
+            Sizei(texWidthHeight, texWidthHeight), 8, (unsigned char*)tex_pixels[k]);
+        generated_texture[k] = std::make_unique<ShaderFill>(device, std::move(t));
     }
 
     // Construct geometry
@@ -670,31 +671,27 @@ void Scene::Render(DirectX11& dx11, Matrix4f view, Matrix4f proj) {
     }
 }
 
-VertexShader* ShaderDatabase::GetVertexShader(ID3D11Device* device, const char* filename) {
-    const string filenameString{ filename };
-    auto findIt = vertexShaderMap.find(filenameString);
-    if (findIt != end(vertexShaderMap)) return findIt->second.get();
-    ifstream shaderSourceFile{ filename };
-    stringstream buf;
-    buf << shaderSourceFile.rdbuf();
-    ID3DBlobPtr compiledShader;
-    ID3DBlobPtr errorMessages;
-    D3DCompile(buf.str().c_str(), buf.str().size(), filename, nullptr, nullptr, "main", "vs_4_0", 0, 0, &compiledShader, &errorMessages);
-    vertexShaderMap[filenameString] = make_unique<VertexShader>(device, compiledShader);
-    return vertexShaderMap[filenameString].get();
-}
-
-PixelShader* ShaderDatabase::GetPixelShader(ID3D11Device* device, const char* filename) {
+template <typename ShaderType>
+ShaderType* GetShader(ID3D11Device* device, const char* filename, const char* target,
+                      ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
     const string filenameString{filename};
-    auto findIt = pixelShaderMap.find(filenameString);
-    if (findIt != end(pixelShaderMap)) return findIt->second.get();
+    auto findIt = shaderMap.find(filenameString);
+    if (findIt != end(shaderMap)) return findIt->second.get();
     ifstream shaderSourceFile{filename};
     stringstream buf;
     buf << shaderSourceFile.rdbuf();
     ID3DBlobPtr compiledShader;
     ID3DBlobPtr errorMessages;
-    D3DCompile(buf.str().c_str(), buf.str().size(), filename, nullptr, nullptr, "main", "ps_4_0", 0, 0, &compiledShader, &errorMessages);
-    pixelShaderMap[filenameString] = make_unique<PixelShader>(device, compiledShader);
-    return pixelShaderMap[filenameString].get();
+    D3DCompile(buf.str().c_str(), buf.str().size(), filename, nullptr, nullptr, "main", target, 0,
+               0, &compiledShader, &errorMessages);
+    shaderMap[filenameString] = make_unique<ShaderType>(device, compiledShader);
+    return shaderMap[filenameString].get();
 }
 
+VertexShader* ShaderDatabase::GetVertexShader(ID3D11Device* device, const char* filename) {
+    return GetShader(device, filename, "vs_4_0", vertexShaderMap);
+}
+
+PixelShader* ShaderDatabase::GetPixelShader(ID3D11Device* device, const char* filename) {
+    return GetShader(device, filename, "ps_4_0", pixelShaderMap);
+}

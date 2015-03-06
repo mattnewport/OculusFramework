@@ -60,23 +60,20 @@ _COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
 using namespace OVR;
 
 // Helper sets a D3D resource name string (used by PIX and debug layer leak reporting).
-template<typename T, size_t N>
-inline void SetDebugObjectName(_In_ T resource, _In_z_ const char(&name)[N])
-{
+template <typename T, size_t N>
+inline void SetDebugObjectName(_In_ T resource, _In_z_ const char(&name)[N]) {
     ID3D11DeviceChildPtr deviceChild;
     resource->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(&deviceChild));
 #if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
-    if (deviceChild)
-        deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, N - 1, name);
+    if (deviceChild) deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, N - 1, name);
 #else
     UNREFERENCED_PARAMETER(resource);
     UNREFERENCED_PARAMETER(name);
 #endif
 }
 
-template<typename T>
-inline void SetDebugObjectName(_In_ T resource, const std::string& name)
-{
+template <typename T>
+inline void SetDebugObjectName(_In_ T resource, const std::string& name) {
     ID3D11DeviceChildPtr deviceChild;
     resource->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(&deviceChild));
 #if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
@@ -97,8 +94,9 @@ struct ImageBuffer {
     const char* name = nullptr;
 
     ImageBuffer() = default;
-    ImageBuffer(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext, bool rendertarget,
-                bool depth, Sizei size, int mipLevels = 1, unsigned char* data = NULL);
+    ImageBuffer(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+                bool rendertarget, bool depth, Sizei size, int mipLevels = 1,
+                unsigned char* data = NULL);
 };
 
 struct DataBuffer {
@@ -129,7 +127,7 @@ struct DirectX11 {
     HWND Window = nullptr;
     bool Key[256];
     Sizei RenderTargetSize;
-    //std::unique_ptr<ImageBuffer> MainDepthBuffer;
+    // std::unique_ptr<ImageBuffer> MainDepthBuffer;
     ID3D11DevicePtr Device;
     ID3D11DeviceContextPtr Context;
     IDXGISwapChainPtr SwapChain;
@@ -157,7 +155,8 @@ using InputLayoutKey = std::vector<D3D11_INPUT_ELEMENT_DESC>;
 
 inline bool operator<(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y) {
     auto tupleify = [](const D3D11_INPUT_ELEMENT_DESC& x) {
-        return std::make_tuple(std::string{ x.SemanticName }, x.SemanticIndex, x.Format, x.InputSlot, x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
+        return std::make_tuple(std::string{x.SemanticName}, x.SemanticIndex, x.Format, x.InputSlot,
+                               x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
     };
     return tupleify(x) < tupleify(y);
 }
@@ -209,9 +208,13 @@ class ShaderDatabase {
 public:
     VertexShader* GetVertexShader(ID3D11Device* device, const char* filename);
     PixelShader* GetPixelShader(ID3D11Device* device, const char* filename);
+
+    template <typename ShaderType>
+    using ShaderMap = std::unordered_map<std::string, std::unique_ptr<ShaderType>>;
+
 private:
-    std::unordered_map<std::string, std::unique_ptr<VertexShader>> vertexShaderMap;
-    std::unordered_map<std::string, std::unique_ptr<PixelShader>> pixelShaderMap;
+    ShaderMap<VertexShader> vertexShaderMap;
+    ShaderMap<PixelShader> pixelShaderMap;
 };
 
 struct ShaderFill {
@@ -267,7 +270,7 @@ struct Model {
     void AllocateBuffers(ID3D11Device* device);
 
     void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2,
-        Color c);
+                                 Color c);
 };
 //-------------------------------------------------------------------------
 struct Scene {
@@ -281,18 +284,3 @@ struct Scene {
     void Render(DirectX11& dx11, Matrix4f view, Matrix4f proj);
 };
 
-//--------------------------------------------------------------------------------
-// Due to be removed once the functionality is in the SDK
-inline void UtilFoldExtraYawIntoTimewarpMatrix(Matrix4f* timewarpMatrix, Quatf eyePose, Quatf extraQuat) {
-    timewarpMatrix->M[0][1] = -timewarpMatrix->M[0][1];
-    timewarpMatrix->M[0][2] = -timewarpMatrix->M[0][2];
-    timewarpMatrix->M[1][0] = -timewarpMatrix->M[1][0];
-    timewarpMatrix->M[2][0] = -timewarpMatrix->M[2][0];
-    Quatf newtimewarpStartQuat =
-        eyePose * extraQuat * (eyePose.Inverted()) * (Quatf(*timewarpMatrix));
-    *timewarpMatrix = Matrix4f(newtimewarpStartQuat);
-    timewarpMatrix->M[0][1] = -timewarpMatrix->M[0][1];
-    timewarpMatrix->M[0][2] = -timewarpMatrix->M[0][2];
-    timewarpMatrix->M[1][0] = -timewarpMatrix->M[1][0];
-    timewarpMatrix->M[2][0] = -timewarpMatrix->M[2][0];
-}
