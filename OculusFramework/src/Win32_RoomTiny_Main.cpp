@@ -147,6 +147,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             // Handle key toggles for re-centering, meshes, FOV, etc.
             if (hmd) ExampleFeatures1(DX11, hmd->getHmd(), &speed, &timesToRenderScene, useHmdToEyeViewOffset);
 
+            // Reload shaders
+            if (DX11.Key['H']) shaderDatabase.ReloadShaders(DX11.Device);
+
             // Keyboard inputs to adjust player orientation
             if (DX11.Key[VK_LEFT]) Yaw += 0.02f;
             if (DX11.Key[VK_RIGHT]) Yaw -= 0.02f;

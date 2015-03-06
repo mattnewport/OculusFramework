@@ -672,20 +672,26 @@ void Scene::Render(DirectX11& dx11, Matrix4f view, Matrix4f proj) {
 }
 
 template <typename ShaderType>
-ShaderType* GetShader(ID3D11Device* device, const char* filename, const char* target,
-                      ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
-    const string filenameString{filename};
-    auto findIt = shaderMap.find(filenameString);
-    if (findIt != end(shaderMap)) return findIt->second.get();
+ShaderType* LoadShader(ID3D11Device* device, const std::string& filename, const char* target,
+    ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
     ifstream shaderSourceFile{filename};
     stringstream buf;
     buf << shaderSourceFile.rdbuf();
     ID3DBlobPtr compiledShader;
     ID3DBlobPtr errorMessages;
-    D3DCompile(buf.str().c_str(), buf.str().size(), filename, nullptr, nullptr, "main", target, 0,
-               0, &compiledShader, &errorMessages);
-    shaderMap[filenameString] = make_unique<ShaderType>(device, compiledShader);
-    return shaderMap[filenameString].get();
+    D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr, nullptr, "main", target, 0,
+        0, &compiledShader, &errorMessages);
+    shaderMap[filename] = make_unique<ShaderType>(device, compiledShader);
+    return shaderMap[filename].get();
+}
+
+template <typename ShaderType>
+ShaderType* GetShader(ID3D11Device* device, const char* filename, const char* target,
+                      ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
+    const string filenameString{filename};
+    auto findIt = shaderMap.find(filenameString);
+    if (findIt != end(shaderMap)) return findIt->second.get();
+    return LoadShader(device, filenameString, target, shaderMap);
 }
 
 VertexShader* ShaderDatabase::GetVertexShader(ID3D11Device* device, const char* filename) {
@@ -694,4 +700,13 @@ VertexShader* ShaderDatabase::GetVertexShader(ID3D11Device* device, const char* 
 
 PixelShader* ShaderDatabase::GetPixelShader(ID3D11Device* device, const char* filename) {
     return GetShader(device, filename, "ps_4_0", pixelShaderMap);
+}
+
+void ShaderDatabase::ReloadShaders(ID3D11Device* device) {
+    for (auto& e : vertexShaderMap) {
+        LoadShader(device, e.first, "vs_4_0", vertexShaderMap);
+    }
+    for (auto& e : pixelShaderMap) {
+        LoadShader(device, e.first, "ps_4_0", pixelShaderMap);
+    }
 }

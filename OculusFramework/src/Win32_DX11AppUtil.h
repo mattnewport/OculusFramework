@@ -209,6 +209,8 @@ public:
     VertexShader* GetVertexShader(ID3D11Device* device, const char* filename);
     PixelShader* GetPixelShader(ID3D11Device* device, const char* filename);
 
+    void ReloadShaders(ID3D11Device* device);
+
     template <typename ShaderType>
     using ShaderMap = std::unordered_map<std::string, std::unique_ptr<ShaderType>>;
 
@@ -216,6 +218,8 @@ private:
     ShaderMap<VertexShader> vertexShaderMap;
     ShaderMap<PixelShader> pixelShaderMap;
 };
+
+extern ShaderDatabase shaderDatabase;
 
 struct ShaderFill {
     std::unique_ptr<ImageBuffer> OneTexture;
