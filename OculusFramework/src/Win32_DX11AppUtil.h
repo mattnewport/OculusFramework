@@ -17,9 +17,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *************************************************************************************/
 
+#include <algorithm>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include <comdef.h>
@@ -51,6 +55,7 @@ _COM_SMARTPTR_TYPEDEF(ID3D11ShaderReflection, __uuidof(ID3D11ShaderReflection));
 _COM_SMARTPTR_TYPEDEF(ID3D11InputLayout, __uuidof(ID3D11InputLayout));
 _COM_SMARTPTR_TYPEDEF(ID3D11SamplerState, __uuidof(ID3D11SamplerState));
 _COM_SMARTPTR_TYPEDEF(ID3D10Blob, __uuidof(ID3D10Blob));
+_COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
 
 using namespace OVR;
 
@@ -148,6 +153,41 @@ struct DirectX11 {
     void ReleaseWindow(HINSTANCE hinst);
 };
 
+using InputLayoutKey = std::vector<D3D11_INPUT_ELEMENT_DESC>;
+
+inline bool operator<(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y) {
+    auto tupleify = [](const D3D11_INPUT_ELEMENT_DESC& x) {
+        return std::make_tuple(std::string{ x.SemanticName }, x.SemanticIndex, x.Format, x.InputSlot, x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
+    };
+    return tupleify(x) < tupleify(y);
+}
+
+struct CompareInputLayoutKeys {
+    bool operator()(const InputLayoutKey& x, const InputLayoutKey& y) {
+        return lexicographical_compare(begin(x), end(x), begin(y), end(y));
+    }
+};
+
+struct VertexShader {
+    ID3DBlobPtr byteCode;
+    ID3D11VertexShaderPtr D3DVert;
+    std::vector<unsigned char> UniformData;
+    std::map<InputLayoutKey, ID3D11InputLayoutPtr, CompareInputLayoutKeys> inputLayoutMap;
+
+    struct Uniform {
+        char Name[40];
+        int Offset, Size;
+    };
+
+    int numUniformInfo;
+    Uniform UniformInfo[10];
+
+    VertexShader(ID3D11Device* device, ID3DBlob* s);
+
+    void SetUniform(const char* name, int n, const float* v);
+    ID3D11InputLayout* GetInputLayout(ID3D11Device* device, const InputLayoutKey& layout);
+};
+
 struct Shader {
     ID3D11VertexShaderPtr D3DVert;
     ID3D11PixelShaderPtr D3DPix;
@@ -166,11 +206,16 @@ struct Shader {
     void SetUniform(const char* name, int n, const float* v);
 };
 
+class ShaderDatabase {
+public:
+    VertexShader* GetShader(ID3D11Device* device, const char* filename);
+private:
+    std::unordered_map<std::string, std::unique_ptr<VertexShader>> shaderMap;
+};
+
 struct ShaderFill {
-    std::unique_ptr<Shader> VShader;
     std::unique_ptr<Shader> PShader;
     std::unique_ptr<ImageBuffer> OneTexture;
-    ID3D11InputLayoutPtr InputLayout;
     ID3D11SamplerStatePtr SamplerState;
 
     ShaderFill(ID3D11Device* device, D3D11_INPUT_ELEMENT_DESC* VertexDesc, int numVertexDesc,
