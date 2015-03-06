@@ -188,8 +188,7 @@ struct VertexShader {
     ID3D11InputLayout* GetInputLayout(ID3D11Device* device, const InputLayoutKey& layout);
 };
 
-struct Shader {
-    ID3D11VertexShaderPtr D3DVert;
+struct PixelShader {
     ID3D11PixelShaderPtr D3DPix;
     std::vector<unsigned char> UniformData;
 
@@ -201,26 +200,25 @@ struct Shader {
     int numUniformInfo;
     Uniform UniformInfo[10];
 
-    Shader(ID3D11Device* device, ID3D10Blob* s, int which_type);
+    PixelShader(ID3D11Device* device, ID3D10Blob* s);
 
     void SetUniform(const char* name, int n, const float* v);
 };
 
 class ShaderDatabase {
 public:
-    VertexShader* GetShader(ID3D11Device* device, const char* filename);
+    VertexShader* GetVertexShader(ID3D11Device* device, const char* filename);
+    PixelShader* GetPixelShader(ID3D11Device* device, const char* filename);
 private:
-    std::unordered_map<std::string, std::unique_ptr<VertexShader>> shaderMap;
+    std::unordered_map<std::string, std::unique_ptr<VertexShader>> vertexShaderMap;
+    std::unordered_map<std::string, std::unique_ptr<PixelShader>> pixelShaderMap;
 };
 
 struct ShaderFill {
-    std::unique_ptr<Shader> PShader;
     std::unique_ptr<ImageBuffer> OneTexture;
     ID3D11SamplerStatePtr SamplerState;
 
-    ShaderFill(ID3D11Device* device, D3D11_INPUT_ELEMENT_DESC* VertexDesc, int numVertexDesc,
-               char* vertexShader, char* pixelShader, std::unique_ptr<ImageBuffer>&& t,
-               bool wrap = 1);
+    ShaderFill(ID3D11Device* device, std::unique_ptr<ImageBuffer>&& t, bool wrap = 1);
 };
 
 struct Model {
@@ -279,8 +277,6 @@ struct Scene {
     void Add(Model* n) { Models[num_models++].reset(n); }
 
     Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion);
-
-    Scene(ID3D11Device* device, int renderTargetWidth, int renderTargetHeight);
 
     void Render(DirectX11& dx11, Matrix4f view, Matrix4f proj);
 };

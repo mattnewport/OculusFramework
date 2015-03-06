@@ -40,5 +40,8 @@
     <FxCompile Include="simplevs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="simpleps.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
