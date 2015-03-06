@@ -8,8 +8,6 @@
 
 using namespace std;
 
-ShaderDatabase shaderDatabase;
-
 void ThrowOnFailure(HRESULT hr) {
     if (FAILED(hr)) {
         _com_error err{hr};
@@ -102,23 +100,6 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device,
 DirectX11::DirectX11() { fill(begin(Key), end(Key), false); }
 
 DirectX11::~DirectX11() {
-    Context->ClearState();
-    Context->Flush();
-    secondWindow = nullptr;
-    UniformBufferGen = nullptr;
-    BackBufferRT = nullptr;
-    BackBuffer = nullptr;
-    SwapChain = nullptr;
-    Context = nullptr;
-
-    /*
-    ID3D11DebugPtr d3dDebugDevice;
-    if (SUCCEEDED(Device->QueryInterface(__uuidof(ID3D11Debug),
-                                         reinterpret_cast<void**>(&d3dDebugDevice)))) {
-        Device = nullptr;
-        d3dDebugDevice->ReportLiveDeviceObjects(D3D11_RLDO_SUMMARY | D3D11_RLDO_DETAIL);
-    }
-    */
 }
 
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
@@ -496,9 +477,9 @@ void PixelShader::SetUniform(const char* name, int n, const float* v) {
 
 void Model::AllocateBuffers(ID3D11Device* device) {
     VertexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, &Vertices[0],
-                                                numVertices * sizeof(Vertex));
-    IndexBuffer =
-        std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0], numIndices * 2);
+                                                Vertices.size() * sizeof(Vertex));
+    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
+                                               Indices.size() * 2);
 }
 
 void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c) {
@@ -521,7 +502,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
                               8,  9,  11, 11, 9,  10, 13, 12, 14, 14, 12, 15,
                               16, 17, 19, 19, 17, 18, 21, 20, 22, 22, 20, 23};
 
-    for (int i = 0; i < 36; i++) AddIndex(CubeIndices[i] + (uint16_t)numVertices);
+    for (auto idx : CubeIndices) AddIndex(idx + static_cast<uint16_t>(Vertices.size()));
 
     for (int v = 0; v < 24; v++) {
         Vertex vvv;
@@ -543,8 +524,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 }
 
 // Simple latency box (keep similar vertex format and shader params same, for ease of code)
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion)
-    : num_models(0) {
+Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion) {
     // Construct textures
     const auto texWidthHeight = 256;
     const auto texCount = 5;
@@ -658,16 +638,16 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
 }
 
 void Scene::Render(DirectX11& dx11, Matrix4f view, Matrix4f proj) {
-    for (int i = 0; i < num_models; i++) {
-        Matrix4f modelmat = Models[i]->GetMatrix();
-        Matrix4f mat = (view * modelmat).Transposed();
+    view.Transpose();
+    proj.Transpose();
+    for (auto& model : Models) {
+        VertexShader* VShader = dx11.shaderDatabase.GetVertexShader(dx11.Device, "simplevs.hlsl");
+        VShader->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
+        VShader->SetUniform("View", 16, &view.M[0][0]);
+        VShader->SetUniform("Proj", 16, &proj.M[0][0]);
 
-        VertexShader* VShader = shaderDatabase.GetVertexShader(dx11.Device, "simplevs.hlsl");
-        VShader->SetUniform("View", 16, (float*)&mat);
-        VShader->SetUniform("Proj", 16, (float*)&proj);
-
-        dx11.Render(Models[i]->Fill.get(), Models[i]->VertexBuffer.get(),
-                    Models[i]->IndexBuffer.get(), sizeof(Model::Vertex), Models[i]->numIndices);
+        dx11.Render(model->Fill.get(), model->VertexBuffer.get(),
+                    model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size());
     }
 }
 
