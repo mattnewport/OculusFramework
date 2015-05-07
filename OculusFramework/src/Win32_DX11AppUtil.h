@@ -17,6 +17,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *************************************************************************************/
 
+#pragma once
+
 #include <algorithm>
 #include <cstring>
 #include <map>
@@ -59,6 +61,14 @@ _COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
 
 using namespace OVR;
 
+inline void ThrowOnFailure(HRESULT hr) {
+    if (FAILED(hr)) {
+        _com_error err{ hr };
+        OutputDebugString(err.ErrorMessage());
+        throw std::runtime_error{ "Failed HRESULT" };
+    }
+}
+
 // Helper sets a D3D resource name string (used by PIX and debug layer leak reporting).
 template <typename T, size_t N>
 inline void SetDebugObjectName(_In_ T resource, _In_z_ const char(&name)[N]) {
@@ -95,17 +105,7 @@ struct ImageBuffer {
 
     ImageBuffer() = default;
     ImageBuffer(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
-                bool rendertarget, bool depth, Sizei size, int mipLevels = 1,
-                unsigned char* data = NULL);
-};
-
-struct DataBuffer {
-    ID3D11BufferPtr D3DBuffer;
-    size_t Size;
-
-    DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size);
-
-    void Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size);
+                bool rendertarget, bool depth, Sizei size, int mipLevels = 1);
 };
 
 struct SecondWindow {
@@ -134,7 +134,7 @@ inline bool operator<(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEME
 }
 
 struct CompareInputLayoutKeys {
-    bool operator()(const InputLayoutKey& x, const InputLayoutKey& y) {
+    bool operator()(const InputLayoutKey& x, const InputLayoutKey& y) const {
         return lexicographical_compare(begin(x), end(x), begin(y), end(y));
     }
 };
@@ -178,8 +178,13 @@ struct PixelShader {
 
 class ShaderDatabase {
 public:
-    VertexShader* GetVertexShader(ID3D11Device* device, const char* filename);
-    PixelShader* GetPixelShader(ID3D11Device* device, const char* filename);
+    void SetDevice(ID3D11Device* device_) { device = device_; }
+    VertexShader* GetVertexShader(const char* filename);
+    PixelShader* GetPixelShader(const char* filename);
+
+    ID3D11InputLayout* GetInputLayout(VertexShader* vs, const InputLayoutKey& layout) {
+        return vs->GetInputLayout(device, layout);
+    }
 
     void ReloadShaders(ID3D11Device* device);
 
@@ -187,15 +192,9 @@ public:
     using ShaderMap = std::unordered_map<std::string, std::unique_ptr<ShaderType>>;
 
 private:
+    ID3D11Device* device = nullptr;
     ShaderMap<VertexShader> vertexShaderMap;
     ShaderMap<PixelShader> pixelShaderMap;
-};
-
-struct ShaderFill {
-    std::unique_ptr<ImageBuffer> OneTexture;
-    ID3D11SamplerStatePtr SamplerState;
-
-    ShaderFill(ID3D11Device* device, std::unique_ptr<ImageBuffer>&& t, bool wrap = 1);
 };
 
 struct DirectX11 {
@@ -208,7 +207,6 @@ struct DirectX11 {
     IDXGISwapChainPtr SwapChain;
     ID3D11Texture2DPtr BackBuffer;
     ID3D11RenderTargetViewPtr BackBufferRT;
-    std::unique_ptr<DataBuffer> UniformBufferGen;
     std::unique_ptr<SecondWindow> secondWindow;
     ShaderDatabase shaderDatabase;
 
@@ -216,61 +214,11 @@ struct DirectX11 {
     ~DirectX11();
     bool InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed);
     void InitSecondWindow(HINSTANCE hinst);
-    void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ImageBuffer* depthbuffer,
+    void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv,
                                  Recti vp);
-    void Render(struct ShaderFill* fill, DataBuffer* vertices, DataBuffer* indices, UINT stride,
-                int count);
     bool IsAnyKeyPressed() const;
     void SetMaxFrameLatency(int value);
     void HandleMessages();
     void OutputFrameTime(double currentTime);
     void ReleaseWindow(HINSTANCE hinst);
-};
-
-struct Model {
-    struct Color {
-        unsigned char R, G, B, A;
-
-        Color(unsigned char r = 0, unsigned char g = 0, unsigned char b = 0, unsigned char a = 0xff)
-            : R(r), G(g), B(b), A(a) {}
-    };
-    struct Vertex {
-        Vector3f Pos;
-        Color C;
-        float U, V;
-    };
-
-    Vector3f Pos;
-    Quatf Rot;
-    Matrix4f Mat;
-    std::vector<Vertex> Vertices;
-    std::vector<uint16_t> Indices;
-    std::unique_ptr<ShaderFill> Fill;
-    std::unique_ptr<DataBuffer> VertexBuffer;
-    std::unique_ptr<DataBuffer> IndexBuffer;
-
-    Model(Vector3f arg_pos, std::unique_ptr<ShaderFill>&& arg_Fill)
-        : Pos{arg_pos}, Fill{std::move(arg_Fill)} {}
-    Matrix4f& GetMatrix() {
-        Mat = Matrix4f(Rot);
-        Mat = Matrix4f::Translation(Pos) * Mat;
-        return Mat;
-    }
-    void AddVertex(const Vertex& v) { Vertices.push_back(v); }
-    void AddIndex(uint16_t a) { Indices.push_back(a); }
-
-    void AllocateBuffers(ID3D11Device* device);
-
-    void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2,
-                                 Color c);
-};
-
-struct Scene {
-    std::vector<std::unique_ptr<Model>> Models;
-
-    void Add(Model* n) { Models.emplace_back(n); }
-
-    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion);
-
-    void Render(DirectX11& dx11, Matrix4f view, Matrix4f proj);
 };

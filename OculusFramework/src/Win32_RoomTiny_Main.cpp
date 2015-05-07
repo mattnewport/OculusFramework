@@ -29,6 +29,7 @@ limitations under the License.
 #include "OVR_CAPI.h"           // Include the OculusVR SDK
 
 #include "Win32_RoomTiny_ExampleFeatures.h"  // Include extra options to show some simple operations
+#include "scene.h"
 
 #define OVR_D3D_VERSION 11
 #include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
@@ -198,7 +199,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                  &updateEyeImage, &EyeRenderViewport[eye], EyeRenderTexture[eye]);
 
                 if (clearEyeImage)
-                    DX11.ClearAndSetRenderTarget(useBuffer->TexRtv, &EyeDepthBuffer[eye],
+                    DX11.ClearAndSetRenderTarget(useBuffer->TexRtv, EyeDepthBuffer[eye].TexDsv,
                                                  Recti(EyeRenderViewport[eye]));
                 if (updateEyeImage) {
                     // Write in values actually used (becomes significant in Example features)
@@ -225,7 +226,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                         // MNTODO: clean this up (hard coded width / height, assumption
                         // EyeDepthBuffer is big enough...
                         DX11.ClearAndSetRenderTarget(
-                            DX11.secondWindow->BackBufferRT, DX11.secondWindow->DepthBuffer.get(),
+                            DX11.secondWindow->BackBufferRT, DX11.secondWindow->DepthBuffer.get()->TexDsv,
                             Recti{0, 0, DX11.secondWindow->width, DX11.secondWindow->height});
                         roomScene.Render(DX11, view, proj);
                         DX11.secondWindow->SwapChain->Present(0, 0);

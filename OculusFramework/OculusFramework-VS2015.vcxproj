@@ -88,11 +88,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\scene.cpp" />
     <ClCompile Include="src\Win32_DX11AppUtil.cpp" />
     <ClCompile Include="src\Win32_RoomTiny_Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\libovrwrapper.h" />
+    <ClInclude Include="src\scene.h" />
     <ClInclude Include="src\Win32_DX11AppUtil.h" />
     <ClInclude Include="src\Win32_RoomTiny_AppRender.h" />
     <ClInclude Include="src\Win32_RoomTiny_ExampleFeatures.h" />
