@@ -66,12 +66,45 @@ struct Model {
 
     void AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2,
                                  Color c);
+};
 
-    void AddHeightField();
+struct HeightField {
+    struct Color {
+        unsigned char R, G, B, A;
+
+        Color(unsigned char r = 0, unsigned char g = 0, unsigned char b = 0, unsigned char a = 0xff)
+            : R(r), G(g), B(b), A(a) {}
+    };
+    struct Vertex {
+        Vector3f Pos;
+    };
+
+    Vector3f Pos;
+    Quatf Rot;
+    Matrix4f Mat;
+    std::vector<Vertex> Vertices;
+    std::vector<uint32_t> Indices;
+    std::unique_ptr<DataBuffer> VertexBuffer;
+    std::unique_ptr<DataBuffer> IndexBuffer;
+
+    HeightField(Vector3f arg_pos, ID3D11Device* device)
+        : Pos{ arg_pos } {}
+    Matrix4f& GetMatrix() {
+        Mat = Matrix4f(Rot);
+        Mat = Matrix4f::Translation(Pos) * Mat;
+        return Mat;
+    }
+
+    void AllocateBuffers(ID3D11Device* device);
+
+    void AddVertices();
+
+    void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, DataBuffer* uniformBuffer);
 };
 
 struct Scene {
     std::vector<std::unique_ptr<Model>> Models;
+    std::unique_ptr<HeightField> heightField;
 
     void Add(std::unique_ptr<Model>&& n) { Models.emplace_back(move(n)); }
 
