@@ -82,9 +82,9 @@ struct HeightField {
     Vector3f Pos;
     Quatf Rot;
     Matrix4f Mat;
-    std::vector<Vertex> Vertices;
+    std::vector<std::vector<Vertex>> Vertices;
     std::vector<uint32_t> Indices;
-    std::unique_ptr<DataBuffer> VertexBuffer;
+    std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
     std::unique_ptr<DataBuffer> IndexBuffer;
 
     HeightField(Vector3f arg_pos, ID3D11Device* device)
@@ -95,9 +95,7 @@ struct HeightField {
         return Mat;
     }
 
-    void AllocateBuffers(ID3D11Device* device);
-
-    void AddVertices();
+    void AddVertices(ID3D11Device* device);
 
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, DataBuffer* uniformBuffer);
 };

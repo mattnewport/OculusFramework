@@ -74,14 +74,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
     }
 }
 
-void HeightField::AllocateBuffers(ID3D11Device* device) {
-    VertexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, &Vertices[0],
-        Vertices.size() * sizeof(Vertex));
-    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
-        Indices.size() * sizeof(uint32_t));
-}
-
-void HeightField::AddVertices() {
+void HeightField::AddVertices(ID3D11Device* device) {
     ifstream file(R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150506_001104.dat)", ios::in | ios::binary);
     if (!file) {
         OutputDebugStringA("wtf!");
@@ -98,18 +91,22 @@ void HeightField::AddVertices() {
     auto numRead = file.gcount();
     assert(numRead == fileSize);
 
-    Indices.reserve(Indices.size() + 6 * width * height);
-    for (int y = 0; y < height - 1; ++y) {
-        for (int x = 0; x < width - 1; ++x) {
-            uint32_t baseIdx = y * width + x;
+    const int blockSize = 64;
+
+    Indices.reserve(Indices.size() + 6 * blockSize * blockSize);
+    for (int y = 0; y < blockSize; ++y) {
+        for (int x = 0; x < blockSize; ++x) {
+            uint32_t baseIdx = y * (blockSize + 1) + x;
             Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx);
             Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + 1);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + width);
+            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + (blockSize + 1));
             Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + 1);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + width + 1);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + width);
+            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + (blockSize + 1) + 1);
+            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + (blockSize + 1));
         }
     }
+    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
+        Indices.size() * sizeof(uint32_t));
 
     Vector3f center(0.0f);
     float gridWidth = 1.0f;
@@ -117,13 +114,25 @@ void HeightField::AddVertices() {
     float gridHeight = float(height) * gridStep;
     float gridElevation = 1.0f;
     float gridElevationScale = 0.00005f;
-    Vertices.reserve(Vertices.size() + width * height);
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            Vertex v;
-            v.Pos = Vector3f(x * gridStep, gridElevation + heights[y * width + x] * gridElevationScale, y * gridStep);
-            Vertices.push_back(v);
+    for (int y = 0; y < height; y += blockSize) {
+        for (int x = 0; x < width; x+= blockSize) {
+            Vertices.push_back(vector<Vertex>{});
+            Vertices.reserve((blockSize + 1) * (blockSize + 1));
+            for (int blockY = 0; blockY <= blockSize; ++blockY) {
+                for (int blockX = 0; blockX <= blockSize; ++blockX) {
+                        Vertex v;
+                        auto localX = x + blockX;
+                        auto localY = y + blockY;
+                        auto gridHeight = localY < height && localX < width ? heights[localY * width + localX] : 0;
+                        v.Pos = Vector3f(localX * gridStep, gridElevation + gridHeight * gridElevationScale, localY * gridStep);
+                        Vertices.back().push_back(v);
+                }
+            }
         }
+    }
+    for (const auto& vertices : Vertices) {
+        VertexBuffers.push_back(std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, vertices.data(),
+            vertices.size() * sizeof(Vertex)));
     }
 }
 
@@ -295,16 +304,10 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
 
     // Terrain
     heightField = make_unique<HeightField>(Vector3f(0.0f), device);
-    heightField->AddVertices();
-    heightField->AllocateBuffers(device);
+    heightField->AddVertices(device);
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, DataBuffer* uniformBuffer) {
-    ID3D11Buffer* vertexBuffers[] = { VertexBuffer->D3DBuffer };
-    const UINT strides[] = { sizeof(Vertex) };
-    const UINT offsets[] = { 0 };
-    context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
-
     VertexShader* VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
     uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = { uniformBuffer->D3DBuffer };
@@ -322,7 +325,14 @@ void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDat
 
     PixelShader* pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
     context->PSSetShader(pixelShader->D3DPix, NULL, 0);
-    context->DrawIndexed(Indices.size(), 0, 0);
+    
+    for (const auto& vertexBuffer : VertexBuffers) {
+        ID3D11Buffer* vertexBuffers[] = { vertexBuffer->D3DBuffer };
+        const UINT strides[] = { sizeof(Vertex) };
+        const UINT offsets[] = { 0 };
+        context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
+        context->DrawIndexed(Indices.size(), 0, 0);
+    }
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
