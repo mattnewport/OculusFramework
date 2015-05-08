@@ -30,7 +30,7 @@ void Model::AllocateBuffers(ID3D11Device* device) {
     VertexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, &Vertices[0],
                                                 Vertices.size() * sizeof(Vertex));
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
-                                               Indices.size() * sizeof(uint32_t));
+                                               Indices.size() * sizeof(uint16_t));
 }
 
 void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c) {
@@ -53,7 +53,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
                               8,  9,  11, 11, 9,  10, 13, 12, 14, 14, 12, 15,
                               16, 17, 19, 19, 17, 18, 21, 20, 22, 22, 20, 23};
 
-    for (auto idx : CubeIndices) AddIndex(idx + static_cast<uint32_t>(Vertices.size()));
+    for (auto idx : CubeIndices) AddIndex(idx + static_cast<uint16_t>(Vertices.size()));
 
     for (int v = 0; v < 24; v++) {
         Vertex vvv;
@@ -75,7 +75,14 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 }
 
 void HeightField::AddVertices(ID3D11Device* device) {
-    ifstream file(R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150506_001104.dat)", ios::in | ios::binary);
+    [this, device] {
+        CD3D11_RASTERIZER_DESC rs{ D3D11_DEFAULT };
+        //rs.FillMode = D3D11_FILL_WIREFRAME;
+        ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
+        SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
+    }();
+
+    ifstream file(R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150507_235633.dat)", ios::in | ios::binary);
     if (!file) {
         OutputDebugStringA("wtf!");
     }
@@ -84,55 +91,86 @@ void HeightField::AddVertices(ID3D11Device* device) {
     file.seekg(0);
     auto fileSize = endPos - file.tellg();
 
-    const int width = 1749;
-    const int height = 1236;
+    const int width = 895;
+    const int height = 913;
     vector<uint16_t> heights(width * height);
     file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
     auto numRead = file.gcount();
     assert(numRead == fileSize);
 
-    const int blockSize = 64;
+    auto getHeight = [&heights, width, height](int x, int y) {
+        x = min(max(0, x), width - 1);
+        y = min(max(0, y), height - 1);
+        return heights[y * width + x];
+    };
 
-    Indices.reserve(Indices.size() + 6 * blockSize * blockSize);
-    for (int y = 0; y < blockSize; ++y) {
-        for (int x = 0; x < blockSize; ++x) {
-            uint32_t baseIdx = y * (blockSize + 1) + x;
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + 1);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + (blockSize + 1));
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + 1);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + (blockSize + 1) + 1);
-            Indices.push_back(static_cast<uint32_t>(Vertices.size()) + baseIdx + (blockSize + 1));
+    const int blockPower = 6;
+    const int blockSize = 1 << blockPower;
+
+    // Use Hilbert curve for better vertex cache efficiency
+    auto d2xy = [](int n, int d, int *x, int *y) {
+        auto rot = [](int n, int* x, int* y, int rx, int ry) {
+            if (ry == 0) {
+                if (rx == 1) {
+                    *x = n - 1 - *x;
+                    *y = n - 1 - *y;
+                }
+
+                swap(*x, *y);
+            }
+        };
+
+        int rx, ry, s, t = d;
+        *x = *y = 0;
+        for (s = 1; s<n; s *= 2) {
+            rx = 1 & (t / 2);
+            ry = 1 & (t ^ rx);
+            rot(s, x, y, rx, ry);
+            *x += s * rx;
+            *y += s * ry;
+            t /= 4;
         }
+    };
+
+    const auto quadCount = blockSize * blockSize;
+    const auto indexCount = 6 * quadCount;
+    Indices.reserve(indexCount);
+    for (auto d = 0; d < quadCount; ++d) {
+        int x, y;
+        d2xy(blockSize, d, &x, &y);
+        uint16_t baseIdx = y * (blockSize + 1) + x;
+        Indices.push_back(baseIdx);
+        Indices.push_back(baseIdx + 1);
+        Indices.push_back(baseIdx + (blockSize + 1));
+        Indices.push_back(baseIdx + 1);
+        Indices.push_back(baseIdx + (blockSize + 1) + 1);
+        Indices.push_back(baseIdx + (blockSize + 1));
     }
-    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
-        Indices.size() * sizeof(uint32_t));
+    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
+        Indices.size() * sizeof(Indices[0]));
 
     Vector3f center(0.0f);
-    float gridWidth = 1.0f;
+    float gridWidth = 2.0f;
     float gridStep = gridWidth / float(width);
     float gridHeight = float(height) * gridStep;
-    float gridElevation = 1.0f;
-    float gridElevationScale = 0.00005f;
+    float gridElevationScale = 0.00013f;
     for (int y = 0; y < height; y += blockSize) {
         for (int x = 0; x < width; x+= blockSize) {
-            Vertices.push_back(vector<Vertex>{});
-            Vertices.reserve((blockSize + 1) * (blockSize + 1));
+            vector<Vertex> vertices;
+            vertices.reserve((blockSize + 1) * (blockSize + 1));
             for (int blockY = 0; blockY <= blockSize; ++blockY) {
                 for (int blockX = 0; blockX <= blockSize; ++blockX) {
                         Vertex v;
                         auto localX = x + blockX;
                         auto localY = y + blockY;
-                        auto gridHeight = localY < height && localX < width ? heights[localY * width + localX] : 0;
-                        v.Pos = Vector3f(localX * gridStep, gridElevation + gridHeight * gridElevationScale, localY * gridStep);
-                        Vertices.back().push_back(v);
+                        auto gridHeight = getHeight(width - 1 - localX, localY);
+                        v.Pos = Vector3f(localX * gridStep, gridHeight * gridElevationScale, localY * gridStep);
+                        vertices.push_back(v);
                 }
             }
+            VertexBuffers.push_back(std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, vertices.data(),
+                vertices.size() * sizeof(vertices[0])));
         }
-    }
-    for (const auto& vertices : Vertices) {
-        VertexBuffers.push_back(std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, vertices.data(),
-            vertices.size() * sizeof(Vertex)));
     }
 }
 
@@ -187,6 +225,12 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
 
 // Simple latency box (keep similar vertex format and shader params same, for ease of code)
 Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion) {
+    [this, device] {
+        CD3D11_RASTERIZER_DESC rs{ D3D11_DEFAULT };
+        ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
+        SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
+    }();
+
     UniformBufferGen = std::make_unique<DataBuffer>(device, D3D11_BIND_CONSTANT_BUFFER, nullptr,
                                                     2000);  // make sure big enough
 
@@ -303,11 +347,13 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
     Add(move(m));
 
     // Terrain
-    heightField = make_unique<HeightField>(Vector3f(0.0f), device);
+    heightField = make_unique<HeightField>(Vector3f(-1.0f, 0.8f, 0.0f), device);
     heightField->AddVertices(device);
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, DataBuffer* uniformBuffer) {
+    context->RSSetState(Rasterizer);
+
     VertexShader* VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
     uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = { uniformBuffer->D3DBuffer };
@@ -318,7 +364,7 @@ void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDat
         offsetof(Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
     context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
-    context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R32_UINT, 0);
+    context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->VSSetShader(VShader->D3DVert, NULL, 0);
@@ -355,7 +401,7 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
                                  offsetof(Model::Vertex, U), D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
-    context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R32_UINT, 0);
+    context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->VSSetShader(VShader->D3DVert, NULL, 0);
@@ -377,6 +423,8 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
 }
 
 void Scene::Render(DirectX11& dx11, Matrix4f view, Matrix4f proj) {
+    dx11.Context->RSSetState(Rasterizer);
+
     view.Transpose();
     proj.Transpose();
     for (auto& model : Models) {

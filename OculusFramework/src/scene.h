@@ -47,7 +47,7 @@ struct Model {
     Quatf Rot;
     Matrix4f Mat;
     std::vector<Vertex> Vertices;
-    std::vector<uint32_t> Indices;
+    std::vector<uint16_t> Indices;
     std::unique_ptr<ShaderFill> Fill;
     std::unique_ptr<DataBuffer> VertexBuffer;
     std::unique_ptr<DataBuffer> IndexBuffer;
@@ -60,7 +60,7 @@ struct Model {
         return Mat;
     }
     void AddVertex(const Vertex& v) { Vertices.push_back(v); }
-    void AddIndex(uint32_t a) { Indices.push_back(a); }
+    void AddIndex(uint16_t a) { Indices.push_back(a); }
 
     void AllocateBuffers(ID3D11Device* device);
 
@@ -82,10 +82,10 @@ struct HeightField {
     Vector3f Pos;
     Quatf Rot;
     Matrix4f Mat;
-    std::vector<std::vector<Vertex>> Vertices;
-    std::vector<uint32_t> Indices;
+    std::vector<uint16_t> Indices;
     std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
     std::unique_ptr<DataBuffer> IndexBuffer;
+    ID3D11RasterizerStatePtr Rasterizer;
 
     HeightField(Vector3f arg_pos, ID3D11Device* device)
         : Pos{ arg_pos } {}
@@ -112,5 +112,6 @@ struct Scene {
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
                 DataBuffer* vertices, DataBuffer* indices, UINT stride, int count);
 
+    ID3D11RasterizerStatePtr Rasterizer;
     std::unique_ptr<DataBuffer> UniformBufferGen;
 };

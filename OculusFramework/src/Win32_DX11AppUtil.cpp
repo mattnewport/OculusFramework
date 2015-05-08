@@ -170,14 +170,6 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
     if (!windowed) ThrowOnFailure(SwapChain->SetFullscreenState(1, nullptr));
 
     [this] {
-        CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
-        ID3D11RasterizerStatePtr Rasterizer;
-        ThrowOnFailure(Device->CreateRasterizerState(&rs, &Rasterizer));
-        SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
-        Context->RSSetState(Rasterizer);
-    }();
-
-    [this] {
         CD3D11_DEPTH_STENCIL_DESC dss{D3D11_DEFAULT};
         ID3D11DepthStencilStatePtr DepthState;
         ThrowOnFailure(Device->CreateDepthStencilState(&dss, &DepthState));

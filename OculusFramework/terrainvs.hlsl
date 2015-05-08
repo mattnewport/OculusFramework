@@ -6,6 +6,6 @@ void main(in float4 Position : POSITION,
     float4 wp = mul(World, Position);
     oPosition = mul(Proj, mul(View, wp));
     oTexCoord = float2(Position.x, Position.y);
-    oColor = float4(0.5, 0.5, 0.5, 1.0);
+    oColor = float4(0.33, 0.33, 0.33, 1.0);
     worldPos = wp;
 }
