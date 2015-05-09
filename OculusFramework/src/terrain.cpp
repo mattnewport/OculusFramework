@@ -12,19 +12,19 @@ void HeightField::AddVertices(ID3D11Device* device) {
         CD3D11_RASTERIZER_DESC rs{ D3D11_DEFAULT };
         // rs.FillMode = D3D11_FILL_WIREFRAME;
         ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
-        SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
+        SetDebugObjectName(Rasterizer, "HeightField::Rasterizer");
     }();
 
     ifstream file(
-        R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150507_235633.dat)",
+        R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233.dat)",
         ios::in | ios::binary);
     file.seekg(0, ios::end);
     auto endPos = file.tellg();
     file.seekg(0);
     auto fileSize = endPos - file.tellg();
 
-    const int width = 895;
-    const int height = 913;
+    const int width = 907;
+    const int height = 882;
     vector<uint16_t> heights(width * height);
     file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
     auto numRead = file.gcount();
@@ -82,7 +82,8 @@ void HeightField::AddVertices(ID3D11Device* device) {
         Indices.size() * sizeof(Indices[0]));
 
     Vector3f center(0.0f);
-    float uvStep = 1.0f / float(width);
+    float uvStepX = 1.0f / float(width);
+    float uvStepY = 1.0f / float(height);
     float gridWidth = 2.0f;
     float gridStep = gridWidth / float(width);
     float gridHeight = float(height) * gridStep;
@@ -99,8 +100,8 @@ void HeightField::AddVertices(ID3D11Device* device) {
                     auto gridHeight = getHeight(width - 1 - localX, localY);
                     v.Pos = Vector3f(localX * gridStep, gridHeight * gridElevationScale,
                         localY * gridStep);
-                    v.u = localX * uvStep;
-                    v.v = localY * uvStep;
+                    v.u = 1.0f - (localX * uvStepX);
+                    v.v = 1.0f - (localY * uvStepY);
                     vertices.push_back(v);
                 }
             }
@@ -116,7 +117,7 @@ void HeightField::AddVertices(ID3D11Device* device) {
     device->CreateSamplerState(&ss, &samplerState);
 
     ID3D11ResourcePtr shapes;
-    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\shapes.dds)", &shapes, &shapesSRV));
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\shapes2.dds)", &shapes, &shapesSRV));
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,

@@ -5,7 +5,7 @@ void main(in float4 Position : POSITION, in float2 TexCoord : TEXCOORD0,
 {
     float4 wp = mul(World, Position);
     oPosition = mul(Proj, mul(View, wp));
-    oTexCoord = float2(1.0f - TexCoord.x, 1.0f - TexCoord.y);
+    oTexCoord = float2(TexCoord.x, TexCoord.y);
     oColor = float4(0.33, 0.33, 0.33, 1.0);
     worldPos = wp;
 }
