@@ -1,0 +1,1835 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gmd:MD_Metadata xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmd="http://www.isotc211.org/2005/gmd"
+	xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:gml="http://www.opengis.net/gml"
+	xmlns:gsr="http://www.isotc211.org/2005/gsr"
+	xmlns:essm="http://www.cits.rncan.gc.ca/ess/essMetadataTools/essXsd/essm"
+	xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts">
+	<!-- 5.2.1 M -->
+	<gmd:fileIdentifier>
+		<gco:CharacterString>C40ACFBA-C722-4BE1-862E-146B80BE738E</gco:CharacterString>
+	</gmd:fileIdentifier>
+	<!-- 5.2.2 M -->
+	<gmd:language>
+		<gco:CharacterString>eng; CAN</gco:CharacterString>
+	</gmd:language>
+	<!-- 5.2.3 M -->
+	<gmd:characterSet>
+		<gmd:MD_CharacterSetCode
+			codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_95"
+			codeListValue="RI_458">utf8; utf8</gmd:MD_CharacterSetCode>
+	</gmd:characterSet>
+	<!-- 5.2.5 M rep -->
+	<gmd:hierarchyLevel>
+		<gmd:MD_ScopeCode
+			codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_108"
+			codeListValue="RI_623">series; série</gmd:MD_ScopeCode>
+	</gmd:hierarchyLevel>
+	<!-- 5.2.6 M rep -->
+	<!-- ====================================================================== -->
+	<!--                                 OWNER                                  -->
+	<!-- ====================================================================== -->
+	<gmd:contact>
+		<!-- 5.16 -->
+		<gmd:CI_ResponsibleParty>
+			<!-- 5.16.2 C -->
+			<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>Government of Canada, Natural Resources
+					Canada</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Gouvernement du Canada,
+							Ressources naturelles Canada</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:organisationName>
+			<!-- 5.16.3 C -->
+			<gmd:positionName xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>Director, ESS/DMDD/DM</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Directeur,
+							SST/DGDD/DGI</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:positionName>
+			<!-- 5.16.5  M -->
+			<gmd:role>
+				<gmd:CI_RoleCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+					codeListValue="RI_410">owner; propriétaire</gmd:CI_RoleCode>
+			</gmd:role>
+		</gmd:CI_ResponsibleParty>
+	</gmd:contact>
+	<!-- ====================================================================== -->
+	<!--                              CUSTODIAN                                 -->
+	<!-- ====================================================================== -->
+	<gmd:contact>
+		<!-- 5.16 -->
+		<gmd:CI_ResponsibleParty>
+			<!-- 5.16.2 C -->
+			<!-- {$GS$CITS_ORG} -->
+			<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>Natural Resources Canada, Earth Sciences Sector, Mapping
+					Information Branch</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Ressources naturelles Canada,
+							Secteur des sciences de la Terre, Direction de l'information
+							cartographique</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:organisationName>
+			<!-- 5.16.4  O -->
+			<gmd:contactInfo>
+				<!-- 5.17 -->
+				<gmd:CI_Contact>
+					<!-- 5.17.2 O -->
+					<gmd:address>
+						<!-- 5.19 -->
+						<gmd:CI_Address>
+							<!-- 5.19.6 O, rep -->
+							<gmd:electronicMailAddress xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR"
+											>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:electronicMailAddress>
+						</gmd:CI_Address>
+					</gmd:address>
+				</gmd:CI_Contact>
+			</gmd:contactInfo>
+			<!-- 5.16.5  M -->
+			<gmd:role>
+				<gmd:CI_RoleCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+					codeListValue="RI_414">custodian; conservateur</gmd:CI_RoleCode>
+			</gmd:role>
+		</gmd:CI_ResponsibleParty>
+	</gmd:contact>
+	<!-- ====================================================================== -->
+	<!--                          POINT OF CONTACT                              -->
+	<!-- ====================================================================== -->
+	<gmd:contact>
+		<!-- 5.16 -->
+		<gmd:CI_ResponsibleParty>
+			<!-- 5.16.2 C -->
+			<!-- {$GS$CITS_ORG} -->
+			<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>Government of Canada, Natural Resources Canada, Earth Sciences
+					Sector, Mapping Information Branch, Centre for Topographic Information -
+					Sherbrooke</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Gouvernement du Canada,
+							Ressources naturelles Canada, Secteur des sciences de la Terre,
+							Direction de l'information cartographique, Centre d'information
+							topographique - Sherbrooke</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:organisationName>
+			<!-- 5.16.3 C -->
+			<!-- {$GS$CITS_PERS} -->
+			<gmd:positionName xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>Customer Support Group</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Équipe de soutien aux
+							usagers</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:positionName>
+			<!-- 5.16.4  O -->
+			<gmd:contactInfo>
+				<!-- 5.17 -->
+				<gmd:CI_Contact>
+					<!-- 5.17.1 O -->
+					<gmd:phone>
+						<!-- 5.18 -->
+						<gmd:CI_Telephone>
+							<!-- 5.18.1 O, rep -->
+							<!-- {$GS$CITS_TEL} -->
+							<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>voice; 1 (819) 5645600</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">voix; 1 (819)
+											5645600</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:voice>
+							<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>voice; 1 (800) 6612638</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">voix; 1 (800)
+											6612638</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:voice>
+							<!-- 5.18.2 O, rep -->
+							<gmd:facsimile>
+								<gco:CharacterString>1 (819) 5645698</gco:CharacterString>
+							</gmd:facsimile>
+						</gmd:CI_Telephone>
+					</gmd:phone>
+					<!-- 5.17.2 O -->
+					<gmd:address>
+						<!-- 5.19 -->
+						<gmd:CI_Address>
+							<!-- 5.19.1 O -->
+							<gmd:deliveryPoint xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>physical; 2144; King Street West; ;
+									010</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">physique; 2144;
+											rue King Ouest; ; 010</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:deliveryPoint>
+							<!-- 5.19.2 O -->
+							<gmd:city>
+								<gco:CharacterString>Sherbrooke</gco:CharacterString>
+							</gmd:city>
+							<!-- 5.19.3 O -->
+							<gmd:administrativeArea>
+								<gco:CharacterString>Québec</gco:CharacterString>
+							</gmd:administrativeArea>
+							<!-- 5.19.4 O -->
+							<gmd:postalCode>
+								<gco:CharacterString>J1J 2E8</gco:CharacterString>
+							</gmd:postalCode>
+							<!-- 5.19.5 O -->
+							<gmd:country>
+								<gco:CharacterString>CANADA</gco:CharacterString>
+							</gmd:country>
+							<!-- 5.19.6 O, rep -->
+							<gmd:electronicMailAddress xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR"
+											>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:electronicMailAddress>
+						</gmd:CI_Address>
+					</gmd:address>
+					<!-- 5.17.3 O -->
+					<gmd:onlineResource>
+						<!-- 5.20 -->
+						<gmd:CI_OnlineResource>
+							<!-- 5.20.1 M -->
+							<gmd:linkage>
+								<!-- B.26 -->
+								<gmd:URL>www.geogratis.gc.ca</gmd:URL>
+							</gmd:linkage>
+							<!-- 5.20.2 M -->
+							<gmd:protocol>
+								<gco:CharacterString>HTTP</gco:CharacterString>
+							</gmd:protocol>
+							<!-- 5.20.6 O -->
+							<gmd:function>
+								<gmd:CI_OnLineFunctionCode
+									codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_88"
+									codeListValue="RI_376">information;
+									information</gmd:CI_OnLineFunctionCode>
+							</gmd:function>
+						</gmd:CI_OnlineResource>
+					</gmd:onlineResource>
+					<!-- 5.17.4 O -->
+					<gmd:hoursOfService>
+						<gco:CharacterString>8:30/12:00; 13:00/16:30</gco:CharacterString>
+					</gmd:hoursOfService>
+				</gmd:CI_Contact>
+			</gmd:contactInfo>
+			<!-- 5.16.5  M -->
+			<gmd:role>
+				<gmd:CI_RoleCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+					codeListValue="RI_414">pointOfContact; contact</gmd:CI_RoleCode>
+			</gmd:role>
+		</gmd:CI_ResponsibleParty>
+	</gmd:contact>
+	<!-- ====================================================================== -->
+	<!-- 5.2.7 M -->
+	<!-- Date de création ou, lorsque modifiées, de la dernière mise à jour des métadonnées. -->
+	<gmd:dateStamp>
+		<!-- B.4 -->
+		<gco:Date>2012-11-06</gco:Date>
+	</gmd:dateStamp>
+	<!-- ====================================================================== -->
+	<!-- 5.2.8 M -->
+	<gmd:metadataStandardName xsi:type="gmd:PT_FreeText_PropertyType">
+		<gco:CharacterString>North American Profile of ISO 19115:2003 – Geographic information –
+			Metadata</gco:CharacterString>
+		<gmd:PT_FreeText>
+			<gmd:textGroup>
+				<gmd:LocalisedCharacterString locale="#FR">Profil nord américain de l'ISO 19115:2003
+					– Information géographique – Métadonnées</gmd:LocalisedCharacterString>
+			</gmd:textGroup>
+		</gmd:PT_FreeText>
+	</gmd:metadataStandardName>
+	<!-- ====================================================================== -->
+	<!-- 5.2.9 O -->
+	<gmd:metadataStandardVersion>
+		<gco:CharacterString>CAN/CGSB-171.100-2009</gco:CharacterString>
+	</gmd:metadataStandardVersion>
+	<!-- ====================================================================== -->
+	<!-- 5.2.11 O, rep-->
+	<gmd:locale>
+		<!-- 6.2 -->
+		<gmd:PT_Locale id="FR">
+			<gmd:languageCode>
+				<gmd:LanguageCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_116"
+					codeListValue="fra">French; Français</gmd:LanguageCode>
+			</gmd:languageCode>
+			<gmd:country>
+				<gmd:Country
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_117"
+					codeListValue="CAN">Canada; Canada</gmd:Country>
+			</gmd:country>
+			<gmd:characterEncoding>
+				<gmd:MD_CharacterSetCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_95"
+					codeListValue="RI_458">utf8; utf8</gmd:MD_CharacterSetCode>
+			</gmd:characterEncoding>
+		</gmd:PT_Locale>
+	</gmd:locale>
+	<!-- 5.2.17 C, rep -->
+	<!-- ====================================================================== -->
+	<!--                gmd:referenceSystemInfo   Horizontal                    -->
+	<!-- ====================================================================== -->
+	<!--               NAD83(CSRS) / GeodeticCRS (geographic 3D)                -->
+	<!-- ====================================================================== -->
+	<gmd:referenceSystemInfo>
+		<!-- 5.8 -->
+		<gmd:MD_ReferenceSystem>
+			<!-- 5.8.1 M -->
+			<gmd:referenceSystemIdentifier>
+				<!-- 5.8.2 -->
+				<gmd:RS_Identifier>
+					<!-- 5.8.2.1 O -->
+					<gmd:authority>
+						<!-- 5.14 -->
+						<gmd:CI_Citation>
+							<!-- 5.14.1 M -->
+							<gmd:title>
+								<gco:CharacterString>EPSG Geodetic Parameter
+									Registry</gco:CharacterString>
+							</gmd:title>
+							<!-- 5.14.3 M -->
+							<gmd:date>
+								<!-- 5.15 -->
+								<gmd:CI_Date>
+									<!-- 5.15.1 M -->
+									<gmd:date>
+										<!-- B.4 -->
+										<gco:Date>2010-11-02</gco:Date>
+									</gmd:date>
+									<!-- 5.15.2 M -->
+									<gmd:dateType>
+										<gmd:CI_DateTypeCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_87"
+											codeListValue="RI_366">revision;
+											révision</gmd:CI_DateTypeCode>
+									</gmd:dateType>
+								</gmd:CI_Date>
+							</gmd:date>
+							<!-- 5.14.7 M, rep -->
+							<gmd:citedResponsibleParty>
+								<!-- 5.16 -->
+								<gmd:CI_ResponsibleParty>
+									<!-- 5.16.2  M -->
+									<gmd:organisationName>
+										<gco:CharacterString>OGP Geomatics
+											Committee</gco:CharacterString>
+									</gmd:organisationName>
+									<!-- 5.16.5  M -->
+									<gmd:role>
+										<gmd:CI_RoleCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+											codeListValue="RI_409">custodian;
+											conservateur</gmd:CI_RoleCode>
+									</gmd:role>
+								</gmd:CI_ResponsibleParty>
+							</gmd:citedResponsibleParty>
+						</gmd:CI_Citation>
+					</gmd:authority>
+					<!-- 5.8.2.2 M -->
+					<gmd:code>
+						<gco:CharacterString>EPSG::4617</gco:CharacterString>
+					</gmd:code>
+					<!-- 5.8.2.3 O -->
+					<gmd:codeSpace>
+						<gco:CharacterString>http://www.epsg-registry.org/</gco:CharacterString>
+					</gmd:codeSpace>
+					<!-- 5.8.2.4 O -->
+					<gmd:version>
+						<gco:CharacterString>7.6</gco:CharacterString>
+					</gmd:version>
+				</gmd:RS_Identifier>
+			</gmd:referenceSystemIdentifier>
+		</gmd:MD_ReferenceSystem>
+	</gmd:referenceSystemInfo>
+	<!-- 5.2.17 C, rep -->
+	<!-- ====================================================================== -->
+	<!--                 gmd:referenceSystemInfo   Vertical                     -->
+	<!-- ====================================================================== -->
+	<!--                             CGVD28 height                              -->
+	<!-- ====================================================================== -->
+	<gmd:referenceSystemInfo>
+		<!-- 5.8 -->
+		<gmd:MD_ReferenceSystem>
+			<!-- 5.8.1 M -->
+			<gmd:referenceSystemIdentifier>
+				<!-- 5.8.2 -->
+				<gmd:RS_Identifier>
+					<!-- 5.8.2.1 O -->
+					<gmd:authority>
+						<!-- 5.14 -->
+						<gmd:CI_Citation>
+							<!-- 5.14.1 M -->
+							<gmd:title>
+								<gco:CharacterString>EPSG Geodetic Parameter
+									Registry</gco:CharacterString>
+							</gmd:title>
+							<!-- 5.14.3 M -->
+							<gmd:date>
+								<!-- 5.15 -->
+								<gmd:CI_Date>
+									<!-- 5.15.1 M -->
+									<gmd:date>
+										<!-- B.4 -->
+										<gco:Date>2010-11-02</gco:Date>
+									</gmd:date>
+									<!-- 5.15.2 M -->
+									<gmd:dateType>
+										<gmd:CI_DateTypeCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_87"
+											codeListValue="RI_366">revision;
+											révision</gmd:CI_DateTypeCode>
+									</gmd:dateType>
+								</gmd:CI_Date>
+							</gmd:date>
+							<!-- 5.14.7 M, rep -->
+							<gmd:citedResponsibleParty>
+								<!-- 5.16 -->
+								<gmd:CI_ResponsibleParty>
+									<!-- 5.16.2  M -->
+									<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>OGP Geomatics
+											Committee</gco:CharacterString>
+									</gmd:organisationName>
+									<!-- 5.16.5  M -->
+									<gmd:role>
+										<gmd:CI_RoleCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+											codeListValue="RI_409">custodian;
+											conservateur</gmd:CI_RoleCode>
+									</gmd:role>
+								</gmd:CI_ResponsibleParty>
+							</gmd:citedResponsibleParty>
+						</gmd:CI_Citation>
+					</gmd:authority>
+					<!-- 5.8.2.2 M -->
+					<gmd:code>
+						<gco:CharacterString>EPSG::5713</gco:CharacterString>
+					</gmd:code>
+					<!-- 5.8.2.3 O -->
+					<gmd:codeSpace>
+						<gco:CharacterString>http://www.epsg-registry.org/</gco:CharacterString>
+					</gmd:codeSpace>
+					<!-- 5.8.2.4 O -->
+					<gmd:version>
+						<gco:CharacterString>7.6</gco:CharacterString>
+					</gmd:version>
+				</gmd:RS_Identifier>
+			</gmd:referenceSystemIdentifier>
+		</gmd:MD_ReferenceSystem>
+	</gmd:referenceSystemInfo>
+	<!-- ====================================================================== -->
+	<!-- 5.2.12 M, rep -->
+	<gmd:identificationInfo>
+		<!-- 5.3.1 O, rep -->
+		<gmd:MD_DataIdentification>
+			<!-- 5.3.1.1 M -->
+			<gmd:citation>
+				<!-- 5.14 -->
+				<gmd:CI_Citation>
+					<!-- 5.14.1 M -->
+					<gmd:title xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Canadian Digital Elevation Model
+							Mosaic</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Mosaïque du modèle
+									numérique d'élévation du Canada
+									(MNÉC)</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:title>
+					<!-- 5.14.2 O, rep -->
+					<gmd:alternateTitle xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>CDEM Mosaic</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Mosaïque de
+									MNÉC</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:alternateTitle>
+					<!-- 5.14.3 M, rep -->
+					<gmd:date>
+						<!-- 5.15 -->
+						<!-- Création ou révision de MNÉC -->
+						<gmd:CI_Date>
+							<!-- 5.15.1 M -->
+							<gmd:date>
+								<!-- B.4 -->
+								<gco:Date>2012-11</gco:Date>
+							</gmd:date>
+							<!-- 5.15.2 M -->
+							<gmd:dateType>
+								<gmd:CI_DateTypeCode
+									codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_87"
+									codeListValue="RI_366">creation; creation</gmd:CI_DateTypeCode>
+							</gmd:dateType>
+						</gmd:CI_Date>
+					</gmd:date>
+					<!-- 5.14.4 O -->
+					<gmd:edition>
+						<gco:CharacterString>3.0</gco:CharacterString>
+					</gmd:edition>
+					<!-- ====================================================================== -->
+					<!--                             PUBLISHER                                  -->
+					<!-- ====================================================================== -->
+					<!-- 5.14.7 M, rep -->
+					<gmd:citedResponsibleParty>
+						<!-- 5.16 -->
+						<gmd:CI_ResponsibleParty>
+							<!-- 5.16.2 C -->
+							<!-- {$GS$CITS_ORG} -->
+							<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>Government of Canada, Natural Resources Canada,
+									Earth Sciences Sector, Mapping Information Branch, Centre for
+									Topographic Information - Sherbrooke</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Gouvernement du
+											Canada, Ressources naturelles Canada, Secteur des
+											sciences de la Terre, Direction de l'information
+											cartographique, Centre d'information topographique -
+											Sherbrooke</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:organisationName>
+							<gmd:contactInfo>
+								<gmd:CI_Contact>
+									<!-- 5.17.2 O -->
+									<gmd:address>
+										<gmd:CI_Address>
+											<!-- 5.19.2 O -->
+											<gmd:city>
+												<gco:CharacterString>Sherbrooke</gco:CharacterString>
+											</gmd:city>
+											<!-- 5.19.3 O -->
+											<gmd:administrativeArea>
+												<gco:CharacterString>Québec</gco:CharacterString>
+											</gmd:administrativeArea>
+											<!-- 5.19.5 O -->
+											<gmd:country>
+												<gco:CharacterString>CANADA</gco:CharacterString>
+											</gmd:country>
+											<!-- 5.19.6 O, rep -->
+											<gmd:electronicMailAddress
+												xsi:type="gmd:PT_FreeText_PropertyType">
+												<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+												<gmd:PT_FreeText>
+												<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR"
+												>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+												</gmd:textGroup>
+												</gmd:PT_FreeText>
+											</gmd:electronicMailAddress>
+										</gmd:CI_Address>
+									</gmd:address>
+								</gmd:CI_Contact>
+							</gmd:contactInfo>
+							<!-- 5.16.5  M -->
+							<gmd:role>
+								<gmd:CI_RoleCode
+									codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+									codeListValue="RI_417">publisher; éditeur</gmd:CI_RoleCode>
+							</gmd:role>
+						</gmd:CI_ResponsibleParty>
+					</gmd:citedResponsibleParty>
+					<!-- ====================================================================== -->
+					<!--                               ORIGINATOR                               -->
+					<!-- ====================================================================== -->
+					<!-- 5.14.7 M, rep -->
+					<gmd:citedResponsibleParty>
+						<!-- 5.16 -->
+						<gmd:CI_ResponsibleParty>
+							<!-- 5.16.2 C -->
+							<!-- {$GS$CITS_ORG} -->
+							<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>Government of Canada, Natural Resources Canada,
+									Earth Sciences Sector, Mapping Information Branch, Centre for
+									Topographic Information - Sherbrooke</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Gouvernement du
+											Canada, Ressources naturelles Canada, Secteur des
+											sciences de la Terre, Direction de l'information
+											cartographique, Centre d'information topographique -
+											Sherbrooke</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:organisationName>
+							<gmd:contactInfo>
+								<gmd:CI_Contact>
+									<!-- 5.17.2 O -->
+									<gmd:address>
+										<gmd:CI_Address>
+											<!-- 5.19.6 O, rep -->
+											<gmd:electronicMailAddress
+												xsi:type="gmd:PT_FreeText_PropertyType">
+												<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+												<gmd:PT_FreeText>
+												<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR"
+												>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+												</gmd:textGroup>
+												</gmd:PT_FreeText>
+											</gmd:electronicMailAddress>
+										</gmd:CI_Address>
+									</gmd:address>
+								</gmd:CI_Contact>
+							</gmd:contactInfo>
+							<!-- 5.16.5  M -->
+							<gmd:role>
+								<gmd:CI_RoleCode
+									codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+									codeListValue="RI_413">originator; auteur</gmd:CI_RoleCode>
+							</gmd:role>
+						</gmd:CI_ResponsibleParty>
+					</gmd:citedResponsibleParty>
+					<!-- 5.14.8 O, rep -->
+					<gmd:presentationForm>
+						<gmd:CI_PresentationFormCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_89"
+							codeListValue="RI_393">modelDigital;
+							modèleNumérique</gmd:CI_PresentationFormCode>
+					</gmd:presentationForm>
+				</gmd:CI_Citation>
+				<!-- 5.14 -->
+			</gmd:citation>
+			<!-- 5.3.1.2 M -->
+			<gmd:abstract xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>The Canadian Digital Elevation Model (CDEM) is part of Natural
+					Resources Canada's altimetry system designed to better meet the users' needs for
+					elevation data and products. The CDEM stems from the existing Canadian Digital
+					Elevation Data (CDED). In these data, elevations can be either ground or
+					reflective surface elevations. A CDEM mosaic can be obtained for a pre-defined
+					or user-defined extent. The coverage and resolution of a mosaic varies according
+					to latitude and to the extent of the requested area. Derived products such as
+					slope, shaded relief and colour shaded relief maps can also be generated on
+					demand.</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Le Modèle numérique d'élévation
+							du Canada (MNEC) fait partie du système d'altimétrie conçu par
+							Ressources naturelles Canada afin de mieux répondre aux besoins des
+							utilisateurs de données et de produits d'élévation. Le MNEC est issu des
+							Données numériques d'élévation du Canada (DNEC) existantes. Ces données
+							peuvent refléter les élévations du sol ou de toute autre surface
+							réflective. Une mosaïque du MNEC peut être obtenue pour une région
+							prédéfinie ou définie par l'utilisateur. La couverture et la résolution
+							des mosaïques varient selon la latitude et selon l'étendue de la région
+							demandée. Des produits dérivés tels que des cartes de pente, de relief
+							ombragé et de relief ombragé en couleurs peuvent aussi être générés sur
+							demande.</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:abstract>
+			<!-- 5.3.1.3 O -->
+			<gmd:purpose xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>The CDEM plays the same role as contours and relief shading on
+					conventional paper maps. The CDEM serves as key primary data in a range of
+					applications critical to achieving sustainable development. These applications
+					include environmental and ecological impact assessments, water flow and water
+					quality analysis, climate change studies, forest regeneration planning and
+					wildlife habitats. In addition, the CDEM can be used in the generation of
+					three-dimensional graphics displaying terrain slope, profiles and lines of
+					sight. Non-graphic applications include geoid calculations, terrain modelling,
+					flood simulations and telecommunication studies.</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Le MNEC joue le même rôle que les
+							courbes de niveau et la représentation du relief par estompage sur les
+							cartes papier traditionnelles. Le MNEC sert de données primaires clés
+							dans toute une gamme d'applications critiques pour le développement
+							durable. Ces applications englobent notamment les évaluations des
+							incidences environnementales et écologiques, les analyses de
+							l'écoulement et de la qualité de l'eau, les études sur le changement
+							climatique, la planification de la régénération des forêts et l'étude
+							des habitats fauniques. Le MNEC peut servir en outre à la génération de
+							représentations graphiques tridimensionnelles montrant la pente du
+							terrain, les profils et les lignes de visée. Parmi les applications non
+							graphiques qu'il permet, mentionnons les calculs du géoïde, la
+							modélisation du terrain, les simulations de crues et les études dans le
+							domaine des télécommunications.</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:purpose>
+			<!-- 5.3.1.5 M -->
+			<gmd:status>
+				<gmd:MD_ProgressCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_106"
+					codeListValue="RI_596">onGoing; enContinue</gmd:MD_ProgressCode>
+			</gmd:status>
+			<!-- 5.3.1.6 -->
+			<gmd:pointOfContact>
+				<!-- 5.16 -->
+				<gmd:CI_ResponsibleParty>
+					<!-- 5.16.2 C -->
+					<!-- {$GS$CITS_ORG} -->
+					<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Government of Canada, Natural Resources Canada, Earth
+							Sciences Sector, Mapping Information Branch, Centre for Topographic
+							Information - Sherbrooke</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Gouvernement du Canada,
+									Ressources naturelles Canada, Secteur des sciences de la Terre,
+									Direction de l'information cartographique, Centre d'information
+									topographique - Sherbrooke</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:organisationName>
+					<!-- 5.16.3 C -->
+					<!-- {$GS$CITS_PERS} -->
+					<gmd:positionName xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Customer Support Group</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Équipe de soutien aux
+									usagers</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:positionName>
+					<!-- 5.16.4  O -->
+					<gmd:contactInfo>
+						<!-- 5.17 -->
+						<gmd:CI_Contact>
+							<!-- 5.17.1 O -->
+							<gmd:phone>
+								<!-- 5.18 -->
+								<gmd:CI_Telephone>
+									<!-- 5.18.1 O, rep -->
+									<!-- {$GS$CITS_TEL} -->
+									<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>voice; 1 (819)
+											5645600</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">voix; 1
+												(819) 5645600</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:voice>
+									<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>voice; 1 (800)
+											6612638</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">voix; 1
+												(800) 6612638</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:voice>
+									<!-- 5.18.2 O, rep -->
+									<gmd:facsimile>
+										<gco:CharacterString>1 (819) 5645698</gco:CharacterString>
+									</gmd:facsimile>
+								</gmd:CI_Telephone>
+							</gmd:phone>
+							<!-- 5.17.2 O -->
+							<gmd:address>
+								<!-- 5.19 -->
+								<gmd:CI_Address>
+									<!-- 5.19.1 O -->
+									<gmd:deliveryPoint xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>physical; 2144; King Street West; ;
+											010</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">physique;
+												2144; rue King Ouest; ;
+												010</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:deliveryPoint>
+									<!-- 5.19.2 O -->
+									<gmd:city>
+										<gco:CharacterString>Sherbrooke</gco:CharacterString>
+									</gmd:city>
+									<!-- 5.19.3 O -->
+									<gmd:administrativeArea>
+										<gco:CharacterString>Québec</gco:CharacterString>
+									</gmd:administrativeArea>
+									<!-- 5.19.4 O -->
+									<gmd:postalCode>
+										<gco:CharacterString>J1J 2E8</gco:CharacterString>
+									</gmd:postalCode>
+									<!-- 5.19.5 O -->
+									<gmd:country>
+										<gco:CharacterString>CANADA</gco:CharacterString>
+									</gmd:country>
+									<!-- 5.19.6 O, rep -->
+									<gmd:electronicMailAddress
+										xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR"
+												>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:electronicMailAddress>
+								</gmd:CI_Address>
+							</gmd:address>
+							<!-- 5.17.3 O -->
+							<gmd:onlineResource>
+								<!-- 5.20 -->
+								<gmd:CI_OnlineResource>
+									<!-- 5.20.1 M -->
+									<gmd:linkage>
+										<!-- B.26 -->
+										<gmd:URL>www.geogratis.gc.ca</gmd:URL>
+									</gmd:linkage>
+									<!-- 5.20.2 M -->
+									<gmd:protocol>
+										<gco:CharacterString>HTTP</gco:CharacterString>
+									</gmd:protocol>
+									<!-- 5.20.6 O -->
+									<gmd:function>
+										<gmd:CI_OnLineFunctionCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_88"
+											codeListValue="RI_376">information;
+											information</gmd:CI_OnLineFunctionCode>
+									</gmd:function>
+								</gmd:CI_OnlineResource>
+							</gmd:onlineResource>
+							<!-- 5.17.4 O -->
+							<gmd:hoursOfService>
+								<gco:CharacterString>8:30/12:00; 13:00/16:30</gco:CharacterString>
+							</gmd:hoursOfService>
+						</gmd:CI_Contact>
+					</gmd:contactInfo>
+					<!-- 5.16.5  M -->
+					<gmd:role>
+						<gmd:CI_RoleCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+							codeListValue="RI_414">pointOfContact; contact</gmd:CI_RoleCode>
+					</gmd:role>
+				</gmd:CI_ResponsibleParty>
+			</gmd:pointOfContact>
+			<!-- 5.3.15 O,rep -->
+			<gmd:resourceMaintenance>
+				<!-- 5.6 -->
+				<gmd:MD_MaintenanceInformation>
+					<!-- 5.6.1 M -->
+					<gmd:maintenanceAndUpdateFrequency>
+						<gmd:MD_MaintenanceFrequencyCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_102"
+							codeListValue="RI_540">asNeeded;
+							auBesoin</gmd:MD_MaintenanceFrequencyCode>
+					</gmd:maintenanceAndUpdateFrequency>
+					<gmd:updateScope>
+						<gmd:MD_ScopeCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_108"
+							codeListValue="RI_623">series; série</gmd:MD_ScopeCode>
+					</gmd:updateScope>
+				</gmd:MD_MaintenanceInformation>
+			</gmd:resourceMaintenance>
+			<!-- ====================================================================== -->
+			<!-- Ce bloc de Keywords doit toujours être placé en premier. L'application -->
+			<!-- XmlPna utilise ce fichier comme template à la génération des           -->
+			<!-- métadonnées des jeux de données.                                       -->
+			<!--                    product (pour faciliter la recherche)               -->
+			<!-- ====================================================================== -->
+			<gmd:descriptiveKeywords>
+				<gmd:MD_Keywords>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>CDEM; CANADA</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">MNÉC;
+									CANADA</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:type>
+						<gmd:MD_KeywordTypeCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_101"
+							codeListValue="RI_529">product; produit</gmd:MD_KeywordTypeCode>
+					</gmd:type>
+				</gmd:MD_Keywords>
+			</gmd:descriptiveKeywords>
+			<!-- ====================================================================== -->
+			<!-- ====================================================================== -->
+			<!--                           discipline                                   -->
+			<!-- ====================================================================== -->
+			<gmd:descriptiveKeywords>
+				<gmd:MD_Keywords>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Earth Science</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Sciences de la
+									Terre</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:type>
+						<gmd:MD_KeywordTypeCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_101"
+							codeListValue="RI_524">discipline; discipline</gmd:MD_KeywordTypeCode>
+					</gmd:type>
+				</gmd:MD_Keywords>
+			</gmd:descriptiveKeywords>
+			<!-- ====================================================================== -->
+			<!-- ====================================================================== -->
+			<!--                      Dictionnaire pour les thèmes                      -->
+			<!-- ====================================================================== -->
+			<!-- ====================================================================== -->
+			<!--                   Dictionnaire GCMD pour les thèmes                    -->
+			<!-- ====================================================================== -->
+			<gmd:descriptiveKeywords>
+				<gmd:MD_Keywords>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Science Keywords > Land Surface > Topography >
+							Contours</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Mots-clés scientifiques >
+									surface terrestre > topographie >
+									courbes</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Science Keywords > Land Surface > Topography > Terrain
+							Elevation</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Mots-clés scientifiques >
+									surface terrestre > topographie > altitude du
+									relief</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Science Keywords > Land Surface > Topography >
+							Topographical Relief</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Mots-clés scientifiques >
+									surface terrestre > topographie > relief
+									topographique</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:type>
+						<gmd:MD_KeywordTypeCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_101"
+							codeListValue="RI_528">theme; thème</gmd:MD_KeywordTypeCode>
+					</gmd:type>
+					<gmd:thesaurusName>
+						<gmd:CI_Citation>
+							<gmd:title xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>The Global Change Master Directory
+									(GCMD)</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Traduction
+											française de mots-clés du Global Change Master
+											Directory</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:title>
+							<gmd:alternateTitle>
+								<gco:CharacterString>GCMD</gco:CharacterString>
+							</gmd:alternateTitle>
+							<gmd:date>
+								<gmd:CI_Date>
+									<gmd:date>
+										<gco:Date>2009-05</gco:Date>
+									</gmd:date>
+									<gmd:dateType>
+										<gmd:CI_DateTypeCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_87"
+											codeListValue="RI_367">publication;
+											publication</gmd:CI_DateTypeCode>
+									</gmd:dateType>
+								</gmd:CI_Date>
+							</gmd:date>
+							<gmd:edition>
+								<gco:CharacterString>9.8.1</gco:CharacterString>
+							</gmd:edition>
+							<!-- 5.14.7 M, rep -->
+							<gmd:citedResponsibleParty>
+								<!-- 5.16 -->
+								<gmd:CI_ResponsibleParty>
+									<gmd:organisationName>
+										<gco:CharacterString>NASA/Goddard Space Flight
+											Center</gco:CharacterString>
+									</gmd:organisationName>
+									<!-- 5.16.5  M -->
+									<gmd:role>
+										<gmd:CI_RoleCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+											codeListValue="RI_409">custodian;
+											conservateur</gmd:CI_RoleCode>
+									</gmd:role>
+								</gmd:CI_ResponsibleParty>
+							</gmd:citedResponsibleParty>
+						</gmd:CI_Citation>
+					</gmd:thesaurusName>
+				</gmd:MD_Keywords>
+			</gmd:descriptiveKeywords>
+			<!-- ====================================================================== -->
+			<!-- ====================================================================== -->
+			<!--                   Dictionnaire GCMD pour les places                    -->
+			<!-- ====================================================================== -->
+			<gmd:descriptiveKeywords>
+				<gmd:MD_Keywords>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA >
+							CANADA</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							ALBERTA</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									ALBERTA</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							BRITISH COLUMBIA</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									COLOMBIE-BRITANIQUE</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							MANITOBA</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									MANITOBA</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA > NEW
+							BRUNSWICK</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									NOUVEAU-BRUNSWICK</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							NEWFOUNDLAND AND LABRADOR</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									TERRE-NEUVE-ET-LABRADOR</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							NORTHWEST TERRITORIES</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA > TERRITOIRES DU
+									NORD-OUEST</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA > NOVA
+							SCOTIA</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									NOUVELLE_ÉCOSSE</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							NUNAVUT</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									NUNAVUT</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							ONTARIO</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									ONTARIO</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA > PRINCE
+							EDWARD ISLAND</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									ÎLE-DU-PRINCE-ÉDOUARD</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							QUEBEC</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									QUÉBEC</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA >
+							SASKATCHEWAN</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									SASKATCHEWAN</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:keyword xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Locations > CONTINENT > NORTH AMERICA > CANADA > YUKON
+							TERRITORY</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Localisations > CONTINENT
+									> AMÉRIQUE DU NORD > CANADA >
+									YUKON</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:keyword>
+					<gmd:type>
+						<gmd:MD_KeywordTypeCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_101"
+							codeListValue="RI_525">place; endroit</gmd:MD_KeywordTypeCode>
+					</gmd:type>
+					<gmd:thesaurusName>
+						<gmd:CI_Citation>
+							<gmd:title xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>The Global Change Master Directory
+									(GCMD)</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Traduction
+											française de mots-clés du Global Change Master
+											Directory</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:title>
+							<gmd:alternateTitle>
+								<gco:CharacterString>GCMD</gco:CharacterString>
+							</gmd:alternateTitle>
+							<gmd:date>
+								<gmd:CI_Date>
+									<gmd:date>
+										<gco:Date>2009-05</gco:Date>
+									</gmd:date>
+									<gmd:dateType>
+										<gmd:CI_DateTypeCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_87"
+											codeListValue="RI_367">publication;
+											publication</gmd:CI_DateTypeCode>
+									</gmd:dateType>
+								</gmd:CI_Date>
+							</gmd:date>
+							<gmd:edition>
+								<gco:CharacterString>9.8.1</gco:CharacterString>
+							</gmd:edition>
+							<!-- 5.14.7 M, rep -->
+							<gmd:citedResponsibleParty>
+								<!-- 5.16 -->
+								<gmd:CI_ResponsibleParty>
+									<gmd:organisationName>
+										<gco:CharacterString>NASA/Goddard Space Flight
+											Center</gco:CharacterString>
+									</gmd:organisationName>
+									<!-- 5.16.5  M -->
+									<gmd:role>
+										<gmd:CI_RoleCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+											codeListValue="RI_409">custodian;
+											conservateur</gmd:CI_RoleCode>
+									</gmd:role>
+								</gmd:CI_ResponsibleParty>
+							</gmd:citedResponsibleParty>
+						</gmd:CI_Citation>
+					</gmd:thesaurusName>
+				</gmd:MD_Keywords>
+			</gmd:descriptiveKeywords>
+			<!-- ====================================================================== -->
+			<gmd:resourceConstraints>
+				<gmd:MD_LegalConstraints>
+					<!--  5.4.2.3 -->
+					<gmd:useConstraints>
+						<gmd:MD_RestrictionCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_107"
+							codeListValue="RI_602">copyright; droitAuteur</gmd:MD_RestrictionCode>
+					</gmd:useConstraints>
+					<gmd:otherConstraints xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>GEOGRATIS LICENCE AGREEMENT FOR UNRESTRICTED USE OF
+							DIGITAL DATA
+							(http://geogratis.cgdi.gc.ca/geogratis/en/licence.jsp)</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">ACCORD DE LICENCE
+									D'UTILISATION SANS RESTRICTION DE DONNÉES NUMÉRIQUES DE
+									GÉOGRATIS (http://geogratis.cgdi.gc.ca/geogratis/fr/licence.jsp)
+								</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:otherConstraints>
+				</gmd:MD_LegalConstraints>
+			</gmd:resourceConstraints>
+			<!-- ====================================================================== -->
+			<gmd:resourceConstraints>
+				<gmd:MD_LegalConstraints>
+					<gmd:useConstraints>
+						<gmd:MD_RestrictionCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_107"
+							codeListValue="RI_606">license; licence</gmd:MD_RestrictionCode>
+					</gmd:useConstraints>
+					<gmd:otherConstraints xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>GEOGRATIS LICENCE AGREEMENT FOR UNRESTRICTED USE OF
+							DIGITAL DATA
+							(http://geogratis.cgdi.gc.ca/geogratis/en/licence.jsp)</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">ACCORD DE LICENCE
+									D'UTILISATION SANS RESTRICTION DE DONNÉES NUMÉRIQUES DE
+									GÉOGRATIS (http://geogratis.cgdi.gc.ca/geogratis/fr/licence.jsp)
+								</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:otherConstraints>
+				</gmd:MD_LegalConstraints>
+			</gmd:resourceConstraints>
+			<!-- ====================================================================== -->
+			<!-- ====================================================================== -->
+			<gmd:spatialRepresentationType>
+				<!-- 5.3.1.7 -->
+				<gmd:MD_SpatialRepresentationTypeCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_109"
+					codeListValue="RI_636">grid; grille</gmd:MD_SpatialRepresentationTypeCode>
+			</gmd:spatialRepresentationType>
+			<!-- ====================================================================== -->
+			<!-- 5.3.1.9 -->
+			<gmd:language>
+				<gco:CharacterString>eng; CAN</gco:CharacterString>
+			</gmd:language>
+			<gmd:language>
+				<gco:CharacterString>fra; CAN</gco:CharacterString>
+			</gmd:language>
+			<!-- ====================================================================== -->
+			<gmd:characterSet>
+				<!--  5.3.1.10 -->
+				<gmd:MD_CharacterSetCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_95"
+					codeListValue="RI_458">utf8; utf8</gmd:MD_CharacterSetCode>
+			</gmd:characterSet>
+			<gmd:topicCategory>
+				<!--  5.3.1.11 -->
+				<gmd:MD_TopicCategoryCode>elevation</gmd:MD_TopicCategoryCode>
+			</gmd:topicCategory>
+			<gmd:extent>
+				<!--  5.3.1.13 -->
+				<gmd:EX_Extent>
+					<gmd:description>
+						<!-- 5.13.1 -->
+						<gco:CharacterString>Canada</gco:CharacterString>
+					</gmd:description>
+					<gmd:geographicElement>
+						<!-- Vérifier conformité du non avec le document de la norme "5.13.2, 5.13.3 Geographic Bounding Box, 5.13.4" -->
+						<gmd:EX_GeographicBoundingBox>
+							<gmd:extentTypeCode>
+								<gco:Boolean>1</gco:Boolean>
+							</gmd:extentTypeCode>
+							<gmd:westBoundLongitude>
+								<gco:Decimal>-142.00</gco:Decimal>
+							</gmd:westBoundLongitude>
+							<gmd:eastBoundLongitude>
+								<gco:Decimal>-52.00</gco:Decimal>
+							</gmd:eastBoundLongitude>
+							<gmd:southBoundLatitude>
+								<gco:Decimal>41.00</gco:Decimal>
+							</gmd:southBoundLatitude>
+							<gmd:northBoundLatitude>
+								<gco:Decimal>84.00</gco:Decimal>
+							</gmd:northBoundLatitude>
+						</gmd:EX_GeographicBoundingBox>
+					</gmd:geographicElement>
+					<!-- ====================================================================== -->
+					<!-- 5.13.5 -->
+					<gmd:temporalElement>
+						<gmd:EX_TemporalExtent>
+							<gmd:extent>
+								<gml:TimePeriod gml:id="tp1">
+									<gml:begin>
+										<gml:TimeInstant gml:id="ti1">
+											<gml:timePosition>1945</gml:timePosition>
+										</gml:TimeInstant>
+									</gml:begin>
+									<!-- Pas de end?  collection en continue-->
+									<gml:end/>
+								</gml:TimePeriod>
+							</gmd:extent>
+						</gmd:EX_TemporalExtent>
+					</gmd:temporalElement>
+					<!-- ====================================================================== -->
+				</gmd:EX_Extent>
+			</gmd:extent>
+			<!--  5.3.1.14 -->
+			<gmd:supplementalInformation xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>This product is subject to Discrepancies processing provided by
+					the Centre for Topographic Information from Natural Resources Canada. A
+					discrepancy is defined as any deviation from the product's Standards and
+					Specifications. Search for discrepancies related to CDEM data :
+					http://geogratis.cgdi.gc.ca/geogratis/en/discanom.do?produit=MNÉC. </gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">Ce produit est soumis au
+							traitement des anomalies offert par le Centre d'information
+							topographique de Ressources naturelles Canada. Le terme anomalie désigne
+							toute observation qui rend un jeu de données non conforme aux normes et
+							spécifications du produit. Recherche des anomalies relatives aux données
+							du MNÉC :
+							http://geogratis.cgdi.gc.ca/geogratis/fr/discanom.do?produit=MNÉC.
+						</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:supplementalInformation>
+		</gmd:MD_DataIdentification>
+	</gmd:identificationInfo>
+	<!-- ====================================================================== -->
+	<!--                        MNÉC 1.0                                        -->
+	<!-- ====================================================================== -->
+	<gmd:contentInfo
+		xlink:title="Canadian Digital Elevation Model, Product Specifications, Edition 1.0, 2012-12-01"
+		xlink:href="http://xxxxx/Product_specs_CDEM_1_0.pdf"/>
+	<gmd:contentInfo
+		xlink:title="Spécification de produit, Modèle numérique d'élévation du Canada, Édition 1.0, 2012-12-01"
+		xlink:href="http://xxxxx/Specs_produit_MNÉC_1_0.pdf"/>
+	<!-- ====================================================================== -->
+	<!--                        gmd:distributionInfo                            -->
+	<!-- ====================================================================== -->
+	<gmd:distributionInfo>
+		<gmd:MD_Distribution>
+			<gmd:distributionFormat>
+				<gmd:MD_Format>
+					<gmd:name>
+						<gco:CharacterString>GeoTIFF</gco:CharacterString>
+					</gmd:name>
+					<gmd:version/>
+					<gmd:fileDecompressionTechnique xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>ZIP Compression Software</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Logiciel de compression
+									ZIP</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:fileDecompressionTechnique>
+				</gmd:MD_Format>
+			</gmd:distributionFormat>
+			<gmd:distributor>
+				<gmd:MD_Distributor>
+					<gmd:distributorContact>
+						<!-- 5.16 -->
+						<gmd:CI_ResponsibleParty>
+							<!-- 5.16.2 C -->
+							<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+								<!-- 5.16.2   C -->
+								<gco:CharacterString>Natural Resources Canada, Earth Sciences
+									Sector, Mapping Information Branch</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Ressources
+											naturelles Canada, Secteur des sciences de la Terre,
+											Direction de l'information
+											cartographique</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:organisationName>
+							<!-- 5.16.3 C -->
+							<gmd:positionName xsi:type="gmd:PT_FreeText_PropertyType">
+								<!-- 5.16.3   C -->
+								<gco:CharacterString>Customer Support Group</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Équipe de soutien
+											aux usagers</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:positionName>
+							<!-- 5.16.4  O -->
+							<gmd:contactInfo>
+								<!-- 5.17 -->
+								<gmd:CI_Contact>
+									<!-- 5.17.1 O -->
+									<gmd:phone>
+										<!-- 5.18 -->
+										<gmd:CI_Telephone>
+											<!-- 5.18.1 O, rep -->
+											<!-- {$GS$CITS_TEL} -->
+											<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+												<gco:CharacterString>voice; 1 (819)
+												5645600</gco:CharacterString>
+												<gmd:PT_FreeText>
+												<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">voix; 1
+												(819) 5645600</gmd:LocalisedCharacterString>
+												</gmd:textGroup>
+												</gmd:PT_FreeText>
+											</gmd:voice>
+											<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+												<gco:CharacterString>voice; 1 (800)
+												6612638</gco:CharacterString>
+												<gmd:PT_FreeText>
+												<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">voix; 1
+												(800) 6612638</gmd:LocalisedCharacterString>
+												</gmd:textGroup>
+												</gmd:PT_FreeText>
+											</gmd:voice>
+											<!-- 5.18.2 O, rep -->
+											<gmd:facsimile>
+												<gco:CharacterString>1 (819)
+												5645698</gco:CharacterString>
+											</gmd:facsimile>
+										</gmd:CI_Telephone>
+									</gmd:phone>
+									<!-- 5.17.2 O -->
+									<gmd:address>
+										<!-- 5.19 -->
+										<gmd:CI_Address>
+											<!-- 5.19.1 O -->
+											<gmd:deliveryPoint
+												xsi:type="gmd:PT_FreeText_PropertyType">
+												<gco:CharacterString>physical; 2144; King Street
+												West; ; 010</gco:CharacterString>
+												<gmd:PT_FreeText>
+												<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR"
+												>physique; 2144; rue King Ouest; ;
+												010</gmd:LocalisedCharacterString>
+												</gmd:textGroup>
+												</gmd:PT_FreeText>
+											</gmd:deliveryPoint>
+											<!-- 5.19.2 O -->
+											<gmd:city>
+												<gco:CharacterString>Sherbrooke</gco:CharacterString>
+											</gmd:city>
+											<!-- 5.19.3 O -->
+											<gmd:administrativeArea>
+												<gco:CharacterString>Québec</gco:CharacterString>
+											</gmd:administrativeArea>
+											<!-- 5.19.4 O -->
+											<gmd:postalCode>
+												<gco:CharacterString>J1J 2E8</gco:CharacterString>
+											</gmd:postalCode>
+											<!-- 5.19.5 O -->
+											<gmd:country>
+												<gco:CharacterString>CANADA</gco:CharacterString>
+											</gmd:country>
+											<!-- 5.19.6 O, rep -->
+											<gmd:electronicMailAddress
+												xsi:type="gmd:PT_FreeText_PropertyType">
+												<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+												<gmd:PT_FreeText>
+												<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR"
+												>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+												</gmd:textGroup>
+												</gmd:PT_FreeText>
+											</gmd:electronicMailAddress>
+										</gmd:CI_Address>
+									</gmd:address>
+									<!-- 5.17.4 O -->
+									<gmd:hoursOfService>
+										<gco:CharacterString>8:30/12:00;
+											13:00/16:30</gco:CharacterString>
+									</gmd:hoursOfService>
+								</gmd:CI_Contact>
+							</gmd:contactInfo>
+							<!-- 5.16.5  M -->
+							<gmd:role>
+								<gmd:CI_RoleCode
+									codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+									codeListValue="RI_412">distributor;
+									distributeur</gmd:CI_RoleCode>
+							</gmd:role>
+						</gmd:CI_ResponsibleParty>
+					</gmd:distributorContact>
+					<gmd:distributionOrderProcess>
+						<gmd:MD_StandardOrderProcess>
+							<gmd:fees xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>Free (or No cost)</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Gratuit (ou Sans
+											frais)</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:fees>
+						</gmd:MD_StandardOrderProcess>
+					</gmd:distributionOrderProcess>
+				</gmd:MD_Distributor>
+			</gmd:distributor>
+			<gmd:transferOptions>
+				<gmd:MD_DigitalTransferOptions>
+					<gmd:onLine>
+						<gmd:CI_OnlineResource>
+							<gmd:linkage>
+								<gmd:URL>http://geogratis.gc.ca/extraction/eng</gmd:URL>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR"
+											>http://geogratis.gc.ca/extraction/fra</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:linkage>
+							<!-- 5.20.2 M -->
+							<gmd:protocol>
+								<gco:CharacterString>HTTP, FTP</gco:CharacterString>
+							</gmd:protocol>
+							<!-- 5.20.5 -->
+							<gmd:description xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>Download file in GeoTIFF through HTTP or
+									FTP</gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Téléchargez le
+											fichier GeoTIFF via HTTP ou
+											FTP</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:description>
+							<!-- 5.20.6 O -->
+							<gmd:function>
+								<gmd:CI_OnLineFunctionCode
+									codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_88"
+									codeListValue="RI_376">information;
+									information</gmd:CI_OnLineFunctionCode>
+							</gmd:function>
+						</gmd:CI_OnlineResource>
+					</gmd:onLine>
+				</gmd:MD_DigitalTransferOptions>
+			</gmd:transferOptions>
+		</gmd:MD_Distribution>
+	</gmd:distributionInfo>
+	<!-- ====================================================================== -->
+	<!--                           gmd:dataQualityInfo                          -->
+	<!-- ====================================================================== -->
+	<gmd:dataQualityInfo>
+		<gmd:DQ_DataQuality>
+			<gmd:scope>
+				<gmd:DQ_Scope>
+					<gmd:level>
+						<gmd:MD_ScopeCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_108"
+							codeListValue="RI_623">series; série</gmd:MD_ScopeCode>
+					</gmd:level>
+				</gmd:DQ_Scope>
+			</gmd:scope>
+			<!-- ====================================================================== -->
+			<!--                     Rapport de cohérence logique                       -->
+			<!-- ====================================================================== -->
+			<!-- ====================================================================== -->
+			<!--                         Rapport de complétude                          -->
+			<!-- ====================================================================== -->
+			<gmd:report>
+				<gmd:DQ_CompletenessCommission>
+					<gmd:result>
+						<gmd:DQ_ConformanceResult>
+							<gmd:specification
+								xlink:title="Canadian Digital Elevation Model, Product Specifications"/>
+							<gmd:explanation xsi:type="gmd:PT_FreeText_PropertyType">
+								<gco:CharacterString>The content of a CDEM mosaic varies according
+									to the extent of the selected region, the latitude, the
+									projection and the resolution. </gco:CharacterString>
+								<gmd:PT_FreeText>
+									<gmd:textGroup>
+										<gmd:LocalisedCharacterString locale="#FR">Le contenu des
+											mosaiques du MNÉC varie selon l'étendue de la région
+											choisie, la latitude, la projection et la résolution.
+										</gmd:LocalisedCharacterString>
+									</gmd:textGroup>
+								</gmd:PT_FreeText>
+							</gmd:explanation>
+							<gmd:pass>
+								<gco:Boolean>true</gco:Boolean>
+							</gmd:pass>
+						</gmd:DQ_ConformanceResult>
+					</gmd:result>
+				</gmd:DQ_CompletenessCommission>
+			</gmd:report>
+			<!-- ====================================================================== -->
+		</gmd:DQ_DataQuality>
+	</gmd:dataQualityInfo>
+	<!--  5.2.13 -->
+	<gmd:metadataConstraints>
+		<gmd:MD_LegalConstraints>
+			<gmd:accessConstraints>
+				<gmd:MD_RestrictionCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_107"
+					codeListValue="RI_609">otherRestrictions;
+					autresRestrictions</gmd:MD_RestrictionCode>
+			</gmd:accessConstraints>
+			<!-- ====================================================================== -->
+			<gmd:otherConstraints xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>None</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR"
+							>Aucune</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:otherConstraints>
+			<!-- ====================================================================== -->
+		</gmd:MD_LegalConstraints>
+	</gmd:metadataConstraints>
+	<gmd:metadataConstraints>
+		<gmd:MD_LegalConstraints>
+			<gmd:useConstraints>
+				<gmd:MD_RestrictionCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_107"
+					codeListValue="RI_610">licenseUnrestricted;
+					licenceSansRestriction</gmd:MD_RestrictionCode>
+			</gmd:useConstraints>
+			<gmd:otherConstraints xsi:type="gmd:PT_FreeText_PropertyType">
+				<gco:CharacterString>GEOGRATIS LICENSE AGREEMENT FOR UNRESTRICTED USE OF DIGITAL
+					DATA ( http://geogratis.cgdi.gc.ca/geogratis/en/licence.jsp
+					)</gco:CharacterString>
+				<gmd:PT_FreeText>
+					<gmd:textGroup>
+						<gmd:LocalisedCharacterString locale="#FR">ACCORD DE LICENCE D'UTILISATION
+							SANS RESTRICTION DE DONNÉES NUMÉRIQUES DE GÉOGRATIS (
+							http://geogratis.cgdi.gc.ca/geogratis/fr/licence.jsp
+							)</gmd:LocalisedCharacterString>
+					</gmd:textGroup>
+				</gmd:PT_FreeText>
+			</gmd:otherConstraints>
+		</gmd:MD_LegalConstraints>
+	</gmd:metadataConstraints>
+	<!--  5.2.15 -->
+	<gmd:metadataMaintenance>
+		<gmd:MD_MaintenanceInformation>
+			<gmd:maintenanceAndUpdateFrequency>
+				<gmd:MD_MaintenanceFrequencyCode
+					codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_102"
+					codeListValue="RI_540">asNeeded; auBesoin</gmd:MD_MaintenanceFrequencyCode>
+			</gmd:maintenanceAndUpdateFrequency>
+			<gmd:contact>
+				<!-- 5.16 -->
+				<gmd:CI_ResponsibleParty>
+					<!-- 5.16.2 C -->
+					<!-- {$GS$CITS_ORG} -->
+					<gmd:organisationName xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Government of Canada, Natural Resources Canada, Earth
+							Sciences Sector, Mapping Information Branch, Centre for Topographic
+							Information - Sherbrooke</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Gouvernement du Canada,
+									Ressources naturelles Canada, Secteur des sciences de la Terre,
+									Direction de l'information cartographique, Centre d'information
+									topographique - Sherbrooke</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:organisationName>
+					<!-- 5.16.3 C -->
+					<!-- {$GS$CITS_PERS} -->
+					<gmd:positionName xsi:type="gmd:PT_FreeText_PropertyType">
+						<gco:CharacterString>Customer Support Group</gco:CharacterString>
+						<gmd:PT_FreeText>
+							<gmd:textGroup>
+								<gmd:LocalisedCharacterString locale="#FR">Équipe de soutien aux
+									usagers</gmd:LocalisedCharacterString>
+							</gmd:textGroup>
+						</gmd:PT_FreeText>
+					</gmd:positionName>
+					<!-- 5.16.4  O -->
+					<gmd:contactInfo>
+						<!-- 5.17 -->
+						<gmd:CI_Contact>
+							<!-- 5.17.1 O -->
+							<gmd:phone>
+								<!-- 5.18 -->
+								<gmd:CI_Telephone>
+									<!-- 5.18.1 O, rep -->
+									<!-- {$GS$CITS_TEL} -->
+									<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>voice; 1 (819)
+											5645600</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">voix; 1
+												(819) 5645600</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:voice>
+									<gmd:voice xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>voice; 1 (800)
+											6612638</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">voix; 1
+												(800) 6612638</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:voice>
+									<!-- 5.18.2 O, rep -->
+									<gmd:facsimile>
+										<gco:CharacterString>1 (819) 5645698</gco:CharacterString>
+									</gmd:facsimile>
+								</gmd:CI_Telephone>
+							</gmd:phone>
+							<!-- 5.17.2 O -->
+							<gmd:address>
+								<!-- 5.19 -->
+								<gmd:CI_Address>
+									<!-- 5.19.1 O -->
+									<gmd:deliveryPoint xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>physical; 2144; King Street West; ;
+											010</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR">physique;
+												2144; rue King Ouest; ;
+												010</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:deliveryPoint>
+									<!-- 5.19.2 O -->
+									<gmd:city>
+										<gco:CharacterString>Sherbrooke</gco:CharacterString>
+									</gmd:city>
+									<!-- 5.19.3 O -->
+									<gmd:administrativeArea>
+										<gco:CharacterString>Québec</gco:CharacterString>
+									</gmd:administrativeArea>
+									<!-- 5.19.4 O -->
+									<gmd:postalCode>
+										<gco:CharacterString>J1J 2E8</gco:CharacterString>
+									</gmd:postalCode>
+									<!-- 5.19.5 O -->
+									<gmd:country>
+										<gco:CharacterString>CANADA</gco:CharacterString>
+									</gmd:country>
+									<!-- 5.19.6 O, rep -->
+									<gmd:electronicMailAddress
+										xsi:type="gmd:PT_FreeText_PropertyType">
+										<gco:CharacterString>geoginfo@NRCan.gc.ca</gco:CharacterString>
+										<gmd:PT_FreeText>
+											<gmd:textGroup>
+												<gmd:LocalisedCharacterString locale="#FR"
+												>geoginfo@RNCan.gc.ca</gmd:LocalisedCharacterString>
+											</gmd:textGroup>
+										</gmd:PT_FreeText>
+									</gmd:electronicMailAddress>
+								</gmd:CI_Address>
+							</gmd:address>
+							<!-- 5.17.3 O -->
+							<gmd:onlineResource>
+								<!-- 5.20 -->
+								<gmd:CI_OnlineResource>
+									<!-- 5.20.1 M -->
+									<gmd:linkage>
+										<!-- B.26 -->
+										<gmd:URL>www.geogratis.gc.ca</gmd:URL>
+									</gmd:linkage>
+									<!-- 5.20.2 M -->
+									<gmd:protocol>
+										<gco:CharacterString>HTTP</gco:CharacterString>
+									</gmd:protocol>
+									<!-- 5.20.6 O -->
+									<gmd:function>
+										<gmd:CI_OnLineFunctionCode
+											codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_88"
+											codeListValue="RI_376">information;
+											information</gmd:CI_OnLineFunctionCode>
+									</gmd:function>
+								</gmd:CI_OnlineResource>
+							</gmd:onlineResource>
+							<!-- 5.17.4 O -->
+							<gmd:hoursOfService>
+								<gco:CharacterString>8:30/12:00; 13:00/16:30</gco:CharacterString>
+							</gmd:hoursOfService>
+						</gmd:CI_Contact>
+					</gmd:contactInfo>
+					<!-- 5.16.5  M -->
+					<gmd:role>
+						<gmd:CI_RoleCode
+							codeList="http://nap.geogratis.gc.ca/metadata/register/napMetadataRegister.xml#IC_90"
+							codeListValue="RI_414">pointOfContact; contact</gmd:CI_RoleCode>
+					</gmd:role>
+				</gmd:CI_ResponsibleParty>
+			</gmd:contact>
+		</gmd:MD_MaintenanceInformation>
+	</gmd:metadataMaintenance>
+</gmd:MD_Metadata>

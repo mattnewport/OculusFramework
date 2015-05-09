@@ -58,6 +58,7 @@ _COM_SMARTPTR_TYPEDEF(ID3D11InputLayout, __uuidof(ID3D11InputLayout));
 _COM_SMARTPTR_TYPEDEF(ID3D11SamplerState, __uuidof(ID3D11SamplerState));
 _COM_SMARTPTR_TYPEDEF(ID3D10Blob, __uuidof(ID3D10Blob));
 _COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
+_COM_SMARTPTR_TYPEDEF(ID3D11Resource, __uuidof(ID3D11Resource));
 
 using namespace OVR;
 
@@ -94,6 +95,15 @@ inline void SetDebugObjectName(_In_ T resource, const std::string& name) {
     UNREFERENCED_PARAMETER(name);
 #endif
 }
+
+struct DataBuffer {
+    ID3D11BufferPtr D3DBuffer;
+    size_t Size;
+
+    DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size);
+
+    void Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size);
+};
 
 struct ImageBuffer {
     ID3D11Texture2DPtr Tex;

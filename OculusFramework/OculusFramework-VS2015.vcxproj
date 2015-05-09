@@ -88,16 +88,49 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\DDSTextureLoader.cpp" />
     <ClCompile Include="src\scene.cpp" />
+    <ClCompile Include="src\terrain.cpp" />
     <ClCompile Include="src\Win32_DX11AppUtil.cpp" />
     <ClCompile Include="src\Win32_RoomTiny_Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\dds.h" />
+    <ClInclude Include="src\DDSTextureLoader.h" />
+    <ClInclude Include="src\DirectXHelpers.h" />
     <ClInclude Include="src\libovrwrapper.h" />
+    <ClInclude Include="src\PlatformHelpers.h" />
     <ClInclude Include="src\scene.h" />
+    <ClInclude Include="src\terrain.h" />
     <ClInclude Include="src\Win32_DX11AppUtil.h" />
     <ClInclude Include="src\Win32_RoomTiny_AppRender.h" />
     <ClInclude Include="src\Win32_RoomTiny_ExampleFeatures.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="simpleps.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="simplevs.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="terrainps.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="terrainvs.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

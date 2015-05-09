@@ -9,6 +9,27 @@
 
 using namespace std;
 
+DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size)
+    : Size(size) {
+    D3D11_BUFFER_DESC desc{};
+    desc.Usage = D3D11_USAGE_DYNAMIC;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    desc.BindFlags = use;
+    desc.ByteWidth = (unsigned)size;
+    D3D11_SUBRESOURCE_DATA sr;
+    sr.pSysMem = buffer;
+    sr.SysMemPitch = sr.SysMemSlicePitch = 0;
+    ThrowOnFailure(device->CreateBuffer(&desc, buffer ? &sr : nullptr, &D3DBuffer));
+    SetDebugObjectName(D3DBuffer, "DataBuffer::D3DBuffer");
+}
+
+void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size) {
+    D3D11_MAPPED_SUBRESOURCE map;
+    deviceContext->Map(D3DBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+    memcpy((void*)map.pData, buffer, size);
+    deviceContext->Unmap(D3DBuffer, 0);
+}
+
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device,
                          ID3D11DeviceContext* deviceContext, bool rendertarget, bool depth,
                          Sizei size, int mipLevels)

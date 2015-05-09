@@ -7,5 +7,5 @@ void main(in float4 Position : POSITION, in float4 Color : COLOR0, in float2 Tex
     oPosition = mul(Proj, mul(View, wp));
     oTexCoord = TexCoord;
     oColor = Color;
-    worldPos = wp;
+    worldPos = float3(wp.xyz);
 }

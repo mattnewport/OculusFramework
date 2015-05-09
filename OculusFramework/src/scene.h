@@ -1,18 +1,10 @@
 #pragma once
 
 #include "Win32_DX11AppUtil.h"
+#include "terrain.h"
 
 #include <memory>
 #include <string>
-
-struct DataBuffer {
-    ID3D11BufferPtr D3DBuffer;
-    size_t Size;
-
-    DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size);
-
-    void Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size);
-};
 
 struct Texture {
     ID3D11Texture2DPtr Tex;
@@ -20,7 +12,7 @@ struct Texture {
     std::string name;
 
     Texture(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext, Sizei size,
-        int mipLevels = 1, unsigned char* data = NULL);
+            int mipLevels = 1, unsigned char* data = NULL);
 };
 
 struct ShaderFill {
@@ -64,40 +56,7 @@ struct Model {
 
     void AllocateBuffers(ID3D11Device* device);
 
-    void AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2,
-                                 Color c);
-};
-
-struct HeightField {
-    struct Color {
-        unsigned char R, G, B, A;
-
-        Color(unsigned char r = 0, unsigned char g = 0, unsigned char b = 0, unsigned char a = 0xff)
-            : R(r), G(g), B(b), A(a) {}
-    };
-    struct Vertex {
-        Vector3f Pos;
-    };
-
-    Vector3f Pos;
-    Quatf Rot;
-    Matrix4f Mat;
-    std::vector<uint16_t> Indices;
-    std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
-    std::unique_ptr<DataBuffer> IndexBuffer;
-    ID3D11RasterizerStatePtr Rasterizer;
-
-    HeightField(Vector3f arg_pos, ID3D11Device* device)
-        : Pos{ arg_pos } {}
-    Matrix4f& GetMatrix() {
-        Mat = Matrix4f(Rot);
-        Mat = Matrix4f::Translation(Pos) * Mat;
-        return Mat;
-    }
-
-    void AddVertices(ID3D11Device* device);
-
-    void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, DataBuffer* uniformBuffer);
+    void AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c);
 };
 
 struct Scene {

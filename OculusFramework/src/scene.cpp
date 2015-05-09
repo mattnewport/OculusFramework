@@ -1,30 +1,8 @@
 #include "scene.h"
 
-#include <fstream>
 #include <vector>
 
 using namespace std;
-
-DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size)
-    : Size(size) {
-    D3D11_BUFFER_DESC desc{};
-    desc.Usage = D3D11_USAGE_DYNAMIC;
-    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    desc.BindFlags = use;
-    desc.ByteWidth = (unsigned)size;
-    D3D11_SUBRESOURCE_DATA sr;
-    sr.pSysMem = buffer;
-    sr.SysMemPitch = sr.SysMemSlicePitch = 0;
-    ThrowOnFailure(device->CreateBuffer(&desc, buffer ? &sr : nullptr, &D3DBuffer));
-    SetDebugObjectName(D3DBuffer, "DataBuffer::D3DBuffer");
-}
-
-void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size) {
-    D3D11_MAPPED_SUBRESOURCE map;
-    deviceContext->Map(D3DBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-    memcpy((void*)map.pData, buffer, size);
-    deviceContext->Unmap(D3DBuffer, 0);
-}
 
 void Model::AllocateBuffers(ID3D11Device* device) {
     VertexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, &Vertices[0],
@@ -71,106 +49,6 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
         vvv.C.G = GGG > 255 ? 255 : (unsigned char)GGG;
         vvv.C.B = BBB > 255 ? 255 : (unsigned char)BBB;
         AddVertex(vvv);
-    }
-}
-
-void HeightField::AddVertices(ID3D11Device* device) {
-    [this, device] {
-        CD3D11_RASTERIZER_DESC rs{ D3D11_DEFAULT };
-        //rs.FillMode = D3D11_FILL_WIREFRAME;
-        ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
-        SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
-    }();
-
-    ifstream file(R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150507_235633.dat)", ios::in | ios::binary);
-    if (!file) {
-        OutputDebugStringA("wtf!");
-    }
-    file.seekg(0, ios::end);
-    auto endPos = file.tellg();
-    file.seekg(0);
-    auto fileSize = endPos - file.tellg();
-
-    const int width = 895;
-    const int height = 913;
-    vector<uint16_t> heights(width * height);
-    file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
-    auto numRead = file.gcount();
-    assert(numRead == fileSize);
-
-    auto getHeight = [&heights, width, height](int x, int y) {
-        x = min(max(0, x), width - 1);
-        y = min(max(0, y), height - 1);
-        return heights[y * width + x];
-    };
-
-    const int blockPower = 6;
-    const int blockSize = 1 << blockPower;
-
-    // Use Hilbert curve for better vertex cache efficiency
-    auto d2xy = [](int n, int d, int *x, int *y) {
-        auto rot = [](int n, int* x, int* y, int rx, int ry) {
-            if (ry == 0) {
-                if (rx == 1) {
-                    *x = n - 1 - *x;
-                    *y = n - 1 - *y;
-                }
-
-                swap(*x, *y);
-            }
-        };
-
-        int rx, ry, s, t = d;
-        *x = *y = 0;
-        for (s = 1; s<n; s *= 2) {
-            rx = 1 & (t / 2);
-            ry = 1 & (t ^ rx);
-            rot(s, x, y, rx, ry);
-            *x += s * rx;
-            *y += s * ry;
-            t /= 4;
-        }
-    };
-
-    const auto quadCount = blockSize * blockSize;
-    const auto indexCount = 6 * quadCount;
-    Indices.reserve(indexCount);
-    for (auto d = 0; d < quadCount; ++d) {
-        int x, y;
-        d2xy(blockSize, d, &x, &y);
-        uint16_t baseIdx = y * (blockSize + 1) + x;
-        Indices.push_back(baseIdx);
-        Indices.push_back(baseIdx + 1);
-        Indices.push_back(baseIdx + (blockSize + 1));
-        Indices.push_back(baseIdx + 1);
-        Indices.push_back(baseIdx + (blockSize + 1) + 1);
-        Indices.push_back(baseIdx + (blockSize + 1));
-    }
-    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
-        Indices.size() * sizeof(Indices[0]));
-
-    Vector3f center(0.0f);
-    float gridWidth = 2.0f;
-    float gridStep = gridWidth / float(width);
-    float gridHeight = float(height) * gridStep;
-    float gridElevationScale = 0.00013f;
-    for (int y = 0; y < height; y += blockSize) {
-        for (int x = 0; x < width; x+= blockSize) {
-            vector<Vertex> vertices;
-            vertices.reserve((blockSize + 1) * (blockSize + 1));
-            for (int blockY = 0; blockY <= blockSize; ++blockY) {
-                for (int blockX = 0; blockX <= blockSize; ++blockX) {
-                        Vertex v;
-                        auto localX = x + blockX;
-                        auto localY = y + blockY;
-                        auto gridHeight = getHeight(width - 1 - localX, localY);
-                        v.Pos = Vector3f(localX * gridStep, gridHeight * gridElevationScale, localY * gridStep);
-                        vertices.push_back(v);
-                }
-            }
-            VertexBuffers.push_back(std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, vertices.data(),
-                vertices.size() * sizeof(vertices[0])));
-        }
     }
 }
 
@@ -226,7 +104,7 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
 // Simple latency box (keep similar vertex format and shader params same, for ease of code)
 Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion) {
     [this, device] {
-        CD3D11_RASTERIZER_DESC rs{ D3D11_DEFAULT };
+        CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
         ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
         SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
     }();
@@ -268,7 +146,8 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
     }
 
     // Construct geometry
-    std::unique_ptr<Model> m = make_unique<Model>(Vector3f(0, 0, 0), std::move(generated_texture[2]));  // Moving box
+    std::unique_ptr<Model> m =
+        make_unique<Model>(Vector3f(0, 0, 0), std::move(generated_texture[2]));  // Moving box
     m->AddSolidColorBox(0, 0, 0, +1.0f, +1.0f, 1.0f, Model::Color(64, 64, 64));
     m->AllocateBuffers(device);
     Add(move(m));
@@ -351,36 +230,6 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
     heightField->AddVertices(device);
 }
 
-void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, DataBuffer* uniformBuffer) {
-    context->RSSetState(Rasterizer);
-
-    VertexShader* VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
-    uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
-    ID3D11Buffer* vsConstantBuffers[] = { uniformBuffer->D3DBuffer };
-    context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
-
-    const vector<D3D11_INPUT_ELEMENT_DESC> modelVertexDesc{
-        D3D11_INPUT_ELEMENT_DESC{ "Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-        offsetof(Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
-    context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
-
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(VShader->D3DVert, NULL, 0);
-
-    PixelShader* pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
-    context->PSSetShader(pixelShader->D3DPix, NULL, 0);
-    
-    for (const auto& vertexBuffer : VertexBuffers) {
-        ID3D11Buffer* vertexBuffers[] = { vertexBuffer->D3DBuffer };
-        const UINT strides[] = { sizeof(Vertex) };
-        const UINT offsets[] = { 0 };
-        context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
-        context->DrawIndexed(Indices.size(), 0, 0);
-    }
-}
-
 void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
                    DataBuffer* vertices, DataBuffer* indices, UINT stride, int count) {
     UINT offset = 0;
@@ -414,9 +263,8 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
     if (fill && fill->OneTexture) {
         ID3D11ShaderResourceView* srvs[] = {fill->OneTexture->TexSv};
         context->PSSetShaderResources(0, 1, srvs);
-    }
-    else {
-        ID3D11ShaderResourceView* srvs[] = { nullptr };
+    } else {
+        ID3D11ShaderResourceView* srvs[] = {nullptr};
         context->PSSetShaderResources(0, 1, srvs);
     }
     context->DrawIndexed(count, 0, 0);
