@@ -24,7 +24,9 @@ void HeightField::AddVertices(ID3D11Device* device) {
     auto fileSize = endPos - file.tellg();
 
     const int width = 907;
+    const float widthM = 21072.0f;
     const int height = 882;
+    const float heightM = 20486.0f;
     vector<uint16_t> heights(width * height);
     file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
     auto numRead = file.gcount();
@@ -84,10 +86,10 @@ void HeightField::AddVertices(ID3D11Device* device) {
     Vector3f center(0.0f);
     float uvStepX = 1.0f / float(width);
     float uvStepY = 1.0f / float(height);
-    float gridWidth = 2.0f;
+    float gridWidth = widthM / 10000.0f;
     float gridStep = gridWidth / float(width);
     float gridHeight = float(height) * gridStep;
-    float gridElevationScale = 0.00013f;
+    float gridElevationScale = 1.0f/10000.0f;
     for (int y = 0; y < height; y += blockSize) {
         for (int x = 0; x < width; x += blockSize) {
             vector<Vertex> vertices;
