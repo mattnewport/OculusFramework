@@ -33,10 +33,10 @@ void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
 }
 
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device,
-                         ID3D11DeviceContext* deviceContext, bool rendertarget, bool depth,
+                         bool rendertarget, bool depth,
                          Sizei size, int mipLevels)
     : name(name_), Size(size) {
-    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM, size.w,
+    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w,
                                  size.h, 1, mipLevels);
 
     if (rendertarget) {
@@ -210,7 +210,7 @@ SecondWindow::~SecondWindow() {
     UnregisterClassW(className, hinst);
 }
 
-void SecondWindow::Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceContext* Context) {
+void SecondWindow::Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceContext* /*Context*/) {
     hinst = hinst_;
     width = 640;
     height = 360;
@@ -266,7 +266,7 @@ void SecondWindow::Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceCont
     ThrowOnFailure(device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
     SetDebugObjectName(BackBufferRT, "SecondWindow::BackBufferRT");
 
-    DepthBuffer = std::make_unique<ImageBuffer>("SecondWindow::DepthBuffer", device, Context, true,
+    DepthBuffer = std::make_unique<ImageBuffer>("SecondWindow::DepthBuffer", device, true,
                                                 true, Sizei(width, height));
 }
 
@@ -395,9 +395,14 @@ ShaderType* LoadShader(ID3D11Device* device, const std::string& filename, const 
     buf << shaderSourceFile.rdbuf();
     ID3DBlobPtr compiledShader;
     ID3DBlobPtr errorMessages;
-    D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr, nullptr, "main", target, 0,
-        0, &compiledShader, &errorMessages);
-    shaderMap[filename] = make_unique<ShaderType>(device, compiledShader);
+    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr, nullptr, "main", target, 0,
+        0, &compiledShader, &errorMessages)))
+    {
+        shaderMap[filename] = make_unique<ShaderType>(device, compiledShader);
+    }
+    else {
+        OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));
+    }
     return shaderMap[filename].get();
 }
 
@@ -418,7 +423,7 @@ PixelShader* ShaderDatabase::GetPixelShader(const char* filename) {
     return GetShader(device, filename, "ps_4_0", pixelShaderMap);
 }
 
-void ShaderDatabase::ReloadShaders(ID3D11Device* device) {
+void ShaderDatabase::ReloadShaders() {
     for (auto& e : vertexShaderMap) {
         LoadShader(device, e.first, "vs_4_0", vertexShaderMap);
     }

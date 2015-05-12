@@ -112,7 +112,7 @@ struct ImageBuffer {
     const char* name = nullptr;
 
     ImageBuffer() = default;
-    ImageBuffer(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+    ImageBuffer(const char* name, ID3D11Device* device, 
                 bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1);
 };
 
@@ -194,7 +194,7 @@ public:
         return vs->GetInputLayout(device, layout);
     }
 
-    void ReloadShaders(ID3D11Device* device);
+    void ReloadShaders();
 
     template <typename ShaderType>
     using ShaderMap = std::unordered_map<std::string, std::unique_ptr<ShaderType>>;

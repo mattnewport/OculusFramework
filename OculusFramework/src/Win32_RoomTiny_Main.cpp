@@ -117,8 +117,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     for (int eye = 0; eye < 2; ++eye) {
         auto idealSize = hmd ? hmd->getFovTextureSize(ovrEyeType(eye)) : ovrSizei{1024, 1024};
         EyeRenderTexture[eye] =
-            ImageBuffer("EyeRenderTexture", DX11.Device, DX11.Context, true, false, idealSize);
-        EyeDepthBuffer[eye] = ImageBuffer("EyeDepthBuffer", DX11.Device, DX11.Context, true, true,
+            ImageBuffer("EyeRenderTexture", DX11.Device, true, false, idealSize);
+        EyeDepthBuffer[eye] = ImageBuffer("EyeDepthBuffer", DX11.Device, true, true,
                                           EyeRenderTexture[eye].Size);
         EyeRenderViewport[eye].Pos = Vector2i(0, 0);
         EyeRenderViewport[eye].Size = EyeRenderTexture[eye].Size;
@@ -167,7 +167,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                  useHmdToEyeViewOffset);
 
             // Reload shaders
-            if (DX11.Key['H']) DX11.shaderDatabase.ReloadShaders(DX11.Device);
+            if (DX11.Key['H']) DX11.shaderDatabase.ReloadShaders();
 
             // Keyboard inputs to adjust player orientation
             if (DX11.Key[VK_LEFT]) Yaw += 0.02f;
@@ -255,7 +255,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     Mat4f finalRollPitchYaw = fromOri * rollPitchYaw;
                     Vec4f finalUp = Vec4f{ 0.0f, 1.0f, 0.0f, 0.0f } * finalRollPitchYaw;
                     Vec4f finalForward = Vec4f{ 0.0f, 0.0f, -1.0f, 0.0f } * finalRollPitchYaw;
-                    Vec4f shiftedEyePos = pos + Vec4f{ useEyePose->Position.x, useEyePose->Position.y, useEyePose->Position.z, 1.0f } * rollPitchYaw;
+                    Vec4f shiftedEyePos = pos + Vec4f{ useEyePose->Position.x, useEyePose->Position.y, useEyePose->Position.z, 0.0f } * rollPitchYaw;
 
                     Mat4f view = Mat4fLookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
                     Matrix4f projTemp =
@@ -265,7 +265,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     memcpy(&proj, &projTemp, sizeof(proj));
 
                     // Render the scene
-                    for (int t = 0; t < timesToRenderScene; t++) roomScene.Render(DX11, view, proj);
+                    for (int t = 0; t < timesToRenderScene; t++) roomScene.Render(DX11, Vec3f{ shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z() }, view, proj);
 
                     // Render undistorted to second window
                     if (eye == ovrEye_Left) {
@@ -274,7 +274,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                         DX11.ClearAndSetRenderTarget(
                             DX11.secondWindow->BackBufferRT, DX11.secondWindow->DepthBuffer.get()->TexDsv,
                             Recti{0, 0, DX11.secondWindow->width, DX11.secondWindow->height});
-                        roomScene.Render(DX11, view, proj);
+                        roomScene.Render(DX11, Vec3f{ shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z() }, view, proj);
                         DX11.secondWindow->SwapChain->Present(0, 0);
                     }
                 }

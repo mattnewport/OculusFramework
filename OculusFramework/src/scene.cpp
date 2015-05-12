@@ -57,7 +57,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
                  Sizei size, int mipLevels, unsigned char* data)
     : name(name_) {
-    CD3D11_TEXTURE2D_DESC dsDesc(DXGI_FORMAT_R8G8B8A8_UNORM, size.w, size.h, 1, mipLevels);
+    CD3D11_TEXTURE2D_DESC dsDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h, 1, mipLevels);
 
     device->CreateTexture2D(&dsDesc, nullptr, &Tex);
     SetDebugObjectName(Tex, string("ImageBuffer::Tex - ") + name);
@@ -230,6 +230,9 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
     // Terrain
     heightField = make_unique<HeightField>(mathlib::Vec3f{ -1.0f, 0.8f, 0.0f });
     heightField->AddVertices(device);
+
+    sphere = make_unique<Sphere>();
+    sphere->GenerateVerts(*device);
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
@@ -272,7 +275,7 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
     context->DrawIndexed(count, 0, 0);
 }
 
-void Scene::Render(DirectX11& dx11, const mathlib::Mat4f& view, const mathlib::Mat4f& proj) {
+void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj) {
     dx11.Context->RSSetState(Rasterizer);
 
     for (auto& model : Models) {
@@ -285,10 +288,23 @@ void Scene::Render(DirectX11& dx11, const mathlib::Mat4f& view, const mathlib::M
                model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size());
     }
 
-    VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("terrainvs.hlsl");
-    VShader->SetUniform("World", 16, heightField->GetMatrix().data());
-    VShader->SetUniform("View", 16, view.data());
-    VShader->SetUniform("Proj", 16, proj.data());
+    {
+        VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("terrainvs.hlsl");
+        VShader->SetUniform("World", 16, heightField->GetMatrix().data());
+        VShader->SetUniform("View", 16, view.data());
+        VShader->SetUniform("Proj", 16, proj.data());
+        VShader->SetUniform("eye", 3, &eye.x());
 
-    heightField->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
+        heightField->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
+    }
+
+    {
+        VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("spherevs.hlsl");
+        VShader->SetUniform("World", 16, sphere->GetMatrix().data());
+        VShader->SetUniform("View", 16, view.data());
+        VShader->SetUniform("Proj", 16, proj.data());
+        VShader->SetUniform("eye", 3, &eye.x());
+
+        sphere->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
+    }
 }

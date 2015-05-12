@@ -76,7 +76,7 @@ void HeightField::AddVertices(ID3D11Device* device) {
     for (auto d = 0; d < quadCount; ++d) {
         int x, y;
         d2xy(blockSize, d, &x, &y);
-        const auto baseIdx = y * (blockSize + 1) + x;
+        const auto baseIdx = static_cast<uint16_t>(y * (blockSize + 1) + x);
         Indices.push_back(baseIdx);
         Indices.push_back(baseIdx + 1);
         Indices.push_back(baseIdx + (blockSize + 1));
@@ -87,12 +87,10 @@ void HeightField::AddVertices(ID3D11Device* device) {
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
                                                Indices.size() * sizeof(Indices[0]));
 
-    auto center = Vec3f{0.0f, 0.0f, 0.0f};
     const auto uvStepX = 1.0f / width;
     const auto uvStepY = 1.0f / height;
     const auto gridWidth = widthM / 10000.0f;
     const auto gridStep = gridWidth / width;
-    const auto gridHeight = height * gridStep;
     const auto gridElevationScale = 1.0f / 10000.0f;
     for (auto y = 0; y < height; y += blockSize) {
         for (auto x = 0; x < width; x += blockSize) {
@@ -101,9 +99,9 @@ void HeightField::AddVertices(ID3D11Device* device) {
             for (auto blockY = 0; blockY <= blockSize; ++blockY) {
                 for (auto blockX = 0; blockX <= blockSize; ++blockX) {
                     Vertex v;
-                    auto localX = x + blockX;
-                    auto localY = y + blockY;
-                    auto gridHeight = getHeight(width - 1 - localX, localY);
+                    const auto localX = x + blockX;
+                    const auto localY = y + blockY;
+                    const auto gridHeight = getHeight(width - 1 - localX, localY);
                     v.Pos = Vec3f{localX * gridStep, gridHeight * gridElevationScale,
                                   localY * gridStep};
                     v.u = 1.0f - (localX * uvStepX);
@@ -123,16 +121,16 @@ void HeightField::AddVertices(ID3D11Device* device) {
     device->CreateSamplerState(&ss, &samplerState);
 
     auto shapes = ID3D11ResourcePtr{};
-    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFileEx(
         device,
         LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\shapes2.dds)",
-        &shapes, &shapesSRV));
+        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &shapes, &shapesSRV));
 
     auto normals = ID3D11ResourcePtr{};
-    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFileEx(
         device,
         LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233_normal.dds)",
-        &normals, &normalsSRV));
+        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, false, &normals, &normalsSRV));
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,

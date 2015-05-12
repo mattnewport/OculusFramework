@@ -2,6 +2,7 @@
 
 #include "Win32_DX11AppUtil.h"
 #include "terrain.h"
+#include "sphere.h"
 
 #include "matrix.h"
 
@@ -64,12 +65,13 @@ struct Model {
 struct Scene {
     std::vector<std::unique_ptr<Model>> Models;
     std::unique_ptr<HeightField> heightField;
+    std::unique_ptr<Sphere> sphere;
 
     void Add(std::unique_ptr<Model>&& n) { Models.emplace_back(move(n)); }
 
     Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion);
 
-    void Render(DirectX11& dx11, const mathlib::Mat4f& view, const mathlib::Mat4f& proj);
+    void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj);
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
                 DataBuffer* vertices, DataBuffer* indices, UINT stride, int count);
 
