@@ -2,34 +2,38 @@
 
 #include "DDSTextureLoader.h"
 
-#include <fstream>
+#include "vector.h"
 
+#include <array>
+#include <fstream>
 
 using namespace std;
 
+using namespace mathlib;
+
 void HeightField::AddVertices(ID3D11Device* device) {
     [this, device] {
-        CD3D11_RASTERIZER_DESC rs{ D3D11_DEFAULT };
+        auto rs = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
         // rs.FillMode = D3D11_FILL_WIREFRAME;
         ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
         SetDebugObjectName(Rasterizer, "HeightField::Rasterizer");
     }();
 
-    ifstream file(
+    auto file = ifstream{
         R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233.dat)",
-        ios::in | ios::binary);
+        ios::in | ios::binary};
     file.seekg(0, ios::end);
-    auto endPos = file.tellg();
+    const auto endPos = file.tellg();
     file.seekg(0);
-    auto fileSize = endPos - file.tellg();
+    const auto fileSize = endPos - file.tellg();
 
-    const int width = 907;
-    const float widthM = 21072.0f;
-    const int height = 882;
-    const float heightM = 20486.0f;
-    vector<uint16_t> heights(width * height);
+    const auto width = 907;
+    const auto widthM = 21072.0f;
+    const auto height = 882;
+    const auto heightM = 20486.0f;
+    auto heights = vector<uint16_t>(width * height);
     file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
-    auto numRead = file.gcount();
+    const auto numRead = file.gcount();
     assert(numRead == fileSize);
 
     auto getHeight = [&heights, width, height](int x, int y) {
@@ -38,8 +42,8 @@ void HeightField::AddVertices(ID3D11Device* device) {
         return heights[y * width + x];
     };
 
-    const int blockPower = 6;
-    const int blockSize = 1 << blockPower;
+    const auto blockPower = 6;
+    const auto blockSize = 1 << blockPower;
 
     // Use Hilbert curve for better vertex cache efficiency
     auto d2xy = [](int n, int d, int* x, int* y) {
@@ -72,7 +76,7 @@ void HeightField::AddVertices(ID3D11Device* device) {
     for (auto d = 0; d < quadCount; ++d) {
         int x, y;
         d2xy(blockSize, d, &x, &y);
-        uint16_t baseIdx = y * (blockSize + 1) + x;
+        const auto baseIdx = y * (blockSize + 1) + x;
         Indices.push_back(baseIdx);
         Indices.push_back(baseIdx + 1);
         Indices.push_back(baseIdx + (blockSize + 1));
@@ -81,27 +85,27 @@ void HeightField::AddVertices(ID3D11Device* device) {
         Indices.push_back(baseIdx + (blockSize + 1));
     }
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
-        Indices.size() * sizeof(Indices[0]));
+                                               Indices.size() * sizeof(Indices[0]));
 
-    Vector3f center(0.0f);
-    float uvStepX = 1.0f / float(width);
-    float uvStepY = 1.0f / float(height);
-    float gridWidth = widthM / 10000.0f;
-    float gridStep = gridWidth / float(width);
-    float gridHeight = float(height) * gridStep;
-    float gridElevationScale = 1.0f/10000.0f;
-    for (int y = 0; y < height; y += blockSize) {
-        for (int x = 0; x < width; x += blockSize) {
-            vector<Vertex> vertices;
+    auto center = Vec3f{0.0f, 0.0f, 0.0f};
+    const auto uvStepX = 1.0f / width;
+    const auto uvStepY = 1.0f / height;
+    const auto gridWidth = widthM / 10000.0f;
+    const auto gridStep = gridWidth / width;
+    const auto gridHeight = height * gridStep;
+    const auto gridElevationScale = 1.0f / 10000.0f;
+    for (auto y = 0; y < height; y += blockSize) {
+        for (auto x = 0; x < width; x += blockSize) {
+            auto vertices = vector<Vertex>{};
             vertices.reserve((blockSize + 1) * (blockSize + 1));
-            for (int blockY = 0; blockY <= blockSize; ++blockY) {
-                for (int blockX = 0; blockX <= blockSize; ++blockX) {
+            for (auto blockY = 0; blockY <= blockSize; ++blockY) {
+                for (auto blockX = 0; blockX <= blockSize; ++blockX) {
                     Vertex v;
                     auto localX = x + blockX;
                     auto localY = y + blockY;
                     auto gridHeight = getHeight(width - 1 - localX, localY);
-                    v.Pos = Vector3f(localX * gridStep, gridHeight * gridElevationScale,
-                        localY * gridStep);
+                    v.Pos = Vec3f{localX * gridStep, gridHeight * gridElevationScale,
+                                  localY * gridStep};
                     v.u = 1.0f - (localX * uvStepX);
                     v.v = 1.0f - (localY * uvStepY);
                     vertices.push_back(v);
@@ -109,33 +113,42 @@ void HeightField::AddVertices(ID3D11Device* device) {
             }
             VertexBuffers.push_back(
                 std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, vertices.data(),
-                    vertices.size() * sizeof(vertices[0])));
+                                             vertices.size() * sizeof(vertices[0])));
         }
     }
 
-    CD3D11_SAMPLER_DESC ss{ D3D11_DEFAULT };
+    auto ss = CD3D11_SAMPLER_DESC{D3D11_DEFAULT};
     ss.Filter = D3D11_FILTER_ANISOTROPIC;
     ss.MaxAnisotropy = 8;
     device->CreateSamplerState(&ss, &samplerState);
 
-    ID3D11ResourcePtr shapes;
-    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\shapes2.dds)", &shapes, &shapesSRV));
+    auto shapes = ID3D11ResourcePtr{};
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(
+        device,
+        LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\shapes2.dds)",
+        &shapes, &shapesSRV));
+
+    auto normals = ID3D11ResourcePtr{};
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(
+        device,
+        LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233_normal.dds)",
+        &normals, &normalsSRV));
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
-    DataBuffer* uniformBuffer) {
+                         DataBuffer* uniformBuffer) {
     context->RSSetState(Rasterizer);
 
-    VertexShader* VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
+    const auto VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
     uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
-    ID3D11Buffer* vsConstantBuffers[] = { uniformBuffer->D3DBuffer };
+    ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    const vector<D3D11_INPUT_ELEMENT_DESC> modelVertexDesc{
-        D3D11_INPUT_ELEMENT_DESC{ "Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-        offsetof(Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        D3D11_INPUT_ELEMENT_DESC{ "TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
-        offsetof(Vertex, u), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    const auto modelVertexDesc = InputLayoutKey{
+        D3D11_INPUT_ELEMENT_DESC{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+                                 offsetof(Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
+        D3D11_INPUT_ELEMENT_DESC{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, u),
+                                 D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
@@ -143,20 +156,19 @@ void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDat
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->VSSetShader(VShader->D3DVert, NULL, 0);
 
-    PixelShader* pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
+    const auto pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
     context->PSSetShader(pixelShader->D3DPix, NULL, 0);
 
-    ID3D11SamplerState* samplerStates[] = { samplerState };
+    ID3D11SamplerState* samplerStates[] = {samplerState};
     context->PSSetSamplers(0, 1, samplerStates);
-    ID3D11ShaderResourceView* srvs[] = { shapesSRV };
-    context->PSSetShaderResources(0, 1, srvs);
+    ID3D11ShaderResourceView* srvs[] = {shapesSRV, normalsSRV};
+    context->PSSetShaderResources(0, 2, srvs);
 
     for (const auto& vertexBuffer : VertexBuffers) {
-        ID3D11Buffer* vertexBuffers[] = { vertexBuffer->D3DBuffer };
-        const UINT strides[] = { sizeof(Vertex) };
-        const UINT offsets[] = { 0 };
+        ID3D11Buffer* vertexBuffers[] = {vertexBuffer->D3DBuffer};
+        const UINT strides[] = {sizeof(Vertex)};
+        const UINT offsets[] = {0};
         context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
         context->DrawIndexed(Indices.size(), 0, 0);
     }
 }
-

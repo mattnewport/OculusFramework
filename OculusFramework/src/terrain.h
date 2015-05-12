@@ -2,6 +2,9 @@
 
 #include "Win32_DX11AppUtil.h"
 
+#include "vector.h"
+#include "matrix.h"
+
 #include <memory>
 
 struct HeightField {
@@ -12,24 +15,27 @@ struct HeightField {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        Vector3f Pos;
+        mathlib::Vec3f Pos;
         float u, v;
     };
 
-    Vector3f Pos;
-    Quatf Rot;
-    Matrix4f Mat;
+    mathlib::Vec3f Pos;
+    OVR::Quatf Rot;
+    mathlib::Mat4f Mat;
     std::vector<uint16_t> Indices;
     std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
     std::unique_ptr<DataBuffer> IndexBuffer;
     ID3D11ShaderResourceViewPtr shapesSRV;
+    ID3D11ShaderResourceViewPtr normalsSRV;
     ID3D11SamplerStatePtr samplerState;
     ID3D11RasterizerStatePtr Rasterizer;
 
-    HeightField(Vector3f arg_pos, ID3D11Device* device) : Pos{ arg_pos } {}
-    Matrix4f& GetMatrix() {
-        Mat = Matrix4f(Rot);
-        Mat = Matrix4f::Translation(Pos) * Mat;
+    HeightField(const mathlib::Vec3f& arg_pos) : Pos{ arg_pos } {}
+    const mathlib::Mat4f& GetMatrix() {
+        auto matTemp = OVR::Matrix4f(Rot);
+        matTemp.Transpose();
+        memcpy(&Mat, &matTemp, sizeof(Mat));
+        Mat = Mat * Mat4fTranslation(Pos);
         return Mat;
     }
 

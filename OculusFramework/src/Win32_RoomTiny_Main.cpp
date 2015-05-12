@@ -36,15 +36,25 @@ limitations under the License.
 
 #include "libovrwrapper.h"
 
+#include <vector.h>
+#include <matrix.h>
+
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <regex>
 #include <string>
 #include <unordered_map>
 
+#include <Xinput.h>
+
+using namespace mathlib;
+
 using namespace libovrwrapper;
 
 using namespace std;
+
+using namespace OVR;
 
 unordered_map<string, string> parseArgs(const char* args) {
     unordered_map<string, string> argMap;
@@ -137,7 +147,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                         false);  // Can simplify scene further with parameter if required.
 
         float Yaw(3.141592f);             // Horizontal rotation of the player
-        Vector3f Pos(0.0f, 1.6f, -5.0f);  // Position of player
+        Vec4f pos{ 0.0f, 1.6f, -5.0f, 1.0f };
 
         // MAIN LOOP
         // =========
@@ -164,15 +174,46 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             if (DX11.Key[VK_RIGHT]) Yaw -= 0.02f;
 
             // Keyboard inputs to adjust player position
+            const auto rotationMat = Mat4fRotationY(Yaw);
             if (DX11.Key['W'] || DX11.Key[VK_UP])
-                Pos += Matrix4f::RotationY(Yaw).Transform(Vector3f(0, 0, -speed * 0.05f));
+                pos += Vec4f{ 0.0f, 0.0f, -speed * 0.05f, 0.0f } * rotationMat;
             if (DX11.Key['S'] || DX11.Key[VK_DOWN])
-                Pos += Matrix4f::RotationY(Yaw).Transform(Vector3f(0, 0, +speed * 0.05f));
+                pos += Vec4f{ 0.0f, 0.0f, +speed * 0.05f, 0.0f } * rotationMat;
             if (DX11.Key['D'])
-                Pos += Matrix4f::RotationY(Yaw).Transform(Vector3f(+speed * 0.05f, 0, 0));
+                pos += Vec4f{+speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
             if (DX11.Key['A'])
-                Pos += Matrix4f::RotationY(Yaw).Transform(Vector3f(-speed * 0.05f, 0, 0));
-            Pos.y = hmd ? hmd->getProperty(OVR_KEY_EYE_HEIGHT, Pos.y) : Pos.y;
+                pos += Vec4f{ -speed * 0.05f, 0.0f, 0.0f, 0.0f } * rotationMat;
+
+            // gamepad inputs
+            for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
+                XINPUT_STATE state{};
+                auto res = XInputGetState(i, &state);
+                if (SUCCEEDED(res)) {
+                    const auto& gp = state.Gamepad;
+                    auto handleDeadzone = [](float x, float y, float deadzone) {
+                        const auto v = Vec2f{x, y};
+                        const auto mag = magnitude(v);
+                        if (mag > deadzone) {
+                            const auto n = v * 1.0f / mag;
+                            const auto s = saturate(
+                                (magnitude(v) - deadzone) /
+                                (numeric_limits<decltype(XINPUT_GAMEPAD::sThumbLX)>::max() - deadzone));
+                            return n * s;
+                        }
+                        return Vec2f{ 0.0f, 0.0f };
+                    };
+                    const auto ls = handleDeadzone(gp.sThumbLX, gp.sThumbLY,
+                                                   XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+                    const auto rs = handleDeadzone(gp.sThumbRX, gp.sThumbRY,
+                                                   XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+
+                    Yaw += -0.04f * rs.x();
+                    pos += Vec4f{0.05f * ls.x(), 0.0f, 0.0f, 0.0f} * rotationMat;
+                    pos += Vec4f{0.0f, 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
+                }
+            }
+
+            pos.y() = hmd ? hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y()) : pos.y();
 
             // Animate the cube
             if (speed)
@@ -207,16 +248,21 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     *useYaw = Yaw;
 
                     // Get view and projection matrices (note near Z to reduce eye strain)
-                    Matrix4f rollPitchYaw = Matrix4f::RotationY(Yaw);
-                    Matrix4f finalRollPitchYaw = rollPitchYaw * Matrix4f(useEyePose->Orientation);
-                    Vector3f finalUp = finalRollPitchYaw.Transform(Vector3f(0, 1, 0));
-                    Vector3f finalForward = finalRollPitchYaw.Transform(Vector3f(0, 0, -1));
-                    Vector3f shiftedEyePos = Pos + rollPitchYaw.Transform(useEyePose->Position);
+                    auto rollPitchYaw = Mat4fRotationY(Yaw);
+                    mathlib::Quatf ori;
+                    memcpy(&ori, &useEyePose->Orientation, sizeof(ori));
+                    auto fromOri = Mat4FromQuat(ori);
+                    Mat4f finalRollPitchYaw = fromOri * rollPitchYaw;
+                    Vec4f finalUp = Vec4f{ 0.0f, 1.0f, 0.0f, 0.0f } * finalRollPitchYaw;
+                    Vec4f finalForward = Vec4f{ 0.0f, 0.0f, -1.0f, 0.0f } * finalRollPitchYaw;
+                    Vec4f shiftedEyePos = pos + Vec4f{ useEyePose->Position.x, useEyePose->Position.y, useEyePose->Position.z, 1.0f } * rollPitchYaw;
 
-                    Matrix4f view =
-                        Matrix4f::LookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
-                    Matrix4f proj =
-                        ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.2f, 1000.0f, true);
+                    Mat4f view = Mat4fLookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
+                    Matrix4f projTemp =
+                        ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
+                    projTemp.Transpose();
+                    Mat4f proj;
+                    memcpy(&proj, &projTemp, sizeof(proj));
 
                     // Render the scene
                     for (int t = 0; t < timesToRenderScene; t++) roomScene.Render(DX11, view, proj);

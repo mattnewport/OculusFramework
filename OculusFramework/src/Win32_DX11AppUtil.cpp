@@ -9,6 +9,8 @@
 
 using namespace std;
 
+using namespace OVR;
+
 DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size)
     : Size(size) {
     D3D11_BUFFER_DESC desc{};

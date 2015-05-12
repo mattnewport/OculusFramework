@@ -3,6 +3,8 @@
 #include "Win32_DX11AppUtil.h"
 #include "terrain.h"
 
+#include "matrix.h"
+
 #include <memory>
 #include <string>
 
@@ -11,7 +13,7 @@ struct Texture {
     ID3D11ShaderResourceViewPtr TexSv;
     std::string name;
 
-    Texture(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext, Sizei size,
+    Texture(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext, OVR::Sizei size,
             int mipLevels = 1, unsigned char* data = NULL);
 };
 
@@ -30,25 +32,25 @@ struct Model {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        Vector3f Pos;
+        OVR::Vector3f Pos;
         Color C;
         float U, V;
     };
 
-    Vector3f Pos;
-    Quatf Rot;
-    Matrix4f Mat;
+    OVR::Vector3f Pos;
+    OVR::Quatf Rot;
+    OVR::Matrix4f Mat;
     std::vector<Vertex> Vertices;
     std::vector<uint16_t> Indices;
     std::unique_ptr<ShaderFill> Fill;
     std::unique_ptr<DataBuffer> VertexBuffer;
     std::unique_ptr<DataBuffer> IndexBuffer;
 
-    Model(Vector3f arg_pos, std::unique_ptr<ShaderFill>&& arg_Fill)
+    Model(OVR::Vector3f arg_pos, std::unique_ptr<ShaderFill>&& arg_Fill)
         : Pos{arg_pos}, Fill{std::move(arg_Fill)} {}
-    Matrix4f& GetMatrix() {
-        Mat = Matrix4f(Rot);
-        Mat = Matrix4f::Translation(Pos) * Mat;
+    OVR::Matrix4f& GetMatrix() {
+        Mat = OVR::Matrix4f(Rot);
+        Mat = OVR::Matrix4f::Translation(Pos) * Mat;
         return Mat;
     }
     void AddVertex(const Vertex& v) { Vertices.push_back(v); }
@@ -67,7 +69,7 @@ struct Scene {
 
     Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion);
 
-    void Render(DirectX11& dx11, Matrix4f view, Matrix4f proj);
+    void Render(DirectX11& dx11, const mathlib::Mat4f& view, const mathlib::Mat4f& proj);
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
                 DataBuffer* vertices, DataBuffer* indices, UINT stride, int count);
 

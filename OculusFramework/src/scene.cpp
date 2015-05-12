@@ -4,6 +4,8 @@
 
 using namespace std;
 
+using namespace OVR;
+
 void Model::AllocateBuffers(ID3D11Device* device) {
     VertexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, &Vertices[0],
                                                 Vertices.size() * sizeof(Vertex));
@@ -31,7 +33,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
                               8,  9,  11, 11, 9,  10, 13, 12, 14, 14, 12, 15,
                               16, 17, 19, 19, 17, 18, 21, 20, 22, 22, 20, 23};
 
-    for (auto idx : CubeIndices) AddIndex(idx + static_cast<uint16_t>(Vertices.size()));
+    for (auto idx : CubeIndices) AddIndex(static_cast<uint16_t>(idx + Vertices.size()));
 
     for (int v = 0; v < 24; v++) {
         Vertex vvv;
@@ -226,7 +228,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
     Add(move(m));
 
     // Terrain
-    heightField = make_unique<HeightField>(Vector3f(-1.0f, 0.8f, 0.0f), device);
+    heightField = make_unique<HeightField>(mathlib::Vec3f{ -1.0f, 0.8f, 0.0f });
     heightField->AddVertices(device);
 }
 
@@ -270,25 +272,23 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
     context->DrawIndexed(count, 0, 0);
 }
 
-void Scene::Render(DirectX11& dx11, Matrix4f view, Matrix4f proj) {
+void Scene::Render(DirectX11& dx11, const mathlib::Mat4f& view, const mathlib::Mat4f& proj) {
     dx11.Context->RSSetState(Rasterizer);
 
-    view.Transpose();
-    proj.Transpose();
     for (auto& model : Models) {
         VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("simplevs.hlsl");
         VShader->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
-        VShader->SetUniform("View", 16, &view.M[0][0]);
-        VShader->SetUniform("Proj", 16, &proj.M[0][0]);
+        VShader->SetUniform("View", 16, view.data());
+        VShader->SetUniform("Proj", 16, proj.data());
 
         Render(dx11.Context, dx11.shaderDatabase, model->Fill.get(), model->VertexBuffer.get(),
                model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size());
     }
 
     VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("terrainvs.hlsl");
-    VShader->SetUniform("World", 16, &heightField->GetMatrix().Transposed().M[0][0]);
-    VShader->SetUniform("View", 16, &view.M[0][0]);
-    VShader->SetUniform("Proj", 16, &proj.M[0][0]);
+    VShader->SetUniform("World", 16, heightField->GetMatrix().data());
+    VShader->SetUniform("View", 16, view.data());
+    VShader->SetUniform("Proj", 16, proj.data());
 
     heightField->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
 }

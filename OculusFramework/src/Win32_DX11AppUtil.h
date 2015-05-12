@@ -60,13 +60,11 @@ _COM_SMARTPTR_TYPEDEF(ID3D10Blob, __uuidof(ID3D10Blob));
 _COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
 _COM_SMARTPTR_TYPEDEF(ID3D11Resource, __uuidof(ID3D11Resource));
 
-using namespace OVR;
-
 inline void ThrowOnFailure(HRESULT hr) {
     if (FAILED(hr)) {
-        _com_error err{ hr };
+        _com_error err{hr};
         OutputDebugString(err.ErrorMessage());
-        throw std::runtime_error{ "Failed HRESULT" };
+        throw std::runtime_error{"Failed HRESULT"};
     }
 }
 
@@ -110,12 +108,12 @@ struct ImageBuffer {
     ID3D11ShaderResourceViewPtr TexSv;
     ID3D11RenderTargetViewPtr TexRtv;
     ID3D11DepthStencilViewPtr TexDsv;
-    Sizei Size = Sizei{};
+    OVR::Sizei Size = OVR::Sizei{};
     const char* name = nullptr;
 
     ImageBuffer() = default;
     ImageBuffer(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
-                bool rendertarget, bool depth, Sizei size, int mipLevels = 1);
+                bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1);
 };
 
 struct SecondWindow {
@@ -130,7 +128,7 @@ struct SecondWindow {
     std::unique_ptr<ImageBuffer> DepthBuffer;
 
     ~SecondWindow();
-    void Init(HINSTANCE hinst, ID3D11Device* device, ID3D11DeviceContext* context);
+    void Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceContext* context);
 };
 
 using InputLayoutKey = std::vector<D3D11_INPUT_ELEMENT_DESC>;
@@ -210,7 +208,7 @@ private:
 struct DirectX11 {
     HWND Window = nullptr;
     bool Key[256];
-    Sizei RenderTargetSize;
+    OVR::Sizei RenderTargetSize;
     // std::unique_ptr<ImageBuffer> MainDepthBuffer;
     ID3D11DevicePtr Device;
     ID3D11DeviceContextPtr Context;
@@ -222,10 +220,10 @@ struct DirectX11 {
 
     DirectX11();
     ~DirectX11();
-    bool InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed);
+    bool InitWindowAndDevice(HINSTANCE hinst, OVR::Recti vp, bool windowed);
     void InitSecondWindow(HINSTANCE hinst);
     void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv,
-                                 Recti vp);
+                                 OVR::Recti vp);
     bool IsAnyKeyPressed() const;
     void SetMaxFrameLatency(int value);
     void HandleMessages();
