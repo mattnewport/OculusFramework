@@ -16,7 +16,7 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
     mat.alpha = 30.0f;
 
     float3 n = normalize(normals.Sample(Linear, TexCoord).xzy * 2.0f - 1.0f);
-    float3 l = float3(0, 3.7, 0) - worldPos;
+    float3 l = lightPos - worldPos;
     float lmag = length(l);
     float3 v = normalize(viewDir);
 

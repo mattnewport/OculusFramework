@@ -104,12 +104,9 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
 }
 
 // Simple latency box (keep similar vertex format and shader params same, for ease of code)
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reducedVersion) {
-    [this, device] {
-        CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
-        ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
-        SetDebugObjectName(Rasterizer, "Direct3D11::Rasterizer");
-    }();
+Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager) {
+    CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
+    rasterizerHandle = rasterizerStateManager.get(rs);
 
     UniformBufferGen = std::make_unique<DataBuffer>(device, D3D11_BIND_CONSTANT_BUFFER, nullptr,
                                                     2000);  // make sure big enough
@@ -171,8 +168,6 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int reduc
                         Model::Color(128, 128, 128));  // Bottom floor
     m->AllocateBuffers(device);
     Add(move(m));
-
-    if (reducedVersion) return;
 
     m.reset(new Model(Vector3f(0, 0, 0), std::move(generated_texture[4])));  // Ceiling
     m->AddSolidColorBox(-10.0f, 4.0f, -20.0f, 10.0f, 4.1f, 20.1f, Model::Color(128, 128, 128));
@@ -276,7 +271,7 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
 }
 
 void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj) {
-    dx11.Context->RSSetState(Rasterizer);
+    dx11.Context->RSSetState(rasterizerHandle.get());
 
     for (auto& model : Models) {
         VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("simplevs.hlsl");

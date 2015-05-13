@@ -19,6 +19,8 @@ limitations under the License.
 
 #pragma once
 
+#include "resourcemanager.h"
+
 #include <algorithm>
 #include <cstring>
 #include <map>
@@ -205,6 +207,35 @@ private:
     ShaderMap<PixelShader> pixelShaderMap;
 };
 
+namespace std {
+    template<> struct hash<D3D11_RASTERIZER_DESC> {
+        size_t operator()(const D3D11_RASTERIZER_DESC& x) const {
+            return hashCombine(x.FillMode, x.CullMode, x.FrontCounterClockwise, x.DepthBias,
+                               x.DepthBiasClamp, x.SlopeScaledDepthBias, x.DepthClipEnable,
+                               x.ScissorEnable, x.MultisampleEnable, x.AntialiasedLineEnable);
+        }
+    };
+}
+
+inline bool operator==(const D3D11_RASTERIZER_DESC& a, const D3D11_RASTERIZER_DESC& b) {
+    return std::make_tuple(a.FillMode, a.CullMode, a.FrontCounterClockwise, a.DepthBias,
+                           a.DepthBiasClamp, a.SlopeScaledDepthBias, a.DepthClipEnable,
+                           a.ScissorEnable, a.MultisampleEnable, a.AntialiasedLineEnable) ==
+           std::make_tuple(b.FillMode, b.CullMode, b.FrontCounterClockwise, b.DepthBias,
+                           b.DepthBiasClamp, b.SlopeScaledDepthBias, b.DepthClipEnable,
+                           b.ScissorEnable, b.MultisampleEnable, b.AntialiasedLineEnable);
+}
+
+class RasterizerStateManager : public ResourceManagerBase<D3D11_RASTERIZER_DESC, ID3D11RasterizerState> {
+public:
+    void setDevice(ID3D11Device* device) { device_ = device; }
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { resource->Release(); }
+
+    ID3D11DevicePtr device_;
+};
+
 struct DirectX11 {
     HWND Window = nullptr;
     bool Key[256];
@@ -217,6 +248,7 @@ struct DirectX11 {
     ID3D11RenderTargetViewPtr BackBufferRT;
     std::unique_ptr<SecondWindow> secondWindow;
     ShaderDatabase shaderDatabase;
+    RasterizerStateManager rasterizerStateManager;
 
     DirectX11();
     ~DirectX11();

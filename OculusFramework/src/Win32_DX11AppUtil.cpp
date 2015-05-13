@@ -201,6 +201,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
     }();
 
     shaderDatabase.SetDevice(Device);
+    rasterizerStateManager.setDevice(Device);
 
     return true;
 }
@@ -385,6 +386,12 @@ void PixelShader::SetUniform(const char* name, int n, const float* v) {
             return;
         }
     }
+}
+
+RasterizerStateManager::ResourceType* RasterizerStateManager::createResource(const RasterizerStateManager::KeyType& key) {
+    ID3D11RasterizerState* rs;
+    device_->CreateRasterizerState(&key, &rs);
+    return rs;
 }
 
 class ShaderIncludeHandler : public ID3DInclude {

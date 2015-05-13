@@ -16,3 +16,5 @@ float3 phong(PhongMaterialParams mat, PhongLightParams light, float3 n, float3 l
     float s = pow(saturate(dot(r, v)), mat.alpha);
     return mat.ka * light.ia + (mat.kd * d + mat.ks * s) * light.i;
 }
+
+static const float3 lightPos = float3(0, 3.7, 0);

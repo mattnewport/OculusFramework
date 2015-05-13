@@ -3,7 +3,7 @@
 float4 main(in float4 Position : SV_Position, in float3 worldPos : TEXCOORD0, in float3 normal : TEXCOORD1, in float3 viewDir : TEXCOORD2) : SV_Target
 {
     float3 n = normalize(normal);
-    float3 l = float3(0, 3.7, 0) - worldPos;
+    float3 l = lightPos - worldPos;
     float lmag = length(l);
 
     PhongMaterialParams mat;
