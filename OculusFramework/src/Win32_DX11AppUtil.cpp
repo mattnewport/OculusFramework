@@ -387,6 +387,30 @@ void PixelShader::SetUniform(const char* name, int n, const float* v) {
     }
 }
 
+class ShaderIncludeHandler : public ID3DInclude {
+public:
+    STDMETHOD(Open)(D3D_INCLUDE_TYPE /*IncludeType*/, LPCSTR pFileName, LPCVOID /*pParentData*/, LPCVOID* ppData, UINT* pBytes) override {
+        ifstream headerFile{ pFileName };
+        if (!headerFile) return E_INVALIDARG;
+        auto buf = stringstream{};
+        buf << headerFile.rdbuf();
+        auto str = buf.str();
+        *ppData = str.c_str();
+        *pBytes = str.size();
+        bufs_[*ppData] = move(str);
+        return S_OK;
+    }
+    STDMETHOD(Close)(LPCVOID pData) override {
+        auto findIt = bufs_.find(pData);
+        if (findIt == bufs_.end()) return E_INVALIDARG;
+        bufs_.erase(findIt);
+        return S_OK;
+    }
+
+private:
+    std::unordered_map<LPCVOID, string> bufs_;
+};
+
 template <typename ShaderType>
 ShaderType* LoadShader(ID3D11Device* device, const std::string& filename, const char* target,
     ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
@@ -395,7 +419,8 @@ ShaderType* LoadShader(ID3D11Device* device, const std::string& filename, const 
     buf << shaderSourceFile.rdbuf();
     ID3DBlobPtr compiledShader;
     ID3DBlobPtr errorMessages;
-    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr, nullptr, "main", target, 0,
+    ShaderIncludeHandler shaderIncludeHandler;
+    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr, &shaderIncludeHandler, "main", target, 0,
         0, &compiledShader, &errorMessages)))
     {
         shaderMap[filename] = make_unique<ShaderType>(device, compiledShader);
