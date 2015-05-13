@@ -8,13 +8,11 @@ using namespace mathlib;
 
 using namespace std;
 
-void Sphere::GenerateVerts(ID3D11Device& device) {
-    rs = [&device] {
-        ID3D11RasterizerStatePtr rs;
+void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager) {
+    rs = [&rasterizerStateManager] {
         auto desc = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
         //desc.FillMode = D3D11_FILL_WIREFRAME;
-        ThrowOnFailure(device.CreateRasterizerState(&desc, &rs));
-        return rs;
+        return rasterizerStateManager.get(desc);
     }();
 
     // generate cube
@@ -124,7 +122,7 @@ void Sphere::GenerateVerts(ID3D11Device& device) {
 
 void Sphere::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
                     DataBuffer* uniformBuffer) {
-    context->RSSetState(rs);
+    context->RSSetState(rs.get());
 
     const auto VShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
     uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());

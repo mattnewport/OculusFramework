@@ -1,5 +1,8 @@
 #include "Win32_DX11AppUtil.h"
+
 #include "scene.h"
+
+#include "DDSTextureLoader.h"
 
 #include <algorithm>
 #include <fstream>
@@ -32,12 +35,11 @@ void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
     deviceContext->Unmap(D3DBuffer, 0);
 }
 
-ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device,
-                         bool rendertarget, bool depth,
+ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
                          Sizei size, int mipLevels)
     : name(name_), Size(size) {
-    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w,
-                                 size.h, 1, mipLevels);
+    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+                                 size.w, size.h, 1, mipLevels);
 
     if (rendertarget) {
         if (depth)
@@ -67,16 +69,14 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device,
 
 DirectX11::DirectX11() { fill(begin(Key), end(Key), false); }
 
-DirectX11::~DirectX11() {
-}
+DirectX11::~DirectX11() {}
 
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
                                         ID3D11DepthStencilView* dsv, Recti vp) {
     float black[] = {0, 0, 0, 1};
     Context->OMSetRenderTargets(1, &rendertarget, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
-    Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1,
-                                   0);
+    Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
     D3D11_VIEWPORT D3Dvp;
     D3Dvp.Width = (float)vp.w;
     D3Dvp.Height = (float)vp.h;
@@ -202,6 +202,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
 
     shaderDatabase.SetDevice(Device);
     rasterizerStateManager.setDevice(Device);
+    texture2DManager.setDevice(Device);
 
     return true;
 }
@@ -267,8 +268,8 @@ void SecondWindow::Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceCont
     ThrowOnFailure(device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
     SetDebugObjectName(BackBufferRT, "SecondWindow::BackBufferRT");
 
-    DepthBuffer = std::make_unique<ImageBuffer>("SecondWindow::DepthBuffer", device, true,
-                                                true, Sizei(width, height));
+    DepthBuffer = std::make_unique<ImageBuffer>("SecondWindow::DepthBuffer", device, true, true,
+                                                Sizei(width, height));
 }
 
 void DirectX11::InitSecondWindow(HINSTANCE hinst) {
@@ -388,16 +389,28 @@ void PixelShader::SetUniform(const char* name, int n, const float* v) {
     }
 }
 
-RasterizerStateManager::ResourceType* RasterizerStateManager::createResource(const RasterizerStateManager::KeyType& key) {
+RasterizerStateManager::ResourceType* RasterizerStateManager::createResource(
+    const RasterizerStateManager::KeyType& key) {
     ID3D11RasterizerState* rs;
-    device_->CreateRasterizerState(&key, &rs);
+    device->CreateRasterizerState(&key, &rs);
     return rs;
+}
+
+Texture2DManager::ResourceType* Texture2DManager::createResource(
+    const Texture2DManager::KeyType& key) {
+    auto tex = ID3D11ResourcePtr{};
+    ID3D11ShaderResourceView* srv = nullptr;
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFileEx(
+        device, wstring(begin(key), end(key)).c_str(), 0, D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &tex, &srv));
+    return srv;
 }
 
 class ShaderIncludeHandler : public ID3DInclude {
 public:
-    STDMETHOD(Open)(D3D_INCLUDE_TYPE /*IncludeType*/, LPCSTR pFileName, LPCVOID /*pParentData*/, LPCVOID* ppData, UINT* pBytes) override {
-        ifstream headerFile{ pFileName };
+    STDMETHOD(Open)(D3D_INCLUDE_TYPE /*IncludeType*/, LPCSTR pFileName, LPCVOID /*pParentData*/,
+                    LPCVOID* ppData, UINT* pBytes) override {
+        ifstream headerFile{pFileName};
         if (!headerFile) return E_INVALIDARG;
         auto buf = stringstream{};
         buf << headerFile.rdbuf();
@@ -419,20 +432,42 @@ private:
 };
 
 template <typename ShaderType>
+ShaderType* loadShader(ID3D11Device& device, const std::string& filename, const char* target) {
+    ifstream shaderSourceFile{ filename };
+    stringstream buf;
+    buf << shaderSourceFile.rdbuf();
+    ID3DBlobPtr compiledShader;
+    ID3DBlobPtr errorMessages;
+    ShaderIncludeHandler shaderIncludeHandler;
+    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr,
+        &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
+        &errorMessages))) {
+        return new ShaderType{&device, compiledShader};
+    }
+    else {
+        OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));
+        return nullptr;
+    }
+}
+
+VertexShaderManager::ResourceType* VertexShaderManager::createResource(const KeyType& key) {
+    return loadShader<VertexShader>(device, key, "vs_5_0");
+}
+
+template <typename ShaderType>
 ShaderType* LoadShader(ID3D11Device* device, const std::string& filename, const char* target,
-    ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
+                       ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
     ifstream shaderSourceFile{filename};
     stringstream buf;
     buf << shaderSourceFile.rdbuf();
     ID3DBlobPtr compiledShader;
     ID3DBlobPtr errorMessages;
     ShaderIncludeHandler shaderIncludeHandler;
-    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr, &shaderIncludeHandler, "main", target, 0,
-        0, &compiledShader, &errorMessages)))
-    {
+    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr,
+                             &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
+                             &errorMessages))) {
         shaderMap[filename] = make_unique<ShaderType>(device, compiledShader);
-    }
-    else {
+    } else {
         OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));
     }
     return shaderMap[filename].get();

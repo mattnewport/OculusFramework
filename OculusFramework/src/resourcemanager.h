@@ -46,27 +46,26 @@ public:
     using KeyType = Key;
     using ResourceType = Resource;
 
-    // ResourceHandles are tracking and threadsafe which makes them fairly expensive to copy so you
-    // don't want to pass them around by value. The system is designed so that a resource is not
-    // freed for 2 frames after the last ResourceHandle goes away so it is safe to pass raw
-    // Resources around within a frame. For this reason it is not possible to copy construct or
-    // assign a ResourceHandle.
+    // ResourceHandles are tracking and (will be) threadsafe which makes them fairly expensive to
+    // copy so you don't want to pass them around by value. The system is designed so that a
+    // resource is not freed for 2 frames after the last ResourceHandle goes away so it is safe to
+    // pass raw Resources around within a frame. For this reason it is not possible to copy
+    // construct or assign a ResourceHandle.
     friend class ResourceHandle;
     class ResourceHandle {
     public:
         ResourceHandle() = default;
         ResourceHandle(const ResourceHandle&) = delete;
-        ResourceHandle(ResourceHandle&& x) : owner{ x.owner }, key{ x.key }, resource{ x.resource } {
+        ResourceHandle(ResourceHandle&& x) : owner{x.owner}, key{x.key}, resource{x.resource} {
             owner->track(*key, *this);
         }
         ResourceHandle(ResourceManagerBase& owner_, const KeyType& key_, ResourceType& resource_)
             : owner{&owner_}, key{&key_}, resource{&resource_} {
-            // This could be optimized since generally we just inserted the resource so no need to look it up again. It would complicate the code though.
+            // This could be optimized since generally we just inserted the resource so no need to
+            // look it up again. It would complicate the code though.
             owner->track(*key, *this);
         }
-        ~ResourceHandle() {
-            owner->untrack(key, *this);
-        }
+        ~ResourceHandle() { owner->untrack(key, *this); }
 
         ResourceHandle& operator=(const ResourceHandle&) = delete;
         ResourceHandle& operator=(ResourceHandle&& x) {
@@ -90,7 +89,8 @@ public:
 
     ResourceHandle get(const Key& key) {
         auto findIt = resourceTable.find(key);
-        if (findIt != resourceTable.end()) return ResourceHandle{*this, key, *findIt->second.resource.get()};
+        if (findIt != resourceTable.end())
+            return ResourceHandle{*this, findIt->first, *findIt->second.resource.get()};
         auto newIt =
             resourceTable.emplace(std::make_pair(key, ResourceOwner(this, createResource(key))))
                 .first;

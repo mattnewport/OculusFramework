@@ -69,7 +69,7 @@ struct Scene {
 
     void Add(std::unique_ptr<Model>&& n) { Models.emplace_back(move(n)); }
 
-    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager);
+    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager);
 
     void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj);
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,

@@ -228,12 +228,29 @@ inline bool operator==(const D3D11_RASTERIZER_DESC& a, const D3D11_RASTERIZER_DE
 
 class RasterizerStateManager : public ResourceManagerBase<D3D11_RASTERIZER_DESC, ID3D11RasterizerState> {
 public:
-    void setDevice(ID3D11Device* device) { device_ = device; }
+    void setDevice(ID3D11Device* device_) { device = device_; }
 private:
     ResourceType* createResource(const KeyType& key) override;
     void destroyResource(ResourceType* resource) override { resource->Release(); }
+    ID3D11DevicePtr device;
+};
 
-    ID3D11DevicePtr device_;
+class Texture2DManager : public ResourceManagerBase<std::string, ID3D11ShaderResourceView> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { resource->Release(); }
+    ID3D11DevicePtr device;
+};
+
+class VertexShaderManager : public ResourceManagerBase<std::string, VertexShader> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { delete resource; }
+    ID3D11DevicePtr device;
 };
 
 struct DirectX11 {
@@ -249,6 +266,8 @@ struct DirectX11 {
     std::unique_ptr<SecondWindow> secondWindow;
     ShaderDatabase shaderDatabase;
     RasterizerStateManager rasterizerStateManager;
+    Texture2DManager texture2DManager;
+    VertexShaderManager vertexShaderManager;
 
     DirectX11();
     ~DirectX11();

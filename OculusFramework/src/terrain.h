@@ -25,10 +25,10 @@ struct HeightField {
     std::vector<uint16_t> Indices;
     std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
     std::unique_ptr<DataBuffer> IndexBuffer;
-    ID3D11ShaderResourceViewPtr shapesSRV;
-    ID3D11ShaderResourceViewPtr normalsSRV;
     ID3D11SamplerStatePtr samplerState;
-    ID3D11RasterizerStatePtr Rasterizer;
+    RasterizerStateManager::ResourceHandle rasterizer;
+    Texture2DManager::ResourceHandle shapesTex;
+    Texture2DManager::ResourceHandle normalsTex;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{ arg_pos } {}
     const mathlib::Mat4f& GetMatrix() {
@@ -39,7 +39,7 @@ struct HeightField {
         return Mat;
     }
 
-    void AddVertices(ID3D11Device* device);
+    void AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager);
 
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
         DataBuffer* uniformBuffer);

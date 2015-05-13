@@ -11,12 +11,11 @@ using namespace std;
 
 using namespace mathlib;
 
-void HeightField::AddVertices(ID3D11Device* device) {
-    [this, device] {
+void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager) {
+    rasterizer = [&rasterizerStateManager] {
         auto rs = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
         // rs.FillMode = D3D11_FILL_WIREFRAME;
-        ThrowOnFailure(device->CreateRasterizerState(&rs, &Rasterizer));
-        SetDebugObjectName(Rasterizer, "HeightField::Rasterizer");
+        return rasterizerStateManager.get(rs);
     }();
 
     auto file = ifstream{
@@ -120,22 +119,13 @@ void HeightField::AddVertices(ID3D11Device* device) {
     ss.MaxAnisotropy = 8;
     device->CreateSamplerState(&ss, &samplerState);
 
-    auto shapes = ID3D11ResourcePtr{};
-    ThrowOnFailure(DirectX::CreateDDSTextureFromFileEx(
-        device,
-        LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\shapes2.dds)",
-        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &shapes, &shapesSRV));
-
-    auto normals = ID3D11ResourcePtr{};
-    ThrowOnFailure(DirectX::CreateDDSTextureFromFileEx(
-        device,
-        LR"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233_normal.dds)",
-        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, false, &normals, &normalsSRV));
+    shapesTex = texture2DManager.get(R"(data\shapes2.dds)");
+    normalsTex = texture2DManager.get(R"(data\cdem_dem_150508_205233_normal.dds)");
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
                          DataBuffer* uniformBuffer) {
-    context->RSSetState(Rasterizer);
+    context->RSSetState(rasterizer.get());
 
     const auto VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
     uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
@@ -159,7 +149,7 @@ void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDat
 
     ID3D11SamplerState* samplerStates[] = {samplerState};
     context->PSSetSamplers(0, 1, samplerStates);
-    ID3D11ShaderResourceView* srvs[] = {shapesSRV, normalsSRV};
+    ID3D11ShaderResourceView* srvs[] = {shapesTex.get(), normalsTex.get()};
     context->PSSetShaderResources(0, 2, srvs);
 
     for (const auto& vertexBuffer : VertexBuffers) {

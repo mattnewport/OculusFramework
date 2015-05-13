@@ -104,7 +104,7 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
 }
 
 // Simple latency box (keep similar vertex format and shader params same, for ease of code)
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager) {
+Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager) {
     CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
     rasterizerHandle = rasterizerStateManager.get(rs);
 
@@ -224,10 +224,10 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, Rasterize
 
     // Terrain
     heightField = make_unique<HeightField>(mathlib::Vec3f{ -1.0f, 0.8f, 0.0f });
-    heightField->AddVertices(device);
+    heightField->AddVertices(device, rasterizerStateManager, texture2DManager);
 
     sphere = make_unique<Sphere>();
-    sphere->GenerateVerts(*device);
+    sphere->GenerateVerts(*device, rasterizerStateManager);
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
