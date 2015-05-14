@@ -104,7 +104,7 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
 }
 
 // Simple latency box (keep similar vertex format and shader params same, for ease of code)
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager) {
+Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase) {
     CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
     rasterizerHandle = rasterizerStateManager.get(rs);
 
@@ -224,10 +224,17 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, Rasterize
 
     // Terrain
     heightField = make_unique<HeightField>(mathlib::Vec3f{ -1.0f, 0.8f, 0.0f });
-    heightField->AddVertices(device, rasterizerStateManager, texture2DManager);
+    heightField->AddVertices(device, rasterizerStateManager, texture2DManager, shaderDatabase);
 
     sphere = make_unique<Sphere>();
-    sphere->GenerateVerts(*device, rasterizerStateManager);
+    sphere->GenerateVerts(*device, rasterizerStateManager, shaderDatabase);
+
+    vertexShader = shaderDatabase.GetVertexShader("simplevs.hlsl");
+    pixelShader = shaderDatabase.GetPixelShader("simpleps.hlsl");
+
+    // temporary
+    terrainVertexShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
+    sphereVertexShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
@@ -236,8 +243,7 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
     context->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
 
-    VertexShader* VShader = shaderDatabase.GetVertexShader("simplevs.hlsl");
-    UniformBufferGen->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
+    UniformBufferGen->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {UniformBufferGen->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
@@ -249,14 +255,13 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
         D3D11_INPUT_ELEMENT_DESC{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
                                  offsetof(Model::Vertex, U), D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
+    context->IASetInputLayout(shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc));
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(VShader->D3DVert, NULL, 0);
+    context->VSSetShader(vertexShader.get()->D3DVert, NULL, 0);
 
-    PixelShader* pixelShader = shaderDatabase.GetPixelShader("simpleps.hlsl");
-    context->PSSetShader(pixelShader->D3DPix, NULL, 0);
+    context->PSSetShader(pixelShader.get()->D3DPix, NULL, 0);
     ID3D11SamplerState* samplerStates[] = {fill->SamplerState};
     context->PSSetSamplers(0, 1, samplerStates);
 
@@ -274,31 +279,30 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
     dx11.Context->RSSetState(rasterizerHandle.get());
 
     for (auto& model : Models) {
-        VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("simplevs.hlsl");
-        VShader->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
-        VShader->SetUniform("View", 16, view.data());
-        VShader->SetUniform("Proj", 16, proj.data());
+        vertexShader.get()->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
+        vertexShader.get()->SetUniform("View", 16, view.data());
+        vertexShader.get()->SetUniform("Proj", 16, proj.data());
 
         Render(dx11.Context, dx11.shaderDatabase, model->Fill.get(), model->VertexBuffer.get(),
                model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size());
     }
 
     {
-        VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("terrainvs.hlsl");
-        VShader->SetUniform("World", 16, heightField->GetMatrix().data());
-        VShader->SetUniform("View", 16, view.data());
-        VShader->SetUniform("Proj", 16, proj.data());
-        VShader->SetUniform("eye", 3, &eye.x());
+        auto vs = terrainVertexShader.get();
+        vs->SetUniform("World", 16, heightField->GetMatrix().data());
+        vs->SetUniform("View", 16, view.data());
+        vs->SetUniform("Proj", 16, proj.data());
+        vs->SetUniform("eye", 3, &eye.x());
 
         heightField->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
     }
 
     {
-        VertexShader* VShader = dx11.shaderDatabase.GetVertexShader("spherevs.hlsl");
-        VShader->SetUniform("World", 16, sphere->GetMatrix().data());
-        VShader->SetUniform("View", 16, view.data());
-        VShader->SetUniform("Proj", 16, proj.data());
-        VShader->SetUniform("eye", 3, &eye.x());
+        auto vs = sphereVertexShader.get();
+        vs->SetUniform("World", 16, sphere->GetMatrix().data());
+        vs->SetUniform("View", 16, view.data());
+        vs->SetUniform("Proj", 16, proj.data());
+        vs->SetUniform("eye", 3, &eye.x());
 
         sphere->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
     }

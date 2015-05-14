@@ -29,6 +29,8 @@ struct HeightField {
     RasterizerStateManager::ResourceHandle rasterizer;
     Texture2DManager::ResourceHandle shapesTex;
     Texture2DManager::ResourceHandle normalsTex;
+    VertexShaderManager::ResourceHandle vertexShader;
+    PixelShaderManager::ResourceHandle pixelShader;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{ arg_pos } {}
     const mathlib::Mat4f& GetMatrix() {
@@ -39,7 +41,7 @@ struct HeightField {
         return Mat;
     }
 
-    void AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager);
+    void AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase);
 
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
         DataBuffer* uniformBuffer);

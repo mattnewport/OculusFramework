@@ -454,47 +454,19 @@ VertexShaderManager::ResourceType* VertexShaderManager::createResource(const Key
     return loadShader<VertexShader>(device, key, "vs_5_0");
 }
 
-template <typename ShaderType>
-ShaderType* LoadShader(ID3D11Device* device, const std::string& filename, const char* target,
-                       ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
-    ifstream shaderSourceFile{filename};
-    stringstream buf;
-    buf << shaderSourceFile.rdbuf();
-    ID3DBlobPtr compiledShader;
-    ID3DBlobPtr errorMessages;
-    ShaderIncludeHandler shaderIncludeHandler;
-    if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr,
-                             &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
-                             &errorMessages))) {
-        shaderMap[filename] = make_unique<ShaderType>(device, compiledShader);
-    } else {
-        OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));
-    }
-    return shaderMap[filename].get();
+PixelShaderManager::ResourceType* PixelShaderManager::createResource(const KeyType& key) {
+    return loadShader<PixelShader>(device, key, "ps_5_0");
 }
 
-template <typename ShaderType>
-ShaderType* GetShader(ID3D11Device* device, const char* filename, const char* target,
-                      ShaderDatabase::ShaderMap<ShaderType>& shaderMap) {
-    const string filenameString{filename};
-    auto findIt = shaderMap.find(filenameString);
-    if (findIt != end(shaderMap)) return findIt->second.get();
-    return LoadShader(device, filenameString, target, shaderMap);
+VertexShaderManager::ResourceHandle ShaderDatabase::GetVertexShader(const char* filename) {
+    return vertexShaderManager.get(filename);
 }
 
-VertexShader* ShaderDatabase::GetVertexShader(const char* filename) {
-    return GetShader(device, filename, "vs_4_0", vertexShaderMap);
-}
-
-PixelShader* ShaderDatabase::GetPixelShader(const char* filename) {
-    return GetShader(device, filename, "ps_4_0", pixelShaderMap);
+PixelShaderManager::ResourceHandle ShaderDatabase::GetPixelShader(const char* filename) {
+    return pixelShaderManager.get(filename);
 }
 
 void ShaderDatabase::ReloadShaders() {
-    for (auto& e : vertexShaderMap) {
-        LoadShader(device, e.first, "vs_4_0", vertexShaderMap);
-    }
-    for (auto& e : pixelShaderMap) {
-        LoadShader(device, e.first, "ps_4_0", pixelShaderMap);
-    }
+    vertexShaderManager.recreateAll();
+    pixelShaderManager.recreateAll();
 }

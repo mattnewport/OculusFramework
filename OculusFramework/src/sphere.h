@@ -15,7 +15,7 @@ public:
 
     Sphere() = default;
 
-    void GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager);
+    void GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager, ShaderDatabase& shaderDatabase);
 
     void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
         DataBuffer* uniformBuffer);
@@ -31,4 +31,6 @@ private:
     ID3D11BufferPtr vb;
     ID3D11BufferPtr ib;
     size_t indexCount = 0;
+    VertexShaderManager::ResourceHandle vertexShader;
+    PixelShaderManager::ResourceHandle pixelShader;
 };

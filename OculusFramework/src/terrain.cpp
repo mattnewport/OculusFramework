@@ -11,7 +11,7 @@ using namespace std;
 
 using namespace mathlib;
 
-void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager) {
+void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase) {
     rasterizer = [&rasterizerStateManager] {
         auto rs = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
         // rs.FillMode = D3D11_FILL_WIREFRAME;
@@ -121,14 +121,16 @@ void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rast
 
     shapesTex = texture2DManager.get(R"(data\shapes2.dds)");
     normalsTex = texture2DManager.get(R"(data\cdem_dem_150508_205233_normal.dds)");
+
+    vertexShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
+    pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
 }
 
 void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
                          DataBuffer* uniformBuffer) {
     context->RSSetState(rasterizer.get());
 
-    const auto VShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
-    uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
+    uniformBuffer->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
@@ -138,14 +140,13 @@ void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDat
         D3D11_INPUT_ELEMENT_DESC{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, u),
                                  D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
+    context->IASetInputLayout(shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc));
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(VShader->D3DVert, NULL, 0);
+    context->VSSetShader(vertexShader.get()->D3DVert, NULL, 0);
 
-    const auto pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
-    context->PSSetShader(pixelShader->D3DPix, NULL, 0);
+    context->PSSetShader(pixelShader.get()->D3DPix, NULL, 0);
 
     ID3D11SamplerState* samplerStates[] = {samplerState};
     context->PSSetSamplers(0, 1, samplerStates);

@@ -144,7 +144,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     {
         // Create the room model
         Scene roomScene(DX11.Device, DX11.Context,
-                        DX11.rasterizerStateManager, DX11.texture2DManager);  // Can simplify scene further with parameter if required.
+                        DX11.rasterizerStateManager, DX11.texture2DManager, DX11.shaderDatabase);  // Can simplify scene further with parameter if required.
 
         float Yaw(3.141592f);             // Horizontal rotation of the player
         Vec4f pos{ 0.0f, 1.6f, -5.0f, 1.0f };

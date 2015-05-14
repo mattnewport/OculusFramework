@@ -45,6 +45,7 @@ class ResourceManagerBase {
 public:
     using KeyType = Key;
     using ResourceType = Resource;
+    using ResourceManagerBaseType = ResourceManagerBase<KeyType, ResourceType>;
 
     // ResourceHandles are tracking and (will be) threadsafe which makes them fairly expensive to
     // copy so you don't want to pass them around by value. The system is designed so that a
@@ -82,6 +83,7 @@ public:
         ResourceType* get() { return resource; }
 
     private:
+        friend class ResourceManagerBaseType;
         ResourceManagerBase* owner = nullptr;
         const KeyType* key = nullptr;
         ResourceType* resource = nullptr;
@@ -95,6 +97,17 @@ public:
             resourceTable.emplace(std::make_pair(key, ResourceOwner(this, createResource(key))))
                 .first;
         return ResourceHandle{*this, newIt->first, *newIt->second.resource.get()};
+    }
+
+    void recreate(const Key& key) {
+        auto findIt = resourceTable.find(key);
+        if (findIt != resourceTable.end()) recreate(*findIt);
+    }
+
+    void recreateAll() {
+        for (auto& e : resourceTable) {
+            recreate(e);
+        }
     }
 
 private:
@@ -127,6 +140,17 @@ private:
             auto findIt = std::find(std::begin(refs), std::end(refs), &handle);
             assert(findIt != end(refs));
             refs.erase(findIt);
+        }
+    }
+
+    void recreate(typename ResourceTable::value_type& entry) {
+        auto recreated = createResource(entry.first);
+        auto& resourceOwner = entry.second;
+        if (recreated) {
+            resourceOwner.resource.reset(recreated);
+            for (auto& ref : resourceOwner.liveReferences) {
+                ref->resource = recreated;
+            }
         }
     }
 

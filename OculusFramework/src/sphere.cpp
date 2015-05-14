@@ -8,7 +8,7 @@ using namespace mathlib;
 
 using namespace std;
 
-void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager) {
+void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager, ShaderDatabase& shaderDatabase) {
     rs = [&rasterizerStateManager] {
         auto desc = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
         //desc.FillMode = D3D11_FILL_WIREFRAME;
@@ -118,14 +118,16 @@ void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasteri
         ThrowOnFailure(device.CreateBuffer(&desc, &initialData, &buf));
         return buf;
     }();
+
+    vertexShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
+    pixelShader = shaderDatabase.GetPixelShader("sphereps.hlsl");
 }
 
 void Sphere::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
                     DataBuffer* uniformBuffer) {
     context->RSSetState(rs.get());
 
-    const auto VShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
-    uniformBuffer->Refresh(context, VShader->UniformData.data(), VShader->UniformData.size());
+    uniformBuffer->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
@@ -133,14 +135,13 @@ void Sphere::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase
         D3D11_INPUT_ELEMENT_DESC{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
                                  offsetof(Vertex, pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(VShader, modelVertexDesc));
+    context->IASetInputLayout(shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc));
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(VShader->D3DVert, NULL, 0);
+    context->VSSetShader(vertexShader.get()->D3DVert, NULL, 0);
 
-    const auto pixelShader = shaderDatabase.GetPixelShader("sphereps.hlsl");
-    context->PSSetShader(pixelShader->D3DPix, NULL, 0);
+    context->PSSetShader(pixelShader.get()->D3DPix, NULL, 0);
 
     ID3D11Buffer* vertexBuffers[] = {vb};
     const UINT strides[] = {sizeof(Vertex)};

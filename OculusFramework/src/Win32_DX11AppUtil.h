@@ -186,27 +186,6 @@ struct PixelShader {
     void SetUniform(const char* name, int n, const float* v);
 };
 
-class ShaderDatabase {
-public:
-    void SetDevice(ID3D11Device* device_) { device = device_; }
-    VertexShader* GetVertexShader(const char* filename);
-    PixelShader* GetPixelShader(const char* filename);
-
-    ID3D11InputLayout* GetInputLayout(VertexShader* vs, const InputLayoutKey& layout) {
-        return vs->GetInputLayout(device, layout);
-    }
-
-    void ReloadShaders();
-
-    template <typename ShaderType>
-    using ShaderMap = std::unordered_map<std::string, std::unique_ptr<ShaderType>>;
-
-private:
-    ID3D11Device* device = nullptr;
-    ShaderMap<VertexShader> vertexShaderMap;
-    ShaderMap<PixelShader> pixelShaderMap;
-};
-
 namespace std {
     template<> struct hash<D3D11_RASTERIZER_DESC> {
         size_t operator()(const D3D11_RASTERIZER_DESC& x) const {
@@ -253,6 +232,37 @@ private:
     ID3D11DevicePtr device;
 };
 
+class PixelShaderManager : public ResourceManagerBase<std::string, PixelShader> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { delete resource; }
+    ID3D11DevicePtr device;
+};
+
+class ShaderDatabase {
+public:
+    void SetDevice(ID3D11Device* device_) {
+        device = device_;
+        vertexShaderManager.setDevice(device);
+        pixelShaderManager.setDevice(device);
+    }
+    VertexShaderManager::ResourceHandle GetVertexShader(const char* filename);
+    PixelShaderManager::ResourceHandle GetPixelShader(const char* filename);
+
+    ID3D11InputLayout* GetInputLayout(VertexShader* vs, const InputLayoutKey& layout) {
+        return vs->GetInputLayout(device, layout);
+    }
+
+    void ReloadShaders();
+
+private:
+    ID3D11Device* device = nullptr;
+    VertexShaderManager vertexShaderManager;
+    PixelShaderManager pixelShaderManager;
+};
+
 struct DirectX11 {
     HWND Window = nullptr;
     bool Key[256];
@@ -267,7 +277,6 @@ struct DirectX11 {
     ShaderDatabase shaderDatabase;
     RasterizerStateManager rasterizerStateManager;
     Texture2DManager texture2DManager;
-    VertexShaderManager vertexShaderManager;
 
     DirectX11();
     ~DirectX11();
