@@ -92,6 +92,7 @@ private:
     struct RenderHelper;
     friend struct RenderHelper;
     std::unique_ptr<RenderHelper> renderHelper;
+    std::array<ovrEyeRenderDesc, 2> eyeRenderDescs;
 };
 
 class Hmd : public IHmd {

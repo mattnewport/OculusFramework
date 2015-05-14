@@ -81,29 +81,28 @@ std::array<ovrEyeRenderDesc, 2> DummyHmd::configureRendering(const ovrRenderAPIC
     renderHelper->swapChain = d3d11Config->D3D11.pSwapChain;
 
     // Fake out default DK2 values
-    auto res = std::array<ovrEyeRenderDesc, 2>{};
     // Left eye
-    res[0].Eye = ovrEye_Left;
-    res[0].Fov.UpTan = 1.32928634f;
-    res[0].Fov.DownTan = 1.32928634f;
-    res[0].Fov.LeftTan = 1.05865765f;
-    res[0].Fov.RightTan = 1.09236801f;
-    res[0].DistortedViewport.Pos = ovrVector2i{0, 0};
-    res[0].DistortedViewport.Size = ovrSizei{960, 1080};
-    res[0].PixelsPerTanAngleAtCenter = ovrVector2f{549.618286f, 549.618286f};
-    res[0].HmdToEyeViewOffset = ovrVector3f{0.0320000015f, 0.0f, 0.0f};
+    eyeRenderDescs[0].Eye = ovrEye_Left;
+    eyeRenderDescs[0].Fov.UpTan = 1.32928634f;
+    eyeRenderDescs[0].Fov.DownTan = 1.32928634f;
+    eyeRenderDescs[0].Fov.LeftTan = 1.05865765f;
+    eyeRenderDescs[0].Fov.RightTan = 1.09236801f;
+    eyeRenderDescs[0].DistortedViewport.Pos = ovrVector2i{0, 0};
+    eyeRenderDescs[0].DistortedViewport.Size = ovrSizei{960, 1080};
+    eyeRenderDescs[0].PixelsPerTanAngleAtCenter = ovrVector2f{549.618286f, 549.618286f};
+    eyeRenderDescs[0].HmdToEyeViewOffset = ovrVector3f{0.0320000015f, 0.0f, 0.0f};
     // Right eye
-    res[0].Eye = ovrEye_Right;
-    res[0].Fov.UpTan = 1.32928634f;
-    res[0].Fov.DownTan = 1.32928634f;
-    res[0].Fov.LeftTan = 1.09236801f;
-    res[0].Fov.RightTan = 1.05865765f;
-    res[0].DistortedViewport.Pos = ovrVector2i{960, 0};
-    res[0].DistortedViewport.Size = ovrSizei{960, 1080};
-    res[0].PixelsPerTanAngleAtCenter = ovrVector2f{549.618286f, 549.618286f};
-    res[0].HmdToEyeViewOffset = ovrVector3f{-0.0320000015f, 0.0f, 0.0f};
+    eyeRenderDescs[1].Eye = ovrEye_Right;
+    eyeRenderDescs[1].Fov.UpTan = 1.32928634f;
+    eyeRenderDescs[1].Fov.DownTan = 1.32928634f;
+    eyeRenderDescs[1].Fov.LeftTan = 1.09236801f;
+    eyeRenderDescs[1].Fov.RightTan = 1.05865765f;
+    eyeRenderDescs[1].DistortedViewport.Pos = ovrVector2i{960, 0};
+    eyeRenderDescs[1].DistortedViewport.Size = ovrSizei{960, 1080};
+    eyeRenderDescs[1].PixelsPerTanAngleAtCenter = ovrVector2f{549.618286f, 549.618286f};
+    eyeRenderDescs[1].HmdToEyeViewOffset = ovrVector3f{-0.0320000015f, 0.0f, 0.0f};
 
-    return res;
+    return eyeRenderDescs;
 }
 
 void DummyHmd::shutdownRendering() {
@@ -150,24 +149,26 @@ void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
         ID3D11RenderTargetView* rtvs[] = { backBufferRTV };
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
         directX11.Context->OMSetDepthStencilState(depthStencilState, 0);
-        D3D11_VIEWPORT vp;
-        vp.TopLeftX = 0.0f;
-        vp.TopLeftY = 0.0f;
-        vp.Width = 960.0f;
-        vp.Height = 1080.0f;
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        directX11.Context->RSSetViewports(1, &vp);
         directX11.Context->IASetInputLayout(nullptr);
         directX11.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         directX11.Context->VSSetShader(vertexShader.get()->D3DVert, nullptr, 0);
         directX11.Context->PSSetShader(pixelShader.get()->D3DPix, nullptr, 0);
-        auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
-        ID3D11ShaderResourceView* srvs[] = { d3dEyeTexture[0].D3D11.pSRView };
-        directX11.Context->PSSetShaderResources(0, 1, srvs);
         ID3D11SamplerState* samplers[] = { samplerState };
         directX11.Context->PSSetSamplers(0, 1, samplers);
-        directX11.Context->Draw(3, 0);
+        for (auto eye = 0; eye < 2; ++eye) {
+            D3D11_VIEWPORT vp;
+            vp.TopLeftX = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Pos.x);
+            vp.TopLeftY = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Pos.y);
+            vp.Width = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Size.w);
+            vp.Height = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Size.h);
+            vp.MinDepth = 0.0f;
+            vp.MaxDepth = 1.0f;
+            directX11.Context->RSSetViewports(1, &vp);
+            auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
+            ID3D11ShaderResourceView* srvs[] = { d3dEyeTexture[eye].D3D11.pSRView };
+            directX11.Context->PSSetShaderResources(0, 1, srvs);
+            directX11.Context->Draw(3, 0);
+        }
         ID3D11ShaderResourceView* clearSrvs[] = { nullptr };
         directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
     }();
