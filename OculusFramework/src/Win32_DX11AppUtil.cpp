@@ -36,12 +36,13 @@ void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
 }
 
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
-                         Sizei size, int mipLevels)
+                         Sizei size, int mipLevels, bool aa)
     : name(name_), Size(size) {
-    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
                                  size.w, size.h, 1, mipLevels);
 
     if (rendertarget) {
+        if (aa) dsDesc.SampleDesc.Count = 4;
         if (depth)
             dsDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
         else
@@ -72,12 +73,15 @@ DirectX11::DirectX11() { fill(begin(Key), end(Key), false); }
 DirectX11::~DirectX11() {}
 
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
-                                        ID3D11DepthStencilView* dsv, Recti vp) {
+                                        ID3D11DepthStencilView* dsv) {
     float black[] = {0, 0, 0, 1};
     Context->OMSetRenderTargets(1, &rendertarget, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
     Context->OMSetDepthStencilState(depthStencilState, 0);
+}
+
+void DirectX11::setViewport(const OVR::Recti& vp) {
     D3D11_VIEWPORT D3Dvp;
     D3Dvp.Width = (float)vp.w;
     D3Dvp.Height = (float)vp.h;

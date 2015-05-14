@@ -98,8 +98,8 @@ void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rast
             for (auto blockY = 0; blockY <= blockSize; ++blockY) {
                 for (auto blockX = 0; blockX <= blockSize; ++blockX) {
                     Vertex v;
-                    const auto localX = x + blockX;
-                    const auto localY = y + blockY;
+                    const auto localX = min(x + blockX, width);
+                    const auto localY = min(y + blockY, height);
                     const auto gridHeight = getHeight(width - 1 - localX, localY);
                     v.Pos = Vec3f{localX * gridStep, gridHeight * gridElevationScale,
                                   localY * gridStep};

@@ -53,7 +53,7 @@ struct ImageBuffer {
 
     ImageBuffer() = default;
     ImageBuffer(const char* name, ID3D11Device* device, 
-                bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1);
+                bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1, bool aa = false);
 };
 
 using InputLayoutKey = std::vector<D3D11_INPUT_ELEMENT_DESC>;
@@ -203,8 +203,8 @@ struct DirectX11 {
     DirectX11();
     ~DirectX11();
     bool InitWindowAndDevice(HINSTANCE hinst, OVR::Recti vp);
-    void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv,
-                                 OVR::Recti vp);
+    void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv);
+    void setViewport(const OVR::Recti& vp);
     bool IsAnyKeyPressed() const;
     void SetMaxFrameLatency(int value);
     void HandleMessages();
