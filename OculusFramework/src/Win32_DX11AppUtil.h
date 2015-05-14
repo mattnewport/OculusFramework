@@ -118,21 +118,6 @@ struct ImageBuffer {
                 bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1);
 };
 
-struct SecondWindow {
-    const wchar_t* className = L"OVRSecondWindow";
-    HINSTANCE hinst = nullptr;
-    int width = 0;
-    int height = 0;
-    HWND Window = nullptr;
-    IDXGISwapChainPtr SwapChain;
-    ID3D11Texture2DPtr BackBuffer;
-    ID3D11RenderTargetViewPtr BackBufferRT;
-    std::unique_ptr<ImageBuffer> DepthBuffer;
-
-    ~SecondWindow();
-    void Init(HINSTANCE hinst_, ID3D11Device* device, ID3D11DeviceContext* context);
-};
-
 using InputLayoutKey = std::vector<D3D11_INPUT_ELEMENT_DESC>;
 
 inline bool operator<(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y) {
@@ -267,13 +252,11 @@ struct DirectX11 {
     HWND Window = nullptr;
     bool Key[256];
     OVR::Sizei RenderTargetSize;
-    // std::unique_ptr<ImageBuffer> MainDepthBuffer;
     ID3D11DevicePtr Device;
     ID3D11DeviceContextPtr Context;
     IDXGISwapChainPtr SwapChain;
     ID3D11Texture2DPtr BackBuffer;
     ID3D11RenderTargetViewPtr BackBufferRT;
-    std::unique_ptr<SecondWindow> secondWindow;
     ShaderDatabase shaderDatabase;
     RasterizerStateManager rasterizerStateManager;
     Texture2DManager texture2DManager;
@@ -281,7 +264,6 @@ struct DirectX11 {
     DirectX11();
     ~DirectX11();
     bool InitWindowAndDevice(HINSTANCE hinst, OVR::Recti vp, bool windowed);
-    void InitSecondWindow(HINSTANCE hinst);
     void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv,
                                  OVR::Recti vp);
     bool IsAnyKeyPressed() const;

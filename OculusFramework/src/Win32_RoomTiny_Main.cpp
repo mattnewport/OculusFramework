@@ -95,8 +95,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         hmd ? Recti(hmd->getWindowsPos(), hmd->getResolution()) : Recti(0, 0, 1280, 720);
     if (!DX11.InitWindowAndDevice(hinst, windowRect, windowed)) return 0;
 
-    DX11.InitSecondWindow(hinst);
-
     // DX11.SetMaxFrameLatency(1);
 
     if (hmd) {
@@ -266,17 +264,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
                     // Render the scene
                     for (int t = 0; t < timesToRenderScene; t++) roomScene.Render(DX11, Vec3f{ shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z() }, view, proj);
-
-                    // Render undistorted to second window
-                    if (eye == ovrEye_Left) {
-                        // MNTODO: clean this up (hard coded width / height, assumption
-                        // EyeDepthBuffer is big enough...
-                        DX11.ClearAndSetRenderTarget(
-                            DX11.secondWindow->BackBufferRT, DX11.secondWindow->DepthBuffer.get()->TexDsv,
-                            Recti{0, 0, DX11.secondWindow->width, DX11.secondWindow->height});
-                        roomScene.Render(DX11, Vec3f{ shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z() }, view, proj);
-                        DX11.secondWindow->SwapChain->Present(0, 0);
-                    }
                 }
             }
 
