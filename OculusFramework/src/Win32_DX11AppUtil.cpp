@@ -77,6 +77,7 @@ void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
     Context->OMSetRenderTargets(1, &rendertarget, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
+    Context->OMSetDepthStencilState(depthStencilState, 0);
     D3D11_VIEWPORT D3Dvp;
     D3Dvp.Width = (float)vp.w;
     D3Dvp.Height = (float)vp.h;
@@ -117,16 +118,16 @@ LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProc(arg_hwnd, msg, wp, lp);
 }
 
-bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
-    Window = [hinst, vp, windowed, this] {
+bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
+    Window = [hinst, vp, this] {
         const auto className = L"OVRAppWindow";
         WNDCLASSW wc{};
         wc.lpszClassName = className;
         wc.lpfnWndProc = SystemWindowProc;
         RegisterClassW(&wc);
 
-        const DWORD wsStyle = windowed ? (WS_POPUP | WS_OVERLAPPEDWINDOW) : WS_POPUP;
-        const auto sizeDivisor = windowed ? 2 : 1;
+        const DWORD wsStyle = WS_POPUP | WS_OVERLAPPEDWINDOW;
+        const auto sizeDivisor = 2;
         RECT winSize = {0, 0, vp.w / sizeDivisor, vp.h / sizeDivisor};
         AdjustWindowRect(&winSize, wsStyle, false);
         return CreateWindowW(className, L"OculusRoomTiny", wsStyle | WS_VISIBLE, vp.x, vp.y,
@@ -135,15 +136,9 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
     }();
     if (!Window) return false;
 
-    if (windowed) {
-        RenderTargetSize = vp.GetSize();
-    } else {
-        RECT rc;
-        GetClientRect(Window, &rc);
-        RenderTargetSize = Sizei(rc.right - rc.left, rc.bottom - rc.top);
-    }
+    RenderTargetSize = vp.GetSize();
 
-    [this, windowed] {
+    [this] {
         IDXGIFactoryPtr DXGIFactory;
         ThrowOnFailure(
             CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&DXGIFactory)));
@@ -160,16 +155,16 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
         }();
 
         DXGI_SWAP_CHAIN_DESC scDesc{};
-        scDesc.BufferCount = 2;
         scDesc.BufferDesc.Width = RenderTargetSize.w;
         scDesc.BufferDesc.Height = RenderTargetSize.h;
         scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        scDesc.OutputWindow = Window;
         scDesc.SampleDesc.Count = 1;
         scDesc.SampleDesc.Quality = 0;
-        scDesc.Windowed = windowed;
-        scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+        scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        scDesc.BufferCount = 2;
+        scDesc.OutputWindow = Window;
+        scDesc.Windowed = TRUE;
+        scDesc.Flags = 0;
 
         ThrowOnFailure(D3D11CreateDeviceAndSwapChain(
             Adapter, Adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE, nullptr,
@@ -186,18 +181,10 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp, bool windowed) {
     ThrowOnFailure(Device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
     SetDebugObjectName(BackBufferRT, "Direct3D11::BackBufferRT");
 
-    /*
-    MainDepthBuffer = std::make_unique<ImageBuffer>("MainDepthBuffer", Device, Context, true, true,
-                                                    Sizei(RenderTargetSize.w, RenderTargetSize.h));
-                                                    */
-    if (!windowed) ThrowOnFailure(SwapChain->SetFullscreenState(1, nullptr));
-
     [this] {
         CD3D11_DEPTH_STENCIL_DESC dss{D3D11_DEFAULT};
-        ID3D11DepthStencilStatePtr DepthState;
-        ThrowOnFailure(Device->CreateDepthStencilState(&dss, &DepthState));
-        SetDebugObjectName(DepthState, "Direct3D11::DepthState");
-        Context->OMSetDepthStencilState(DepthState, 0);
+        ThrowOnFailure(Device->CreateDepthStencilState(&dss, &depthStencilState));
+        SetDebugObjectName(depthStencilState, "Direct3D11::depthStencilState");
     }();
 
     shaderDatabase.SetDevice(Device);
@@ -243,8 +230,9 @@ void DirectX11::ReleaseWindow(HINSTANCE hinst) {
     UnregisterClassW(L"OVRAppWindow", hinst);
 }
 
-VertexShader::VertexShader(ID3D11Device* device, ID3D10Blob* s) : byteCode{s}, numUniformInfo(0) {
+VertexShader::VertexShader(ID3D11Device* device, ID3D10Blob* s, const char* name) : byteCode{s}, numUniformInfo(0) {
     device->CreateVertexShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DVert);
+    SetDebugObjectName(D3DVert, name);
 
     ID3D11ShaderReflectionPtr ref;
     D3DReflect(s->GetBufferPointer(), s->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&ref);
@@ -280,15 +268,16 @@ ID3D11InputLayout* VertexShader::GetInputLayout(ID3D11Device* device,
     auto findIt = inputLayoutMap.find(inputLayoutKey);
     if (findIt != end(inputLayoutMap)) return findIt->second;
     ID3D11InputLayoutPtr inputLayout;
-    device->CreateInputLayout(&inputLayoutKey[0], inputLayoutKey.size(),
+    device->CreateInputLayout(inputLayoutKey.data(), inputLayoutKey.size(),
                               byteCode->GetBufferPointer(), byteCode->GetBufferSize(),
                               &inputLayout);
     inputLayoutMap[inputLayoutKey] = inputLayout;
     return inputLayout;
 }
 
-PixelShader::PixelShader(ID3D11Device* device, ID3D10Blob* s) : numUniformInfo(0) {
+PixelShader::PixelShader(ID3D11Device* device, ID3D10Blob* s, const char* name) : numUniformInfo(0) {
     device->CreatePixelShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DPix);
+    SetDebugObjectName(D3DPix, name);
 
     ID3D11ShaderReflectionPtr ref;
     D3DReflect(s->GetBufferPointer(), s->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&ref);
@@ -372,7 +361,7 @@ ShaderType* loadShader(ID3D11Device& device, const std::string& filename, const 
     if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr,
         &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
         &errorMessages))) {
-        return new ShaderType{&device, compiledShader};
+        return new ShaderType{&device, compiledShader, filename.c_str()};
     }
     else {
         OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));

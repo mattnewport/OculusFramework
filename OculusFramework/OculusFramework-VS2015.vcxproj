@@ -88,8 +88,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\d3dhelper.cpp" />
     <ClCompile Include="src\DDSTextureLoader.cpp" />
     <ClCompile Include="src\farmhash.cpp" />
+    <ClCompile Include="src\libovrwrapper.cpp" />
     <ClCompile Include="src\resourcemanager.cpp" />
     <ClCompile Include="src\scene.cpp" />
     <ClCompile Include="src\sphere.cpp" />
@@ -98,6 +100,7 @@
     <ClCompile Include="src\Win32_RoomTiny_Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\d3dhelper.h" />
     <ClInclude Include="src\dds.h" />
     <ClInclude Include="src\DDSTextureLoader.h" />
     <ClInclude Include="src\DirectXHelpers.h" />
@@ -110,9 +113,18 @@
     <ClInclude Include="src\terrain.h" />
     <ClInclude Include="src\Win32_DX11AppUtil.h" />
     <ClInclude Include="src\Win32_RoomTiny_AppRender.h" />
-    <ClInclude Include="src\Win32_RoomTiny_ExampleFeatures.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="dummyhmdps.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="dummyhmdvs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="simpleps.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>

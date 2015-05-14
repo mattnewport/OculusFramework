@@ -28,7 +28,6 @@ limitations under the License.
 #include "Win32_DX11AppUtil.h"  // Include Non-SDK supporting utilities
 #include "OVR_CAPI.h"           // Include the OculusVR SDK
 
-#include "Win32_RoomTiny_ExampleFeatures.h"  // Include extra options to show some simple operations
 #include "scene.h"
 
 #define OVR_D3D_VERSION 11
@@ -69,43 +68,95 @@ unordered_map<string, string> parseArgs(const char* args) {
     return argMap;
 }
 
-//-------------------------------------------------------------------------------------
+int appClock = 0;
+
+void ExampleFeatures1(const DirectX11& DX11, IHmd& hmd, const float * pSpeed, int * pTimesToRenderScene, ovrVector3f * useHmdToEyeViewOffset)
+{
+    // Update the appClock, used by some of the features
+    appClock++;
+
+    // Recenter the Rift by pressing 'R'
+    if (DX11.Key['R'])
+        hmd.recenterPose();
+
+    // Toggle to monoscopic by holding the 'I' key,
+    // to recognise the pitfalls of no stereoscopic viewing, how easy it
+    // is to get this wrong, and displaying the method to manually adjust.
+    if (DX11.Key['I'])
+    {
+        useHmdToEyeViewOffset[0].x = 0; // This value would normally be half the IPD,
+        useHmdToEyeViewOffset[1].x = 0; //  received from the loaded profile. 
+    }
+
+    OVR_UNUSED(pSpeed);
+    OVR_UNUSED(pTimesToRenderScene);
+
+    // Dismiss the Health and Safety message by pressing any key
+    if (DX11.IsAnyKeyPressed())
+        hmd.dismissHSWDisplay();
+}
+
+void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer ** pUseBuffer, ovrPosef ** pUseEyePose, float ** pUseYaw,
+    bool * pClearEyeImage, bool * pUpdateEyeImage, ovrRecti* EyeRenderViewport, const ImageBuffer& EyeRenderTexture)
+{
+    // A debug function that allows the pressing of 'F' to freeze/cease the generation of any new eye
+    // buffers, therefore showing the independent operation of timewarp. 
+    // Recommended for your applications
+    if (DX11.Key['F'])
+        *pClearEyeImage = *pUpdateEyeImage = false;
+
+    // This illustrates how the SDK allows the developer to vary the eye buffer resolution 
+    // in realtime.  Adjust with the '9' key.
+    if (DX11.Key['9'])
+        EyeRenderViewport->Size.h = (int)(EyeRenderTexture.Size.h*(2 + sin(0.1f*appClock)) / 3.0f);
+
+    // Press 'N' to simulate if, instead of rendering frames, exhibit blank frames
+    // in order to guarantee frame rate.   Not recommended at all, but useful to see,
+    // just in case some might consider it a viable alternative to juddering frames.
+    const int BLANK_FREQUENCY = 10;
+    if ((DX11.Key['N']) && ((appClock % (BLANK_FREQUENCY * 2)) == (eye*BLANK_FREQUENCY)))
+        *pUpdateEyeImage = false;
+
+    OVR_UNUSED3(pUseYaw, pUseEyePose, pUseBuffer);
+}
+
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     auto argMap = parseArgs(args);
 
     unique_ptr<Ovr> ovr;
-    unique_ptr<Hmd> hmd;
+    unique_ptr<IHmd> hmd;
 
-    if (argMap[string{"oculus"}] != "off") {
+    if (argMap[string{"oculus"}] == "off") {
+        // Use a dummy hmd and don't initialize the OVR SDK
+        hmd = make_unique<DummyHmd>();
+    }
+    else {
         // Initializes LibOVR, and the Rift
+        // Note: this must happen before initializing D3D
         ovr = make_unique<Ovr>();
         hmd = make_unique<Hmd>(ovr->CreateHmd());
     }
 
-    // MNTODO: handle startup with HMD disabled ("-oculus off" on command line) - hmd will be null
-    // This currently seems preferable to switching oculus on / off as there's not an obvious way to
-    // make that play nicely with SDK distortion
-    // and it also gives us the option of running on systems that don't have the Rift SDK installed.
-
     DirectX11 DX11{};
 
     // Setup Window and Graphics - use window frame if relying on Oculus driver
-    bool windowed = !hmd || !hmd->testCap(ovrHmdCap_ExtendDesktop);
-    Recti windowRect =
-        hmd ? Recti(hmd->getWindowsPos(), hmd->getResolution()) : Recti(0, 0, 1280, 720);
-    if (!DX11.InitWindowAndDevice(hinst, windowRect, windowed)) return 0;
+    Recti windowRect = Recti(hmd->getWindowsPos(), hmd->getResolution());
+    if (!DX11.InitWindowAndDevice(hinst, windowRect)) return 0;
 
-    // DX11.SetMaxFrameLatency(1);
+    [&hmd, &DX11] {
+        const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get());
+        if (dummyHmd) {
+            dummyHmd->setDirectX11(DX11);
+        }
+    }();
 
-    if (hmd) {
-        hmd->attachToWindow(DX11.Window);
-        hmd->setCap(ovrHmdCap_LowPersistence);
-        hmd->setCap(ovrHmdCap_DynamicPrediction);
+    hmd->attachToWindow(DX11.Window);
+    hmd->setCap(ovrHmdCap_LowPersistence);
+    hmd->setCap(ovrHmdCap_DynamicPrediction);
 
-        // Start the sensor which informs of the Rift's pose and motion
-        hmd->configureTracking(ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection |
-                               ovrTrackingCap_Position);
-    }
+    // Start the sensor which informs of the Rift's pose and motion
+    hmd->configureTracking(ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection |
+                            ovrTrackingCap_Position);
 
     // Make the eye render buffers (caution if actual size < requested due to HW limits).
     ovrRecti EyeRenderViewport[2];    // Useful to remember when varying resolution
@@ -124,7 +175,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     // Setup VR components
     std::array<ovrEyeRenderDesc, 2> EyeRenderDesc;
-    if (hmd) {
+    [&EyeRenderDesc, &hmd, &DX11]{
         ovrD3D11Config d3d11cfg;
         d3d11cfg.D3D11.Header.API = ovrRenderAPI_D3D11;
         d3d11cfg.D3D11.Header.BackBufferSize = hmd->getResolution();
@@ -137,7 +188,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         EyeRenderDesc = hmd->configureRendering(
             &d3d11cfg.Config, ovrDistortionCap_Chromatic | ovrDistortionCap_Vignette |
                                   ovrDistortionCap_TimeWarp | ovrDistortionCap_Overdrive);
-    }
+    }();
 
     {
         // Create the room model
@@ -157,11 +208,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[0].HmdToEyeViewOffset,
                                                     EyeRenderDesc[1].HmdToEyeViewOffset};
 
-            if (hmd) hmd->beginFrame(0);
+            hmd->beginFrame(0);
 
             // Handle key toggles for re-centering, meshes, FOV, etc.
-            if (hmd)
-                ExampleFeatures1(DX11, hmd->getHmd(), &speed, &timesToRenderScene,
+            ExampleFeatures1(DX11, *hmd, &speed, &timesToRenderScene,
                                  useHmdToEyeViewOffset);
 
             // Reload shaders
@@ -211,7 +261,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 }
             }
 
-            pos.y() = hmd ? hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y()) : pos.y();
+            pos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y());
 
             // Animate the cube
             if (speed)
@@ -219,8 +269,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     Vector3f(9 * sin(0.01f * appClock), 3, 9 * cos(0.01f * appClock));
 
             // Get both eye poses simultaneously, with IPD offset already included.
-            auto tempEyePoses = hmd ? hmd->getEyePoses(0, useHmdToEyeViewOffset)
-                                    : make_pair(array<ovrPosef, 2>{}, ovrTrackingState{});
+            auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
 
             ovrPosef EyeRenderPose[2];  // Useful to remember where the rendered eye originated
             float YawAtRender[2];       // Useful to remember where the rendered eye originated
@@ -283,7 +332,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     }
 
     // Release and close down
-    // if (hmd) hmd->shutdownRendering();
+    hmd->shutdownRendering();
     DX11.ReleaseWindow(hinst);
 
     return 0;
