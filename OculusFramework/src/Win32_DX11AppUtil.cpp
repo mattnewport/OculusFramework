@@ -78,7 +78,7 @@ void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
     Context->OMSetRenderTargets(1, &rendertarget, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
-    Context->OMSetDepthStencilState(depthStencilState, 0);
+    Context->OMSetDepthStencilState(depthStencilState.get(), 0);
 }
 
 void DirectX11::setViewport(const OVR::Recti& vp) {
@@ -177,6 +177,12 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
         SetDebugObjectName(SwapChain, "Direct3D11::SwapChain");
     }();
 
+    shaderDatabase.SetDevice(Device);
+    blendStateManager.setDevice(Device);
+    rasterizerStateManager.setDevice(Device);
+    depthStencilStateManager.setDevice(Device);
+    texture2DManager.setDevice(Device);
+
     ThrowOnFailure(
         SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&BackBuffer)));
     SetDebugObjectName(BackBuffer, "Direct3D11::BackBuffer");
@@ -186,13 +192,9 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
 
     [this] {
         CD3D11_DEPTH_STENCIL_DESC dss{D3D11_DEFAULT};
-        ThrowOnFailure(Device->CreateDepthStencilState(&dss, &depthStencilState));
-        SetDebugObjectName(depthStencilState, "Direct3D11::depthStencilState");
+        depthStencilState = depthStencilStateManager.get(dss);
+        SetDebugObjectName(depthStencilState.get(), "Direct3D11::depthStencilState");
     }();
-
-    shaderDatabase.SetDevice(Device);
-    rasterizerStateManager.setDevice(Device);
-    texture2DManager.setDevice(Device);
 
     return true;
 }
@@ -391,3 +393,18 @@ InputLayoutManager::ResourceType* InputLayoutManager::createResource(const KeyTy
                               key.shaderInputSignature->GetBufferSize(), &inputLayout);
     return inputLayout;
 }
+
+BlendStateManager::ResourceType* BlendStateManager::createResource(const KeyType & key)
+{
+    ID3D11BlendState* blendState = nullptr;
+    ThrowOnFailure(device->CreateBlendState(&key, &blendState));
+    return blendState;
+}
+
+DepthStencilStateManager::ResourceType* DepthStencilStateManager::createResource(const KeyType & key)
+{
+    ID3D11DepthStencilState* depthStencilState = nullptr;
+    ThrowOnFailure(device->CreateDepthStencilState(&key, &depthStencilState));
+    return depthStencilState;
+}
+

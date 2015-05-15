@@ -52,8 +52,8 @@ struct ImageBuffer {
     const char* name = nullptr;
 
     ImageBuffer() = default;
-    ImageBuffer(const char* name, ID3D11Device* device, 
-                bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1, bool aa = false);
+    ImageBuffer(const char* name, ID3D11Device* device, bool rendertarget, bool depth,
+                OVR::Sizei size, int mipLevels = 1, bool aa = false);
 };
 
 using InputElementDescs = std::vector<D3D11_INPUT_ELEMENT_DESC>;
@@ -75,7 +75,7 @@ inline bool operator==(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEM
         auto lcSemantic = std::string(x.SemanticName);
         for (auto& c : lcSemantic) c = static_cast<char>(tolower(c));
         return std::make_tuple(lcSemantic, x.SemanticIndex, x.Format, x.InputSlot,
-            x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
+                               x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
     };
     return tupleify(x) == tupleify(y);
 }
@@ -117,27 +117,122 @@ struct PixelShader {
 };
 
 namespace std {
-    template<> struct hash<D3D11_RASTERIZER_DESC> {
-        size_t operator()(const D3D11_RASTERIZER_DESC& x) const {
-            return hashCombine(x.FillMode, x.CullMode, x.FrontCounterClockwise, x.DepthBias,
-                               x.DepthBiasClamp, x.SlopeScaledDepthBias, x.DepthClipEnable,
-                               x.ScissorEnable, x.MultisampleEnable, x.AntialiasedLineEnable);
-        }
+template <>
+struct hash<D3D11_RENDER_TARGET_BLEND_DESC> {
+    size_t operator()(const D3D11_RENDER_TARGET_BLEND_DESC& x) const {
+        return hashCombine(x.BlendEnable, x.SrcBlend, x.DestBlend, x.BlendOp, x.SrcBlendAlpha,
+                           x.DestBlendAlpha, x.BlendOpAlpha, x.RenderTargetWriteMask);
+    }
+};
+
+template <>
+struct hash<D3D11_BLEND_DESC> {
+    size_t operator()(const D3D11_BLEND_DESC& x) const {
+        auto seed = hashCombineRange(begin(x.RenderTarget), end(x.RenderTarget));
+        return hashCombineWithSeed(seed, x.AlphaToCoverageEnable, x.IndependentBlendEnable);
+    }
+};
+}
+
+inline bool operator==(const D3D11_RENDER_TARGET_BLEND_DESC& a,
+                       const D3D11_RENDER_TARGET_BLEND_DESC& b) {
+    auto tupleify = [](const D3D11_RENDER_TARGET_BLEND_DESC& x) {
+        return std::make_tuple(x.BlendEnable, x.SrcBlend, x.DestBlend, x.BlendOp, x.SrcBlendAlpha,
+                               x.DestBlendAlpha, x.BlendOpAlpha, x.RenderTargetWriteMask);
     };
+    return tupleify(a) == tupleify(b);
+}
+
+inline bool operator==(const D3D11_BLEND_DESC& a, const D3D11_BLEND_DESC& b) {
+    auto tupleify = [](const D3D11_BLEND_DESC& x) {
+        return std::make_tuple(x.AlphaToCoverageEnable, x.IndependentBlendEnable);
+    };
+    return tupleify(a) == tupleify(b) &&
+           std::equal(std::begin(a.RenderTarget), std::end(a.RenderTarget),
+                      std::begin(b.RenderTarget), std::end(b.RenderTarget));
+}
+
+class BlendStateManager : public ResourceManagerBase<D3D11_BLEND_DESC, ID3D11BlendState> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { resource->Release(); }
+    ID3D11DevicePtr device;
+};
+
+namespace std {
+template <>
+struct hash<D3D11_RASTERIZER_DESC> {
+    size_t operator()(const D3D11_RASTERIZER_DESC& x) const {
+        return hashCombine(x.FillMode, x.CullMode, x.FrontCounterClockwise, x.DepthBias,
+                           x.DepthBiasClamp, x.SlopeScaledDepthBias, x.DepthClipEnable,
+                           x.ScissorEnable, x.MultisampleEnable, x.AntialiasedLineEnable);
+    }
+};
 }
 
 inline bool operator==(const D3D11_RASTERIZER_DESC& a, const D3D11_RASTERIZER_DESC& b) {
-    return std::make_tuple(a.FillMode, a.CullMode, a.FrontCounterClockwise, a.DepthBias,
-                           a.DepthBiasClamp, a.SlopeScaledDepthBias, a.DepthClipEnable,
-                           a.ScissorEnable, a.MultisampleEnable, a.AntialiasedLineEnable) ==
-           std::make_tuple(b.FillMode, b.CullMode, b.FrontCounterClockwise, b.DepthBias,
-                           b.DepthBiasClamp, b.SlopeScaledDepthBias, b.DepthClipEnable,
-                           b.ScissorEnable, b.MultisampleEnable, b.AntialiasedLineEnable);
+    auto tupleify = [](const D3D11_RASTERIZER_DESC& a) {
+        return std::make_tuple(a.FillMode, a.CullMode, a.FrontCounterClockwise, a.DepthBias,
+                               a.DepthBiasClamp, a.SlopeScaledDepthBias, a.DepthClipEnable,
+                               a.ScissorEnable, a.MultisampleEnable, a.AntialiasedLineEnable);
+    };
+    return tupleify(a) == tupleify(b);
 }
 
-class RasterizerStateManager : public ResourceManagerBase<D3D11_RASTERIZER_DESC, ID3D11RasterizerState> {
+class RasterizerStateManager
+    : public ResourceManagerBase<D3D11_RASTERIZER_DESC, ID3D11RasterizerState> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { resource->Release(); }
+    ID3D11DevicePtr device;
+};
+
+namespace std {
+template <>
+struct hash<D3D11_DEPTH_STENCILOP_DESC> {
+    size_t operator()(const D3D11_DEPTH_STENCILOP_DESC& x) const {
+        return hashCombine(x.StencilFailOp, x.StencilDepthFailOp, x.StencilPassOp, x.StencilFunc);
+    }
+};
+
+template <>
+struct hash<D3D11_DEPTH_STENCIL_DESC> {
+    size_t operator()(const D3D11_DEPTH_STENCIL_DESC& x) const {
+        return hashCombine(x.DepthEnable, x.DepthWriteMask, x.DepthFunc, x.StencilEnable,
+                           x.StencilReadMask, x.StencilWriteMask,
+                           std::hash<D3D11_DEPTH_STENCILOP_DESC>{}(x.FrontFace),
+                           std::hash<D3D11_DEPTH_STENCILOP_DESC>{}(x.BackFace));
+    }
+};
+}
+
+inline bool operator==(const D3D11_DEPTH_STENCILOP_DESC& a, const D3D11_DEPTH_STENCILOP_DESC& b) {
+    auto tupleify = [](const D3D11_DEPTH_STENCILOP_DESC& x) {
+        return std::make_tuple(x.StencilFailOp, x.StencilDepthFailOp, x.StencilPassOp,
+                               x.StencilFunc);
+    };
+    return tupleify(a) == tupleify(b);
+}
+
+inline bool operator==(const D3D11_DEPTH_STENCIL_DESC& a, const D3D11_DEPTH_STENCIL_DESC& b) {
+    auto tupleify = [](const D3D11_DEPTH_STENCIL_DESC& x) {
+        return std::make_tuple(x.DepthEnable, x.DepthWriteMask, x.DepthFunc, x.StencilEnable,
+                               x.StencilReadMask, x.StencilWriteMask, x.FrontFace, x.BackFace);
+    };
+    return tupleify(a) == tupleify(b);
+}
+
+class DepthStencilStateManager
+    : public ResourceManagerBase<D3D11_DEPTH_STENCIL_DESC, ID3D11DepthStencilState> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     void destroyResource(ResourceType* resource) override { resource->Release(); }
@@ -147,6 +242,7 @@ private:
 class Texture2DManager : public ResourceManagerBase<std::string, ID3D11ShaderResourceView> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     void destroyResource(ResourceType* resource) override { resource->Release(); }
@@ -156,6 +252,7 @@ private:
 class VertexShaderManager : public ResourceManagerBase<std::string, VertexShader> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     void destroyResource(ResourceType* resource) override { delete resource; }
@@ -165,6 +262,7 @@ private:
 class PixelShaderManager : public ResourceManagerBase<std::string, PixelShader> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     void destroyResource(ResourceType* resource) override { delete resource; }
@@ -198,6 +296,7 @@ struct hash<InputLayoutKey> {
 class InputLayoutManager : public ResourceManagerBase<InputLayoutKey, ID3D11InputLayout> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     void destroyResource(ResourceType* resource) override { resource->Release(); }
@@ -215,8 +314,9 @@ public:
     VertexShaderManager::ResourceHandle GetVertexShader(const char* filename);
     PixelShaderManager::ResourceHandle GetPixelShader(const char* filename);
 
-    InputLayoutManager::ResourceHandle GetInputLayout(VertexShader* vs, const InputElementDescs& layout) {
-        return inputLayoutManager.get(InputLayoutKey{ layout, vs->inputSignature });
+    InputLayoutManager::ResourceHandle GetInputLayout(VertexShader* vs,
+                                                      const InputElementDescs& layout) {
+        return inputLayoutManager.get(InputLayoutKey{layout, vs->inputSignature});
     }
 
     void ReloadShaders();
@@ -237,10 +337,14 @@ struct DirectX11 {
     IDXGISwapChainPtr SwapChain;
     ID3D11Texture2DPtr BackBuffer;
     ID3D11RenderTargetViewPtr BackBufferRT;
-    ID3D11DepthStencilStatePtr depthStencilState;
+
     ShaderDatabase shaderDatabase;
+    BlendStateManager blendStateManager;
     RasterizerStateManager rasterizerStateManager;
+    DepthStencilStateManager depthStencilStateManager;
     Texture2DManager texture2DManager;
+
+    DepthStencilStateManager::ResourceHandle depthStencilState;
 
     DirectX11();
     ~DirectX11();

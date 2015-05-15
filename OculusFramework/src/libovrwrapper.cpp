@@ -27,7 +27,7 @@ struct DummyHmd::RenderHelper {
         [this] {
             CD3D11_DEPTH_STENCIL_DESC desc{ D3D11_DEFAULT };
             desc.DepthEnable = FALSE;
-            ThrowOnFailure(directX11.Device->CreateDepthStencilState(&desc, &depthStencilState));
+            depthStencilState = directX11.depthStencilStateManager.get(desc);
         }();
         vertexShader = directX11.shaderDatabase.GetVertexShader("dummyhmdvs.hlsl");
         pixelShader = directX11.shaderDatabase.GetPixelShader("dummyhmdps.hlsl");
@@ -46,7 +46,7 @@ struct DummyHmd::RenderHelper {
     IDXGISwapChainPtr swapChain;
 
     RasterizerStateManager::ResourceHandle rasterizer;
-    ID3D11DepthStencilStatePtr depthStencilState;
+    DepthStencilStateManager::ResourceHandle depthStencilState;
     VertexShaderManager::ResourceHandle vertexShader;
     PixelShaderManager::ResourceHandle pixelShader;
     ID3D11SamplerStatePtr samplerState;
@@ -148,7 +148,7 @@ void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
     [this, eyeTexture] {
         ID3D11RenderTargetView* rtvs[] = {backBufferRTV};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        directX11.Context->OMSetDepthStencilState(depthStencilState, 0);
+        directX11.Context->OMSetDepthStencilState(depthStencilState.get(), 0);
         directX11.Context->IASetInputLayout(nullptr);
         directX11.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         directX11.Context->VSSetShader(vertexShader.get()->D3DVert, nullptr, 0);
