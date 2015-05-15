@@ -11,7 +11,9 @@ using namespace std;
 
 using namespace mathlib;
 
-void HeightField::AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager) {
+void HeightField::AddVertices(ID3D11Device* device,
+                              PipelineStateObjectManager& pipelineStateObjectManager,
+                              Texture2DManager& texture2DManager) {
     auto file = ifstream{
         R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233.dat)",
         ios::in | ios::binary};
@@ -118,14 +120,14 @@ void HeightField::AddVertices(ID3D11Device* device, PipelineStateObjectManager& 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "terrainvs.hlsl";
     desc.pixelShader = "terrainps.hlsl";
-    desc.inputLayout =
-        InputLayoutKey{InputElementDescs{MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
-                                         MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")},
-                       desc.vertexShader, vertexShaderManager};
+    desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
+                              MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void HeightField::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer) {
+void HeightField::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
+                         const mathlib::Mat4f& view, const mathlib::Mat4f& proj,
+                         DataBuffer* uniformBuffer) {
     context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
 
     auto vs = pipelineStateObject.get()->vertexShader.get();

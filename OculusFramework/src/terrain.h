@@ -32,7 +32,7 @@ struct HeightField {
     Texture2DManager::ResourceHandle shapesTex;
     Texture2DManager::ResourceHandle normalsTex;
 
-    HeightField(const mathlib::Vec3f& arg_pos) : Pos{ arg_pos } {}
+    HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos} {}
     const mathlib::Mat4f& GetMatrix() {
         auto matTemp = OVR::Matrix4f(Rot);
         matTemp.Transpose();
@@ -41,7 +41,9 @@ struct HeightField {
         return Mat;
     }
 
-    void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager);
+    void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
+                     Texture2DManager& texture2DManager);
 
-    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
+    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
+                const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
 };

@@ -38,8 +38,9 @@ void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
                          Sizei size, int mipLevels, bool aa)
     : name(name_), Size(size) {
-    CD3D11_TEXTURE2D_DESC dsDesc(depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-                                 size.w, size.h, 1, mipLevels);
+    CD3D11_TEXTURE2D_DESC dsDesc(
+        depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h, 1,
+        mipLevels);
 
     if (rendertarget) {
         if (aa) dsDesc.SampleDesc.Count = 4;
@@ -226,7 +227,8 @@ void DirectX11::ReleaseWindow(HINSTANCE hinst) {
     UnregisterClassW(L"OVRAppWindow", hinst);
 }
 
-VertexShader::VertexShader(ID3D11Device* device, ID3DBlob* s, const char* name) : byteCode{s}, numUniformInfo(0) {
+VertexShader::VertexShader(ID3D11Device* device, ID3DBlob* s, const char* name)
+    : byteCode{s}, numUniformInfo(0) {
     device->CreateVertexShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DVert);
     SetDebugObjectName(D3DVert, name);
 
@@ -339,18 +341,17 @@ private:
 
 template <typename ShaderType>
 ShaderType* loadShader(ID3D11Device& device, const std::string& filename, const char* target) {
-    ifstream shaderSourceFile{ filename };
+    ifstream shaderSourceFile{filename};
     stringstream buf;
     buf << shaderSourceFile.rdbuf();
     ID3DBlobPtr compiledShader;
     ID3DBlobPtr errorMessages;
     ShaderIncludeHandler shaderIncludeHandler;
     if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr,
-        &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
-        &errorMessages))) {
+                             &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
+                             &errorMessages))) {
         return new ShaderType{&device, compiledShader, filename.c_str()};
-    }
-    else {
+    } else {
         OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));
         return nullptr;
     }
@@ -385,29 +386,29 @@ InputLayoutManager::ResourceType* InputLayoutManager::createResource(const KeyTy
     return inputLayout;
 }
 
-BlendStateManager::ResourceType* BlendStateManager::createResource(const KeyType & key)
-{
+BlendStateManager::ResourceType* BlendStateManager::createResource(const KeyType& key) {
     ID3D11BlendState* blendState = nullptr;
     ThrowOnFailure(device->CreateBlendState(&key, &blendState));
     return blendState;
 }
 
-DepthStencilStateManager::ResourceType* DepthStencilStateManager::createResource(const KeyType & key)
-{
+DepthStencilStateManager::ResourceType* DepthStencilStateManager::createResource(
+    const KeyType& key) {
     ID3D11DepthStencilState* depthStencilState = nullptr;
     ThrowOnFailure(device->CreateDepthStencilState(&key, &depthStencilState));
     return depthStencilState;
 }
 
-PipelineStateObjectManager::ResourceType* PipelineStateObjectManager::createResource(const KeyType & key)
-{
+PipelineStateObjectManager::ResourceType* PipelineStateObjectManager::createResource(
+    const KeyType& key) {
     PipelineStateObject* pso = new PipelineStateObject{};
     pso->vertexShader = stateManagers.vertexShaderManager.get(key.vertexShader);
     pso->pixelShader = stateManagers.pixelShaderManager.get(key.pixelShader);
     pso->blendState = stateManagers.blendStateManager.get(key.blendState);
     pso->rasterizerState = stateManagers.rasterizerStateManager.get(key.rasterizerState);
     pso->depthStencilState = stateManagers.depthStencilStateManager.get(key.depthStencilState);
-    pso->inputLayout = stateManagers.inputLayoutManager.get(key.inputLayout);
+    pso->inputLayout = stateManagers.inputLayoutManager.get(
+        InputLayoutKey{key.inputElementDescs, pso->vertexShader.get()->inputSignature});
     pso->primitiveTopology = key.primitiveTopology;
     return pso;
 }

@@ -14,8 +14,8 @@ struct Texture {
     ID3D11ShaderResourceViewPtr TexSv;
     std::string name;
 
-    Texture(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext, OVR::Sizei size,
-            int mipLevels = 1, unsigned char* data = NULL);
+    Texture(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+            OVR::Sizei size, int mipLevels = 1, unsigned char* data = NULL);
 };
 
 struct ShaderFill {
@@ -69,11 +69,14 @@ struct Scene {
 
     void Add(std::unique_ptr<Model>&& n) { Models.emplace_back(move(n)); }
 
-    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager);
+    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+          PipelineStateObjectManager& pipelineStateObjectManager,
+          Texture2DManager& texture2DManager);
 
-    void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj);
-    void Render(ID3D11DeviceContext* context, ShaderFill* fill,
-                DataBuffer* vertices, DataBuffer* indices, UINT stride, int count);
+    void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
+                const mathlib::Mat4f& proj);
+    void Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
+                DataBuffer* indices, UINT stride, int count);
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 

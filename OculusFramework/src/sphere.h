@@ -15,9 +15,11 @@ public:
 
     Sphere() = default;
 
-    void GenerateVerts(ID3D11Device& device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager);
+    void GenerateVerts(ID3D11Device& device,
+                       PipelineStateObjectManager& pipelineStateObjectManager);
 
-    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
+    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
+                const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
 
     const mathlib::Mat4f GetMatrix() {
         auto scale = mathlib::Mat4fScale(0.25f);

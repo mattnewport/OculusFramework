@@ -64,8 +64,9 @@ struct hash<D3D11_INPUT_ELEMENT_DESC> {
     size_t operator()(const D3D11_INPUT_ELEMENT_DESC& x) const {
         auto lcSemantic = std::string(x.SemanticName);
         for (auto& c : lcSemantic) c = static_cast<char>(tolower(c));
-        return hashCombine(lcSemantic, x.SemanticIndex, x.Format, x.InputSlot, x.AlignedByteOffset,
-                           x.InputSlotClass, x.InstanceDataStepRate);
+        return hashCombine(std::hash<std::string>{}(lcSemantic), x.SemanticIndex, x.Format,
+                           x.InputSlot, x.AlignedByteOffset, x.InputSlotClass,
+                           x.InstanceDataStepRate);
     }
 };
 }
@@ -116,15 +117,16 @@ struct PixelShader {
     void SetUniform(const char* name, int n, const float* v);
 };
 
-template<typename T>
+template <typename T>
 struct D3DObjectDeleter {
     void operator()(T* t) { t->Release(); }
 };
 
-template<typename Key, typename Resource>
+template <typename Key, typename Resource>
 class D3DObjectManagerBase : public ResourceManagerBase<Key, Resource, D3DObjectDeleter<Resource>> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 protected:
     ID3D11DevicePtr device;
 };
@@ -241,6 +243,7 @@ class Texture2DManager : public D3DObjectManagerBase<std::string, ID3D11ShaderRe
 class VertexShaderManager : public ResourceManagerBase<std::string, VertexShader> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     ID3D11DevicePtr device;
@@ -249,6 +252,7 @@ private:
 class PixelShaderManager : public ResourceManagerBase<std::string, PixelShader> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
+
 private:
     ResourceType* createResource(const KeyType& key) override;
     ID3D11DevicePtr device;
@@ -323,12 +327,12 @@ struct PipelineStateObjectDesc {
     BlendStateManager::KeyType blendState;
     RasterizerStateManager::KeyType rasterizerState;
     DepthStencilStateManager::KeyType depthStencilState;
-    InputLayoutManager::KeyType inputLayout;
+    InputElementDescs inputElementDescs;
     D3D11_PRIMITIVE_TOPOLOGY primitiveTopology;
 };
 
 namespace std {
-template<>
+template <>
 struct hash<PipelineStateObjectDesc> {
     size_t operator()(const PipelineStateObjectDesc& x) const {
         return hashCombine(hash<VertexShaderManager::KeyType>{}(x.vertexShader),
@@ -336,7 +340,7 @@ struct hash<PipelineStateObjectDesc> {
                            hash<BlendStateManager::KeyType>{}(x.blendState),
                            hash<RasterizerStateManager::KeyType>{}(x.rasterizerState),
                            hash<DepthStencilStateManager::KeyType>{}(x.depthStencilState),
-                           hash<InputLayoutManager::KeyType>{}(x.inputLayout), x.primitiveTopology);
+                           hash<InputElementDescs>{}(x.inputElementDescs), x.primitiveTopology);
     }
 };
 }
@@ -344,7 +348,7 @@ struct hash<PipelineStateObjectDesc> {
 inline bool operator==(const PipelineStateObjectDesc& a, const PipelineStateObjectDesc& b) {
     auto tupleify = [](const PipelineStateObjectDesc& a) {
         return std::make_tuple(a.vertexShader, a.pixelShader, a.blendState, a.rasterizerState,
-                               a.depthStencilState, a.inputLayout, a.primitiveTopology);
+                               a.depthStencilState, a.inputElementDescs, a.primitiveTopology);
     };
     return tupleify(a) == tupleify(b);
 }
@@ -380,6 +384,7 @@ class PipelineStateObjectManager
     : public ResourceManagerBase<PipelineStateObjectDesc, PipelineStateObject> {
 public:
     PipelineStateObjectManager(StateManagers& stateManagers_) : stateManagers(stateManagers_) {}
+
 private:
     ResourceType* createResource(const KeyType& key);
 

@@ -37,8 +37,8 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 
     for (int v = 0; v < 24; v++) {
         Vertex vvv;
-        vvv.pos = mathlib::Vec3f{ Vert[v][0].x, Vert[v][0].y, Vert[v][0].z };
-        vvv.uv = mathlib::Vec2f{ Vert[v][1].x, Vert[v][1].y };
+        vvv.pos = mathlib::Vec3f{Vert[v][0].x, Vert[v][0].y, Vert[v][0].z};
+        vvv.uv = mathlib::Vec2f{Vert[v][1].x, Vert[v][1].y};
         float dist1 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-2.0f, 4.0f, -2.0f});
         float dist2 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{3.0f, 4.0f, -3.0f});
         float dist3 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-4.0f, 3.0f, 25.0f});
@@ -102,12 +102,14 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
     device->CreateSamplerState(&ss, &SamplerState);
 }
 
-template<>
+template <>
 inline DXGI_FORMAT getDXGIFormat<Model::Color>() {
     return DXGI_FORMAT_R8G8B8A8_UNORM;
 }
 
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager) {
+Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+             PipelineStateObjectManager& pipelineStateObjectManager,
+             Texture2DManager& texture2DManager) {
     UniformBufferGen = std::make_unique<DataBuffer>(device, D3D11_BIND_CONSTANT_BUFFER, nullptr,
                                                     2000);  // make sure big enough
 
@@ -223,31 +225,32 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, PipelineS
     Add(move(m));
 
     // Terrain
-    heightField = make_unique<HeightField>(mathlib::Vec3f{ -1.0f, 0.8f, 0.0f });
-    heightField->AddVertices(device, pipelineStateObjectManager, vertexShaderManager, texture2DManager);
+    heightField = make_unique<HeightField>(mathlib::Vec3f{-1.0f, 0.8f, 0.0f});
+    heightField->AddVertices(device, pipelineStateObjectManager, texture2DManager);
 
     sphere = make_unique<Sphere>();
-    sphere->GenerateVerts(*device, pipelineStateObjectManager, vertexShaderManager);
+    sphere->GenerateVerts(*device, pipelineStateObjectManager);
 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "simplevs.hlsl";
     desc.pixelShader = "simpleps.hlsl";
-    desc.inputLayout = InputLayoutKey{InputElementDescs{
-                                          MAKE_INPUT_ELEMENT_DESC(Model::Vertex, pos, "POSITION"),
-                                          MAKE_INPUT_ELEMENT_DESC(Model::Vertex, c, "COLOR"),
-                                          MAKE_INPUT_ELEMENT_DESC(Model::Vertex, uv, "TEXCOORD"),
-                                      },
-                                      desc.vertexShader, vertexShaderManager};
+    desc.inputElementDescs = {
+        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, pos, "POSITION"),
+        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, c, "COLOR"),
+        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, uv, "TEXCOORD"),
+    };
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill,
-                   DataBuffer* vertices, DataBuffer* indices, UINT stride, int count) {
+void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
+                   DataBuffer* indices, UINT stride, int count) {
     UINT offset = 0;
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
     context->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
 
-    UniformBufferGen->Refresh(context, pipelineStateObject.get()->vertexShader.get()->UniformData.data(), pipelineStateObject.get()->vertexShader.get()->UniformData.size());
+    UniformBufferGen->Refresh(context,
+                              pipelineStateObject.get()->vertexShader.get()->UniformData.data(),
+                              pipelineStateObject.get()->vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {UniformBufferGen->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
@@ -271,17 +274,19 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill,
     context->DrawIndexed(count, 0, 0);
 }
 
-void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj) {
+void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
+                   const mathlib::Mat4f& proj) {
     dx11.Context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
     dx11.Context->OMSetDepthStencilState(pipelineStateObject.get()->depthStencilState.get(), 0);
 
     for (auto& model : Models) {
-        pipelineStateObject.get()->vertexShader.get()->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
+        pipelineStateObject.get()->vertexShader.get()->SetUniform(
+            "World", 16, &model->GetMatrix().Transposed().M[0][0]);
         pipelineStateObject.get()->vertexShader.get()->SetUniform("View", 16, view.data());
         pipelineStateObject.get()->vertexShader.get()->SetUniform("Proj", 16, proj.data());
 
-        Render(dx11.Context, model->Fill.get(), model->VertexBuffer.get(),
-               model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size());
+        Render(dx11.Context, model->Fill.get(), model->VertexBuffer.get(), model->IndexBuffer.get(),
+               sizeof(Model::Vertex), model->Indices.size());
     }
 
     heightField->Render(dx11.Context, eye, view, proj, UniformBufferGen.get());

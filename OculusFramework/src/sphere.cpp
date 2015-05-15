@@ -8,7 +8,8 @@ using namespace mathlib;
 
 using namespace std;
 
-void Sphere::GenerateVerts(ID3D11Device& device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager) {
+void Sphere::GenerateVerts(ID3D11Device& device,
+                           PipelineStateObjectManager& pipelineStateObjectManager) {
     // generate cube
     auto verts = vector<Vertex>{Vec3f{-1.0f, -1.0f, -1.0f}, Vec3f{-1.0f, 1.0f, -1.0f},
                                 Vec3f{1.0f, 1.0f, -1.0f},   Vec3f{1.0f, -1.0f, -1.0f},
@@ -116,13 +117,13 @@ void Sphere::GenerateVerts(ID3D11Device& device, PipelineStateObjectManager& pip
     PipelineStateObjectDesc desc;
     desc.vertexShader = "spherevs.hlsl";
     desc.pixelShader = "sphereps.hlsl";
-    desc.inputLayout =
-        InputLayoutKey{InputElementDescs{MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")},
-                       desc.vertexShader, vertexShaderManager};
+    desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void Sphere::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer) {
+void Sphere::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
+                    const mathlib::Mat4f& view, const mathlib::Mat4f& proj,
+                    DataBuffer* uniformBuffer) {
     context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
 
     auto vs = pipelineStateObject.get()->vertexShader.get();

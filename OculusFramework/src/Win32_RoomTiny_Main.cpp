@@ -26,7 +26,7 @@ limitations under the License.
 // 4.  Supporting D3D11 and utility code is in Win32_DX11AppUtil.h
 
 #include "Win32_DX11AppUtil.h"  // Include Non-SDK supporting utilities
-#include "OVR.h"           // Include the OculusVR SDK
+#include "OVR.h"                // Include the OculusVR SDK
 
 #include "scene.h"
 
@@ -191,7 +191,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     {
         // Create the room model
-        Scene roomScene(DX11.Device, DX11.Context, *DX11.pipelineStateObjectManager, DX11.stateManagers->vertexShaderManager,
+        Scene roomScene(DX11.Device, DX11.Context, *DX11.pipelineStateObjectManager,
                         DX11.texture2DManager);
 
         float Yaw(3.141592f);  // Horizontal rotation of the player
@@ -313,7 +313,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                      view, proj);
             }
 
-            DX11.Context->ResolveSubresource(EyeResolveTexture.Tex, 0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+            DX11.Context->ResolveSubresource(EyeResolveTexture.Tex, 0, EyeRenderTexture.Tex, 0,
+                                             DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 
             // Do distortion rendering, Present and flush/sync
             if (hmd) {
