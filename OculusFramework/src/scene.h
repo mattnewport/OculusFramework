@@ -69,19 +69,13 @@ struct Scene {
 
     void Add(std::unique_ptr<Model>&& n) { Models.emplace_back(move(n)); }
 
-    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase);
+    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager);
 
     void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj);
-    void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
+    void Render(ID3D11DeviceContext* context, ShaderFill* fill,
                 DataBuffer* vertices, DataBuffer* indices, UINT stride, int count);
 
-    RasterizerStateManager::ResourceHandle rasterizerHandle;
-    std::unique_ptr<DataBuffer> UniformBufferGen;
-    VertexShaderManager::ResourceHandle vertexShader;
-    PixelShaderManager::ResourceHandle pixelShader;
-    InputLayoutManager::ResourceHandle inputLayout;
+    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
-    // temporary 
-    VertexShaderManager::ResourceHandle terrainVertexShader;
-    VertexShaderManager::ResourceHandle sphereVertexShader;
+    std::unique_ptr<DataBuffer> UniformBufferGen;
 };

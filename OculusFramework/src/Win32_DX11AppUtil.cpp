@@ -78,7 +78,6 @@ void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
     Context->OMSetRenderTargets(1, &rendertarget, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
-    Context->OMSetDepthStencilState(depthStencilState.get(), 0);
 }
 
 void DirectX11::setViewport(const OVR::Recti& vp) {
@@ -177,10 +176,8 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
         SetDebugObjectName(SwapChain, "Direct3D11::SwapChain");
     }();
 
-    shaderDatabase.SetDevice(Device);
-    blendStateManager.setDevice(Device);
-    rasterizerStateManager.setDevice(Device);
-    depthStencilStateManager.setDevice(Device);
+    stateManagers = make_unique<StateManagers>(Device);
+    pipelineStateObjectManager = make_unique<PipelineStateObjectManager>(*stateManagers);
     texture2DManager.setDevice(Device);
 
     ThrowOnFailure(
@@ -189,12 +186,6 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
 
     ThrowOnFailure(Device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
     SetDebugObjectName(BackBufferRT, "Direct3D11::BackBufferRT");
-
-    [this] {
-        CD3D11_DEPTH_STENCIL_DESC dss{D3D11_DEFAULT};
-        depthStencilState = depthStencilStateManager.get(dss);
-        SetDebugObjectName(depthStencilState.get(), "Direct3D11::depthStencilState");
-    }();
 
     return true;
 }
@@ -408,3 +399,15 @@ DepthStencilStateManager::ResourceType* DepthStencilStateManager::createResource
     return depthStencilState;
 }
 
+PipelineStateObjectManager::ResourceType* PipelineStateObjectManager::createResource(const KeyType & key)
+{
+    PipelineStateObject* pso = new PipelineStateObject{};
+    pso->vertexShader = stateManagers.vertexShaderManager.get(key.vertexShader);
+    pso->pixelShader = stateManagers.pixelShaderManager.get(key.pixelShader);
+    pso->blendState = stateManagers.blendStateManager.get(key.blendState);
+    pso->rasterizerState = stateManagers.rasterizerStateManager.get(key.rasterizerState);
+    pso->depthStencilState = stateManagers.depthStencilStateManager.get(key.depthStencilState);
+    pso->inputLayout = stateManagers.inputLayoutManager.get(key.inputLayout);
+    pso->primitiveTopology = key.primitiveTopology;
+    return pso;
+}

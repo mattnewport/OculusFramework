@@ -15,9 +15,9 @@ public:
 
     Sphere() = default;
 
-    void GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager, ShaderDatabase& shaderDatabase);
+    void GenerateVerts(ID3D11Device& device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager);
 
-    void Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer);
+    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
 
     const mathlib::Mat4f GetMatrix() {
         auto scale = mathlib::Mat4fScale(0.25f);
@@ -26,11 +26,8 @@ public:
     }
 
 private:
-    RasterizerStateManager::ResourceHandle rs;
     ID3D11BufferPtr vb;
     ID3D11BufferPtr ib;
     size_t indexCount = 0;
-    VertexShaderManager::ResourceHandle vertexShader;
-    PixelShaderManager::ResourceHandle pixelShader;
-    InputLayoutManager::ResourceHandle inputLayout;
+    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 };

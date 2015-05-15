@@ -107,10 +107,7 @@ inline DXGI_FORMAT getDXGIFormat<Model::Color>() {
     return DXGI_FORMAT_R8G8B8A8_UNORM;
 }
 
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase) {
-    CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
-    rasterizerHandle = rasterizerStateManager.get(rs);
-
+Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager) {
     UniformBufferGen = std::make_unique<DataBuffer>(device, D3D11_BIND_CONSTANT_BUFFER, nullptr,
                                                     2000);  // make sure big enough
 
@@ -227,43 +224,40 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, Rasterize
 
     // Terrain
     heightField = make_unique<HeightField>(mathlib::Vec3f{ -1.0f, 0.8f, 0.0f });
-    heightField->AddVertices(device, rasterizerStateManager, texture2DManager, shaderDatabase);
+    heightField->AddVertices(device, pipelineStateObjectManager, vertexShaderManager, texture2DManager);
 
     sphere = make_unique<Sphere>();
-    sphere->GenerateVerts(*device, rasterizerStateManager, shaderDatabase);
+    sphere->GenerateVerts(*device, pipelineStateObjectManager, vertexShaderManager);
 
-    vertexShader = shaderDatabase.GetVertexShader("simplevs.hlsl");
-    pixelShader = shaderDatabase.GetPixelShader("simpleps.hlsl");
-
-    const InputElementDescs modelInputElementDescs{
-        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, pos, "POSITION"),
-        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, c, "COLOR"),
-        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, uv, "TEXCOORD"),
-    };
-    inputLayout = shaderDatabase.GetInputLayout(vertexShader.get(), modelInputElementDescs);
-
-    // temporary
-    terrainVertexShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
-    sphereVertexShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
+    PipelineStateObjectDesc desc;
+    desc.vertexShader = "simplevs.hlsl";
+    desc.pixelShader = "simpleps.hlsl";
+    desc.inputLayout = InputLayoutKey{InputElementDescs{
+                                          MAKE_INPUT_ELEMENT_DESC(Model::Vertex, pos, "POSITION"),
+                                          MAKE_INPUT_ELEMENT_DESC(Model::Vertex, c, "COLOR"),
+                                          MAKE_INPUT_ELEMENT_DESC(Model::Vertex, uv, "TEXCOORD"),
+                                      },
+                                      desc.vertexShader, vertexShaderManager};
+    pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase, ShaderFill* fill,
+void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill,
                    DataBuffer* vertices, DataBuffer* indices, UINT stride, int count) {
     UINT offset = 0;
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
     context->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
 
-    UniformBufferGen->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
+    UniformBufferGen->Refresh(context, pipelineStateObject.get()->vertexShader.get()->UniformData.data(), pipelineStateObject.get()->vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {UniformBufferGen->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    context->IASetInputLayout(inputLayout.get());
+    context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(vertexShader.get()->D3DVert, NULL, 0);
+    context->VSSetShader(pipelineStateObject.get()->vertexShader.get()->D3DVert, NULL, 0);
 
-    context->PSSetShader(pixelShader.get()->D3DPix, NULL, 0);
+    context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
     ID3D11SamplerState* samplerStates[] = {fill->SamplerState};
     context->PSSetSamplers(0, 1, samplerStates);
 
@@ -278,34 +272,18 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
 }
 
 void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj) {
-    dx11.Context->RSSetState(rasterizerHandle.get());
+    dx11.Context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
+    dx11.Context->OMSetDepthStencilState(pipelineStateObject.get()->depthStencilState.get(), 0);
 
     for (auto& model : Models) {
-        vertexShader.get()->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
-        vertexShader.get()->SetUniform("View", 16, view.data());
-        vertexShader.get()->SetUniform("Proj", 16, proj.data());
+        pipelineStateObject.get()->vertexShader.get()->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
+        pipelineStateObject.get()->vertexShader.get()->SetUniform("View", 16, view.data());
+        pipelineStateObject.get()->vertexShader.get()->SetUniform("Proj", 16, proj.data());
 
-        Render(dx11.Context, dx11.shaderDatabase, model->Fill.get(), model->VertexBuffer.get(),
+        Render(dx11.Context, model->Fill.get(), model->VertexBuffer.get(),
                model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size());
     }
 
-    {
-        auto vs = terrainVertexShader.get();
-        vs->SetUniform("World", 16, heightField->GetMatrix().data());
-        vs->SetUniform("View", 16, view.data());
-        vs->SetUniform("Proj", 16, proj.data());
-        vs->SetUniform("eye", 3, &eye.x());
-
-        heightField->Render(dx11.Context, UniformBufferGen.get());
-    }
-
-    {
-        auto vs = sphereVertexShader.get();
-        vs->SetUniform("World", 16, sphere->GetMatrix().data());
-        vs->SetUniform("View", 16, view.data());
-        vs->SetUniform("Proj", 16, proj.data());
-        vs->SetUniform("eye", 3, &eye.x());
-
-        sphere->Render(dx11.Context, UniformBufferGen.get());
-    }
+    heightField->Render(dx11.Context, eye, view, proj, UniformBufferGen.get());
+    sphere->Render(dx11.Context, eye, view, proj, UniformBufferGen.get());
 }

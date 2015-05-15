@@ -8,13 +8,7 @@ using namespace mathlib;
 
 using namespace std;
 
-void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager, ShaderDatabase& shaderDatabase) {
-    rs = [&rasterizerStateManager] {
-        auto desc = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
-        //desc.FillMode = D3D11_FILL_WIREFRAME;
-        return rasterizerStateManager.get(desc);
-    }();
-
+void Sphere::GenerateVerts(ID3D11Device& device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager) {
     // generate cube
     auto verts = vector<Vertex>{Vec3f{-1.0f, -1.0f, -1.0f}, Vec3f{-1.0f, 1.0f, -1.0f},
                                 Vec3f{1.0f, 1.0f, -1.0f},   Vec3f{1.0f, -1.0f, -1.0f},
@@ -119,29 +113,35 @@ void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasteri
         return buf;
     }();
 
-    vertexShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
-    pixelShader = shaderDatabase.GetPixelShader("sphereps.hlsl");
-
-    const auto sphereInputElementDescs = InputElementDescs{
-        MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")
-    };
-    inputLayout = shaderDatabase.GetInputLayout(vertexShader.get(), sphereInputElementDescs);
+    PipelineStateObjectDesc desc;
+    desc.vertexShader = "spherevs.hlsl";
+    desc.pixelShader = "sphereps.hlsl";
+    desc.inputLayout =
+        InputLayoutKey{InputElementDescs{MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")},
+                       desc.vertexShader, vertexShaderManager};
+    pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void Sphere::Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer) {
-    context->RSSetState(rs.get());
+void Sphere::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer) {
+    context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
 
-    uniformBuffer->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
+    auto vs = pipelineStateObject.get()->vertexShader.get();
+    vs->SetUniform("World", 16, GetMatrix().data());
+    vs->SetUniform("View", 16, view.data());
+    vs->SetUniform("Proj", 16, proj.data());
+    vs->SetUniform("eye", 3, &eye.x());
+
+    uniformBuffer->Refresh(context, vs->UniformData.data(), vs->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    context->IASetInputLayout(inputLayout.get());
+    context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(vertexShader.get()->D3DVert, NULL, 0);
+    context->VSSetShader(vs->D3DVert, NULL, 0);
 
-    context->PSSetShader(pixelShader.get()->D3DPix, NULL, 0);
+    context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
 
     ID3D11Buffer* vertexBuffers[] = {vb};
     const UINT strides[] = {sizeof(Vertex)};

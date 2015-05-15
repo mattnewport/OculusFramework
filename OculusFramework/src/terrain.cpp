@@ -11,13 +11,7 @@ using namespace std;
 
 using namespace mathlib;
 
-void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase) {
-    rasterizer = [&rasterizerStateManager] {
-        auto rs = CD3D11_RASTERIZER_DESC{D3D11_DEFAULT};
-        // rs.FillMode = D3D11_FILL_WIREFRAME;
-        return rasterizerStateManager.get(rs);
-    }();
-
+void HeightField::AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager, VertexShaderManager& vertexShaderManager, Texture2DManager& texture2DManager) {
     auto file = ifstream{
         R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\cdem_dem_150508_205233.dat)",
         ios::in | ios::binary};
@@ -121,30 +115,36 @@ void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rast
     shapesTex = texture2DManager.get(R"(data\shapes2.dds)");
     normalsTex = texture2DManager.get(R"(data\cdem_dem_150508_205233_normal.dds)");
 
-    vertexShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
-    pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
-
-    const auto modelVertexDesc = InputElementDescs{
-        MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
-        MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")
-    };
-    inputLayout = shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc);
+    PipelineStateObjectDesc desc;
+    desc.vertexShader = "terrainvs.hlsl";
+    desc.pixelShader = "terrainps.hlsl";
+    desc.inputLayout =
+        InputLayoutKey{InputElementDescs{MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
+                                         MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")},
+                       desc.vertexShader, vertexShaderManager};
+    pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void HeightField::Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer) {
-    context->RSSetState(rasterizer.get());
+void HeightField::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view, const mathlib::Mat4f& proj, DataBuffer* uniformBuffer) {
+    context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
 
-    uniformBuffer->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
+    auto vs = pipelineStateObject.get()->vertexShader.get();
+    vs->SetUniform("World", 16, GetMatrix().data());
+    vs->SetUniform("View", 16, view.data());
+    vs->SetUniform("Proj", 16, proj.data());
+    vs->SetUniform("eye", 3, &eye.x());
+
+    uniformBuffer->Refresh(context, vs->UniformData.data(), vs->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    context->IASetInputLayout(inputLayout.get());
+    context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(vertexShader.get()->D3DVert, NULL, 0);
+    context->VSSetShader(vs->D3DVert, NULL, 0);
 
-    context->PSSetShader(pixelShader.get()->D3DPix, NULL, 0);
+    context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
 
     ID3D11SamplerState* samplerStates[] = {samplerState};
     context->PSSetSamplers(0, 1, samplerStates);

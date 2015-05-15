@@ -22,15 +22,15 @@ struct DummyHmd::RenderHelper {
         [this]{
             CD3D11_RASTERIZER_DESC desc{ D3D11_DEFAULT };
             desc.CullMode = D3D11_CULL_NONE;
-            rasterizer = directX11.rasterizerStateManager.get(desc);
+            rasterizer = directX11.stateManagers->rasterizerStateManager.get(desc);
         }();
         [this] {
             CD3D11_DEPTH_STENCIL_DESC desc{ D3D11_DEFAULT };
             desc.DepthEnable = FALSE;
-            depthStencilState = directX11.depthStencilStateManager.get(desc);
+            depthStencilState = directX11.stateManagers->depthStencilStateManager.get(desc);
         }();
-        vertexShader = directX11.shaderDatabase.GetVertexShader("dummyhmdvs.hlsl");
-        pixelShader = directX11.shaderDatabase.GetPixelShader("dummyhmdps.hlsl");
+        vertexShader = directX11.stateManagers->vertexShaderManager.get("dummyhmdvs.hlsl");
+        pixelShader = directX11.stateManagers->pixelShaderManager.get("dummyhmdps.hlsl");
         [this] {
             CD3D11_SAMPLER_DESC desc{ D3D11_DEFAULT };
             ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));

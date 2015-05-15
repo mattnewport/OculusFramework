@@ -191,9 +191,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     {
         // Create the room model
-        Scene roomScene(
-            DX11.Device, DX11.Context, DX11.rasterizerStateManager, DX11.texture2DManager,
-            DX11.shaderDatabase);  // Can simplify scene further with parameter if required.
+        Scene roomScene(DX11.Device, DX11.Context, *DX11.pipelineStateObjectManager, DX11.stateManagers->vertexShaderManager,
+                        DX11.texture2DManager);
 
         float Yaw(3.141592f);  // Horizontal rotation of the player
         Vec4f pos{0.0f, 1.6f, -5.0f, 1.0f};
@@ -214,7 +213,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             ExampleFeatures1(DX11, *hmd, &speed, &timesToRenderScene, useHmdToEyeViewOffset);
 
             // Reload shaders
-            if (DX11.Key['H']) DX11.shaderDatabase.ReloadShaders();
+            if (DX11.Key['H']) {
+                DX11.stateManagers->vertexShaderManager.recreateAll();
+                DX11.stateManagers->pixelShaderManager.recreateAll();
+            }
 
             // Keyboard inputs to adjust player orientation
             if (DX11.Key[VK_LEFT]) Yaw += 0.02f;
