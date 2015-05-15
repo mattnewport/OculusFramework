@@ -146,30 +146,34 @@ void DummyHmd::setDirectX11(DirectX11& directX11_) {
 
 void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
     [this, eyeTexture] {
-        ID3D11RenderTargetView* rtvs[] = { backBufferRTV };
+        ID3D11RenderTargetView* rtvs[] = {backBufferRTV};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
         directX11.Context->OMSetDepthStencilState(depthStencilState, 0);
         directX11.Context->IASetInputLayout(nullptr);
         directX11.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         directX11.Context->VSSetShader(vertexShader.get()->D3DVert, nullptr, 0);
         directX11.Context->PSSetShader(pixelShader.get()->D3DPix, nullptr, 0);
-        ID3D11SamplerState* samplers[] = { samplerState };
+        ID3D11SamplerState* samplers[] = {samplerState};
         directX11.Context->PSSetSamplers(0, 1, samplers);
-        for (auto eye = 0; eye < 2; ++eye) {
-            D3D11_VIEWPORT vp;
-            vp.TopLeftX = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Pos.x);
-            vp.TopLeftY = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Pos.y);
-            vp.Width = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Size.w);
-            vp.Height = static_cast<float>(dummyHmd.eyeRenderDescs[eye].DistortedViewport.Size.h);
-            vp.MinDepth = 0.0f;
-            vp.MaxDepth = 1.0f;
-            directX11.Context->RSSetViewports(1, &vp);
-            auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
-            ID3D11ShaderResourceView* srvs[] = { d3dEyeTexture[eye].D3D11.pSRView };
-            directX11.Context->PSSetShaderResources(0, 1, srvs);
-            directX11.Context->Draw(3, 0);
-        }
-        ID3D11ShaderResourceView* clearSrvs[] = { nullptr };
+        D3D11_VIEWPORT vp;
+        vp.TopLeftX =
+            static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Pos.x);
+        vp.TopLeftY =
+            static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Pos.y);
+        vp.Width =
+            static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Size.w +
+                               dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport.Size.w);
+        vp.Height =
+            static_cast<float>(max(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Size.h,
+                                   dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport.Size.h));
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        directX11.Context->RSSetViewports(1, &vp);
+        auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
+        ID3D11ShaderResourceView* srvs[] = {d3dEyeTexture[ovrEye_Left].D3D11.pSRView};
+        directX11.Context->PSSetShaderResources(0, 1, srvs);
+        directX11.Context->Draw(3, 0);
+        ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
         directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
     }();
     swapChain->Present(0, 0);
