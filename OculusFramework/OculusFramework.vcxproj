@@ -95,6 +95,7 @@
       <AdditionalLibraryDirectories>$(OVR_SDK)\LibOVR\Lib\$(Platform)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libovr.lib;ws2_32.lib;%(AdditionalDependencies);winmm.lib;d3d11.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;xinput.lib</AdditionalDependencies>
       <AdditionalOptions>/DEBUG:FASTLINK /time+ %(AdditionalOptions)</AdditionalOptions>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
