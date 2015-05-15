@@ -140,6 +140,7 @@ PixelShaderManager::ResourceType* PixelShaderManager::createResource(const KeyTy
 
 InputLayoutManager::ResourceType* InputLayoutManager::createResource(const KeyType& key) {
     ID3D11InputLayout* inputLayout = nullptr;
+    if (key.inputElementDescs.empty()) return nullptr; // null InputLayout is valid
     device->CreateInputLayout(key.inputElementDescs.data(), key.inputElementDescs.size(),
                               key.shaderInputSignature->GetBufferPointer(),
                               key.shaderInputSignature->GetBufferSize(), &inputLayout);

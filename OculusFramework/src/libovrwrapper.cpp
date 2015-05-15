@@ -20,18 +20,16 @@ namespace libovrwrapper {
 struct DummyHmd::RenderHelper {
     RenderHelper(DummyHmd& dummyHmd_, DirectX11& directX11_)
         : dummyHmd{dummyHmd_}, directX11{directX11_} {
-        [this]{
-            CD3D11_RASTERIZER_DESC desc{ D3D11_DEFAULT };
-            desc.CullMode = D3D11_CULL_NONE;
-            rasterizer = directX11.stateManagers->rasterizerStateManager.get(desc);
-        }();
-        [this] {
+        PipelineStateObjectDesc desc;
+        desc.vertexShader = "dummyhmdvs.hlsl";
+        desc.pixelShader = "dummyhmdps.hlsl";
+        desc.depthStencilState = [] {
             CD3D11_DEPTH_STENCIL_DESC desc{ D3D11_DEFAULT };
             desc.DepthEnable = FALSE;
-            depthStencilState = directX11.stateManagers->depthStencilStateManager.get(desc);
+            return desc;
         }();
-        vertexShader = directX11.stateManagers->vertexShaderManager.get("dummyhmdvs.hlsl");
-        pixelShader = directX11.stateManagers->pixelShaderManager.get("dummyhmdps.hlsl");
+        pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
+
         [this] {
             CD3D11_SAMPLER_DESC desc{ D3D11_DEFAULT };
             ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
@@ -46,10 +44,7 @@ struct DummyHmd::RenderHelper {
     ID3D11RenderTargetViewPtr backBufferRTV;
     IDXGISwapChainPtr swapChain;
 
-    RasterizerStateManager::ResourceHandle rasterizer;
-    DepthStencilStateManager::ResourceHandle depthStencilState;
-    VertexShaderManager::ResourceHandle vertexShader;
-    PixelShaderManager::ResourceHandle pixelShader;
+    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
     ID3D11SamplerStatePtr samplerState;
 };
 
@@ -147,13 +142,9 @@ void DummyHmd::setDirectX11(DirectX11& directX11_) {
 
 void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
     [this, eyeTexture] {
+        directX11.applyState(*directX11.Context, *pipelineStateObject.get());
         ID3D11RenderTargetView* rtvs[] = {backBufferRTV};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        directX11.Context->OMSetDepthStencilState(depthStencilState.get(), 0);
-        directX11.Context->IASetInputLayout(nullptr);
-        directX11.Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        directX11.Context->VSSetShader(vertexShader.get()->D3DVert, nullptr, 0);
-        directX11.Context->PSSetShader(pixelShader.get()->D3DPix, nullptr, 0);
         ID3D11SamplerState* samplers[] = {samplerState};
         directX11.Context->PSSetSamplers(0, 1, samplers);
         D3D11_VIEWPORT vp;
