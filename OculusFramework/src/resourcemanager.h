@@ -1,7 +1,5 @@
 #pragma once
 
-#include "farmhash.h"
-
 #include <algorithm>
 #include <cassert>
 #include <memory>
@@ -16,28 +14,28 @@
 // 3. ) Manage resource lifetimes.
 // Later...
 // 4. ) Would be nice to use the system to support overriding resources (e.g. enable wireframe by
-// going through all the rasterizer states in the corresponding manager and replacing them with a 
+// going through all the rasterizer states in the corresponding manager and replacing them with a
 // version with wireframe enabled). Some complexity here though - is it possible to make it generic?
-// 
+//
 // The intent is that the ResourceManager will be thread safe and able to perform most of the heavy
 // lifting of managing GPU resource lifetimes under D3D12 (where e.g. a resource cannot be freed
 // immediately when it is no longer referenced from game code but must be kept alive until we know
 // the GPU will no longer reference it which may be one or more frames later). Currently it is not
 // thread safe however and in particular hot loading will need some careful consideration to make
 // thread safe.
-// 
+//
 // Design Overview
-// 
+//
 // There is a ResourceManager per resource type. It seems unnecessary to try and cram all resources
 // under a common interface of one uber resource manager. Generally client code will know exactly
 // which type of resource it wants so there is no need to have a single global resource manager.
-// 
+//
 // Resource uniqueness is ensured by hashing the key used to look up a particular resource type.
 // This key will often be a string (currently corresponding to a file name) but may be any hashable
 // type. Some utility functions for hashing types that don't already provide an std::hash
 // implementation are provided. In the case of some resources such as D3D11 render state objects the
 // key is the descriptor struct that defines the render state for example.
-// 
+//
 // Hotloading is supported through the most complex aspect of the current implementation. Each entry
 // in a ResourceManager resource table keeps a list of pointers to all currently live
 // ResourceHandles for it's resource type. When a resource is hotloaded we can then go through and
@@ -47,65 +45,16 @@
 // time we want to use it). Instead we pay a higher cost when hotloading to update all references
 // since performance is not a major issue in this situation. You can think of it as an event rather
 // than polling model.
-// 
+//
 // Hotloading will be more complex when the resource manager is made thread safe. Details still need
 // to be worked out there for how to handle safely updating resource pointers in arbitrary threads.
 // We may be ok with relying on atomic pointer writes to do the update and just lock the internal
 // structures. Since the resource manager should be accessed relatively infrequently (only when
 // requesting a new resource) the overhead of locking may not be too bad.
-// 
+//
 // Currently resource lifetime management is braindead - we just free everything when the manager is
 // destroyed - but it should be simple to extend the system to support reference counting since we
 // already track that information.
-
-inline size_t hashWithSeed(const char* data, size_t dataSize, size_t seed) {
-#pragma warning(push)
-#pragma warning(disable : 4127)  // conditional expression is constant
-    if (sizeof(size_t) == sizeof(uint32_t)) {
-        return util::Hash32WithSeed(data, dataSize, seed);
-    }
-    else if (sizeof(size_t) == sizeof(uint64_t)) {
-        return static_cast<size_t>(util::Hash64WithSeed(data, dataSize, seed));
-    }
-    else { // should never get here
-        assert(false);
-        return 0;
-    }
-#pragma warning(pop)
-}
-
-inline size_t hashCombineWithSeed(size_t seed) { return seed; }
-
-template <typename T, typename... Ts>
-inline size_t hashCombineWithSeed(size_t seed, const T& t, Ts&&... ts) {
-    seed = hashWithSeed(reinterpret_cast<const char*>(&t), sizeof(t), seed);
-    return hashCombineWithSeed(seed, ts...);
-}
-
-template <typename... Ts>
-inline size_t hashCombine(Ts&&... ts) {
-    return hashCombineWithSeed(0, ts...);
-}
-
-template <typename It>
-inline size_t hashCombineRangeWithSeed(size_t seed, It first, It last) {
-    return std::accumulate(first, last, seed, [](auto seed, auto val) {
-        const auto valHash = std::hash<decltype(val)>{}(val);
-        return hashWithSeed(reinterpret_cast<const char*>(&valHash), sizeof(valHash), seed);
-    });
-}
-
-template <typename It>
-inline size_t hashCombineRange(It first, It last) {
-    return hashCombineRangeWithSeed(0, first, last);
-}
-
-namespace std {
-template <typename T>
-struct hash<vector<T>> {
-    size_t operator()(const vector<T>& x) const { return hashCombineRange(begin(x), end(x)); }
-};
-}
 
 template <typename Key, typename Resource, typename ResourceDeleter = std::default_delete<Resource>>
 class ResourceManagerBase {
@@ -113,6 +62,10 @@ public:
     using KeyType = Key;
     using ResourceType = Resource;
     using ResourceManagerBaseType = ResourceManagerBase<KeyType, ResourceType>;
+
+    ResourceManagerBase() = default;
+    ResourceManagerBase(const ResourceManagerBase&) = delete;
+    ResourceManagerBase& operator=(const ResourceManagerBase&) = delete;
 
     // ResourceHandles are tracking and (will be) threadsafe which makes them fairly expensive to
     // copy so you don't want to pass them around by value. The system is designed so that a
@@ -179,11 +132,10 @@ public:
 
 protected:
     virtual ~ResourceManagerBase() {
-        for (auto& res : resourceTable) {
-            assert(res.second.liveReferences.empty() &&
-                "All resource handles tracked by a ResourceManager should be destroyed before "
-                "it is destroyed.");
-        }
+        assert(std::all_of(begin(resourceTable), end(resourceTable),
+                           [](const auto& e) { return e.second.liveReferences.empty(); }) &&
+               "All resource handles tracked by a ResourceManager should be destroyed before "
+               "it is destroyed.");
     }
 
 private:

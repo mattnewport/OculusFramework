@@ -1,5 +1,6 @@
 #pragma once
 
+#include "hashhelpers.h"
 #include "vector.h"
 
 #include <cstddef>
@@ -50,6 +51,7 @@ inline void SetDebugObjectName(_In_ const T& resource, _In_z_ const char* name, 
 #else
     UNREFERENCED_PARAMETER(resource);
     UNREFERENCED_PARAMETER(name);
+    UNREFERENCED_PARAMETER(nameLen);
 #endif
 }
 
@@ -65,20 +67,20 @@ inline void SetDebugObjectName(_In_ const T& resource, const std::string& name) 
 
 // Helpers to convert common types to equivalent DXGI_FORMAT
 
-template<typename T>
+template <typename T>
 DXGI_FORMAT getDXGIFormat();
 
-template<>
+template <>
 inline DXGI_FORMAT getDXGIFormat<float>() {
     return DXGI_FORMAT_R32_FLOAT;
 }
 
-template<>
+template <>
 inline DXGI_FORMAT getDXGIFormat<mathlib::Vec2f>() {
     return DXGI_FORMAT_R32G32_FLOAT;
 }
 
-template<>
+template <>
 inline DXGI_FORMAT getDXGIFormat<mathlib::Vec3f>() {
     return DXGI_FORMAT_R32G32B32_FLOAT;
 }
@@ -98,3 +100,50 @@ inline auto makeInputElementDescHelper(
 #define MAKE_INPUT_ELEMENT_DESC(type, member, ...)                                              \
     makeInputElementDescHelper(getDXGIFormat<decltype(type::member)>(), offsetof(type, member), \
                                __VA_ARGS__)
+
+// Helper operators
+
+bool operator==(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y);
+bool operator==(const D3D11_RENDER_TARGET_BLEND_DESC& a, const D3D11_RENDER_TARGET_BLEND_DESC& b);
+bool operator==(const CD3D11_BLEND_DESC& a, const CD3D11_BLEND_DESC& b);
+bool operator==(const CD3D11_RASTERIZER_DESC& a, const CD3D11_RASTERIZER_DESC& b);
+bool operator==(const D3D11_DEPTH_STENCILOP_DESC& a, const D3D11_DEPTH_STENCILOP_DESC& b);
+bool operator==(const CD3D11_DEPTH_STENCIL_DESC& a, const CD3D11_DEPTH_STENCIL_DESC& b);
+
+// Helper hashing
+
+size_t hashHelper(const D3D11_INPUT_ELEMENT_DESC& x);
+size_t hashHelper(const CD3D11_BLEND_DESC& x);
+size_t hashHelper(const CD3D11_RASTERIZER_DESC& x);
+size_t hashHelper(const D3D11_DEPTH_STENCILOP_DESC& x);
+size_t hashHelper(const CD3D11_DEPTH_STENCIL_DESC& x);
+
+namespace std {
+template <>
+struct hash<D3D11_INPUT_ELEMENT_DESC> {
+    size_t operator()(const D3D11_INPUT_ELEMENT_DESC& x) const {
+        return hashHelper(x);
+    }
+};
+
+template <>
+struct hash<CD3D11_BLEND_DESC> {
+    size_t operator()(const CD3D11_BLEND_DESC& x) const {
+        return hashHelper(x);
+    }
+};
+
+template <>
+struct hash<CD3D11_RASTERIZER_DESC> {
+    size_t operator()(const CD3D11_RASTERIZER_DESC& x) const {
+        return hashHelper(x);
+    }
+};
+
+template <>
+struct hash<CD3D11_DEPTH_STENCIL_DESC> {
+    size_t operator()(const CD3D11_DEPTH_STENCIL_DESC& x) const {
+        return hashHelper(x);
+    }
+};
+}
