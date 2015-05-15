@@ -131,8 +131,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
         RegisterClassW(&wc);
 
         const DWORD wsStyle = WS_POPUP | WS_OVERLAPPEDWINDOW;
-        const auto sizeDivisor = 2;
-        RECT winSize = {0, 0, vp.w / sizeDivisor, vp.h / sizeDivisor};
+        RECT winSize = {0, 0, vp.w, vp.h};
         AdjustWindowRect(&winSize, wsStyle, false);
         return CreateWindowW(className, L"OculusRoomTiny", wsStyle | WS_VISIBLE, vp.x, vp.y,
                              winSize.right - winSize.left, winSize.bottom - winSize.top, nullptr,
