@@ -116,6 +116,19 @@ struct PixelShader {
     void SetUniform(const char* name, int n, const float* v);
 };
 
+template<typename T>
+struct D3DObjectDeleter {
+    void operator()(T* t) { t->Release(); }
+};
+
+template<typename Key, typename Resource>
+class D3DObjectManagerBase : public ResourceManagerBase<Key, Resource, D3DObjectDeleter<Resource>> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+protected:
+    ID3D11DevicePtr device;
+};
+
 namespace std {
 template <>
 struct hash<D3D11_RENDER_TARGET_BLEND_DESC> {
@@ -152,14 +165,8 @@ inline bool operator==(const D3D11_BLEND_DESC& a, const D3D11_BLEND_DESC& b) {
                       std::begin(b.RenderTarget), std::end(b.RenderTarget));
 }
 
-class BlendStateManager : public ResourceManagerBase<D3D11_BLEND_DESC, ID3D11BlendState> {
-public:
-    void setDevice(ID3D11Device* device_) { device = device_; }
-
-private:
+class BlendStateManager : public D3DObjectManagerBase<D3D11_BLEND_DESC, ID3D11BlendState> {
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { resource->Release(); }
-    ID3D11DevicePtr device;
 };
 
 namespace std {
@@ -183,14 +190,8 @@ inline bool operator==(const D3D11_RASTERIZER_DESC& a, const D3D11_RASTERIZER_DE
 }
 
 class RasterizerStateManager
-    : public ResourceManagerBase<D3D11_RASTERIZER_DESC, ID3D11RasterizerState> {
-public:
-    void setDevice(ID3D11Device* device_) { device = device_; }
-
-private:
+    : public D3DObjectManagerBase<D3D11_RASTERIZER_DESC, ID3D11RasterizerState> {
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { resource->Release(); }
-    ID3D11DevicePtr device;
 };
 
 namespace std {
@@ -229,43 +230,27 @@ inline bool operator==(const D3D11_DEPTH_STENCIL_DESC& a, const D3D11_DEPTH_STEN
 }
 
 class DepthStencilStateManager
-    : public ResourceManagerBase<D3D11_DEPTH_STENCIL_DESC, ID3D11DepthStencilState> {
-public:
-    void setDevice(ID3D11Device* device_) { device = device_; }
-
-private:
+    : public D3DObjectManagerBase<D3D11_DEPTH_STENCIL_DESC, ID3D11DepthStencilState> {
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { resource->Release(); }
-    ID3D11DevicePtr device;
 };
 
-class Texture2DManager : public ResourceManagerBase<std::string, ID3D11ShaderResourceView> {
-public:
-    void setDevice(ID3D11Device* device_) { device = device_; }
-
-private:
+class Texture2DManager : public D3DObjectManagerBase<std::string, ID3D11ShaderResourceView> {
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { resource->Release(); }
-    ID3D11DevicePtr device;
 };
 
 class VertexShaderManager : public ResourceManagerBase<std::string, VertexShader> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
-
 private:
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { delete resource; }
     ID3D11DevicePtr device;
 };
 
 class PixelShaderManager : public ResourceManagerBase<std::string, PixelShader> {
 public:
     void setDevice(ID3D11Device* device_) { device = device_; }
-
 private:
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { delete resource; }
     ID3D11DevicePtr device;
 };
 
@@ -293,14 +278,8 @@ struct hash<InputLayoutKey> {
 };
 }
 
-class InputLayoutManager : public ResourceManagerBase<InputLayoutKey, ID3D11InputLayout> {
-public:
-    void setDevice(ID3D11Device* device_) { device = device_; }
-
-private:
+class InputLayoutManager : public D3DObjectManagerBase<InputLayoutKey, ID3D11InputLayout> {
     ResourceType* createResource(const KeyType& key) override;
-    void destroyResource(ResourceType* resource) override { resource->Release(); }
-    ID3D11DevicePtr device;
 };
 
 class ShaderDatabase {

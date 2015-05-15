@@ -107,7 +107,7 @@ struct hash<vector<T>> {
 };
 }
 
-template <typename Key, typename Resource>
+template <typename Key, typename Resource, typename ResourceDeleter = std::default_delete<Resource>>
 class ResourceManagerBase {
 public:
     using KeyType = Key;
@@ -177,18 +177,20 @@ public:
         }
     }
 
+protected:
+    virtual ~ResourceManagerBase() {
+        for (auto& res : resourceTable) {
+            assert(res.second.liveReferences.empty() &&
+                "All resource handles tracked by a ResourceManager should be destroyed before "
+                "it is destroyed.");
+        }
+    }
+
 private:
-    struct ResourceDeleter {
-        ResourceDeleter() = default;
-        ResourceDeleter(const ResourceDeleter&) = default;
-        explicit ResourceDeleter(ResourceManagerBase* owner_) : owner(owner_) {}
-        void operator()(ResourceType* resource) { owner->destroyResource(resource); }
-        ResourceManagerBase* owner = nullptr;
-    };
     struct ResourceOwner {
         ResourceOwner() = default;
         explicit ResourceOwner(ResourceManagerBase* owner_, Resource* resource_)
-            : owner{owner_}, resource{resource_, ResourceDeleter{owner_}} {}
+            : owner{owner_}, resource{resource_} {}
         ResourceManagerBase* owner = nullptr;
         std::vector<ResourceHandle*> liveReferences;
         std::unique_ptr<ResourceType, ResourceDeleter> resource;
@@ -196,7 +198,6 @@ private:
     using ResourceTable = std::unordered_map<KeyType, ResourceOwner>;
 
     virtual ResourceType* createResource(const Key& key) = 0;
-    virtual void destroyResource(ResourceType* resource) = 0;
 
     void track(const KeyType& key, ResourceHandle& handle) {
         resourceTable[key].liveReferences.push_back(&handle);
