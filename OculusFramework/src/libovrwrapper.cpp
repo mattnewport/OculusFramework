@@ -3,7 +3,7 @@
 #include "d3dhelper.h"
 
 #define OVR_D3D_VERSION 11
-#include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
+#include "../Src/OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
 
 #include "Win32_DX11AppUtil.h"
 

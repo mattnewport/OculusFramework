@@ -1,6 +1,12 @@
 #pragma once
 
+#include "vector.h"
+
+#include <cstddef>
+#include <cstring>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include <comdef.h>
 #include <comip.h>
@@ -28,36 +34,67 @@ _COM_SMARTPTR_TYPEDEF(ID3D11PixelShader, __uuidof(ID3D11PixelShader));
 _COM_SMARTPTR_TYPEDEF(ID3D11ShaderReflection, __uuidof(ID3D11ShaderReflection));
 _COM_SMARTPTR_TYPEDEF(ID3D11InputLayout, __uuidof(ID3D11InputLayout));
 _COM_SMARTPTR_TYPEDEF(ID3D11SamplerState, __uuidof(ID3D11SamplerState));
-_COM_SMARTPTR_TYPEDEF(ID3D10Blob, __uuidof(ID3D10Blob));
 _COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
 _COM_SMARTPTR_TYPEDEF(ID3D11Resource, __uuidof(ID3D11Resource));
 
 void ThrowOnFailure(HRESULT hr);
 
 // Helper sets a D3D resource name string (used by PIX and debug layer leak reporting).
-template <typename T, size_t N>
-inline void SetDebugObjectName(_In_ T resource, _In_z_ const char(&name)[N]) {
+
+template <typename T>
+inline void SetDebugObjectName(_In_ const T& resource, _In_z_ const char* name, size_t nameLen) {
     ID3D11DeviceChildPtr deviceChild;
     resource->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(&deviceChild));
 #if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
-    if (deviceChild) deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, N - 1, name);
+    if (deviceChild) deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, nameLen, name);
 #else
     UNREFERENCED_PARAMETER(resource);
     UNREFERENCED_PARAMETER(name);
 #endif
+}
+
+template <typename T, size_t N>
+inline void SetDebugObjectName(_In_ const T& resource, _In_z_ const char(&name)[N]) {
+    SetDebugObjectName(resource, name, N - 1);
 }
 
 template <typename T>
-inline void SetDebugObjectName(_In_ T resource, const std::string& name) {
-    ID3D11DeviceChildPtr deviceChild;
-    resource->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(&deviceChild));
-#if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
-    if (deviceChild)
-        deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, name.size(), name.c_str());
-#else
-    UNREFERENCED_PARAMETER(resource);
-    UNREFERENCED_PARAMETER(name);
-#endif
+inline void SetDebugObjectName(_In_ const T& resource, const std::string& name) {
+    SetDebugObjectName(resource, name.c_str(), name.size());
 }
 
+// Helpers to convert common types to equivalent DXGI_FORMAT
 
+template<typename T>
+DXGI_FORMAT getDXGIFormat();
+
+template<>
+inline DXGI_FORMAT getDXGIFormat<float>() {
+    return DXGI_FORMAT_R32_FLOAT;
+}
+
+template<>
+inline DXGI_FORMAT getDXGIFormat<mathlib::Vec2f>() {
+    return DXGI_FORMAT_R32G32_FLOAT;
+}
+
+template<>
+inline DXGI_FORMAT getDXGIFormat<mathlib::Vec3f>() {
+    return DXGI_FORMAT_R32G32B32_FLOAT;
+}
+
+// Helpers to build input layouts
+
+inline auto makeInputElementDescHelper(
+    DXGI_FORMAT dxgiFormat, unsigned alignedByteOffset, const char* semanticName,
+    unsigned semanticIndex = 0, unsigned inputSlot = 0,
+    D3D11_INPUT_CLASSIFICATION inputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
+    unsigned instanceDataStepRate = 0) {
+    return D3D11_INPUT_ELEMENT_DESC{semanticName,        semanticIndex,     dxgiFormat,
+                                    inputSlot,           alignedByteOffset, inputSlotClass,
+                                    instanceDataStepRate};
+}
+
+#define MAKE_INPUT_ELEMENT_DESC(type, member, ...)                                              \
+    makeInputElementDescHelper(getDXGIFormat<decltype(type::member)>(), offsetof(type, member), \
+                               __VA_ARGS__)

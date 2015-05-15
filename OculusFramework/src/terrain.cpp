@@ -101,10 +101,9 @@ void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rast
                     const auto localX = min(x + blockX, width);
                     const auto localY = min(y + blockY, height);
                     const auto gridHeight = getHeight(width - 1 - localX, localY);
-                    v.Pos = Vec3f{localX * gridStep, gridHeight * gridElevationScale,
+                    v.pos = Vec3f{localX * gridStep, gridHeight * gridElevationScale,
                                   localY * gridStep};
-                    v.u = 1.0f - (localX * uvStepX);
-                    v.v = 1.0f - (localY * uvStepY);
+                    v.uv = Vec2f{1.0f - (localX * uvStepX), 1.0f - (localY * uvStepY)};
                     vertices.push_back(v);
                 }
             }
@@ -124,23 +123,22 @@ void HeightField::AddVertices(ID3D11Device* device, RasterizerStateManager& rast
 
     vertexShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
     pixelShader = shaderDatabase.GetPixelShader("terrainps.hlsl");
+
+    const auto modelVertexDesc = InputElementDescs{
+        MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
+        MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")
+    };
+    inputLayout = shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc);
 }
 
-void HeightField::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
-                         DataBuffer* uniformBuffer) {
+void HeightField::Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer) {
     context->RSSetState(rasterizer.get());
 
     uniformBuffer->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    const auto modelVertexDesc = InputLayoutKey{
-        D3D11_INPUT_ELEMENT_DESC{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-                                 offsetof(Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
-        D3D11_INPUT_ELEMENT_DESC{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, u),
-                                 D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc));
+    context->IASetInputLayout(inputLayout.get());
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

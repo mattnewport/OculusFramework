@@ -234,9 +234,12 @@ void DirectX11::ReleaseWindow(HINSTANCE hinst) {
     UnregisterClassW(L"OVRAppWindow", hinst);
 }
 
-VertexShader::VertexShader(ID3D11Device* device, ID3D10Blob* s, const char* name) : byteCode{s}, numUniformInfo(0) {
+VertexShader::VertexShader(ID3D11Device* device, ID3DBlob* s, const char* name) : byteCode{s}, numUniformInfo(0) {
     device->CreateVertexShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DVert);
     SetDebugObjectName(D3DVert, name);
+
+    D3DGetBlobPart(s->GetBufferPointer(), s->GetBufferSize(), D3D_BLOB_INPUT_SIGNATURE_BLOB, 0,
+                   &inputSignature);
 
     ID3D11ShaderReflectionPtr ref;
     D3DReflect(s->GetBufferPointer(), s->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&ref);
@@ -267,19 +270,7 @@ void VertexShader::SetUniform(const char* name, int n, const float* v) {
     }
 }
 
-ID3D11InputLayout* VertexShader::GetInputLayout(ID3D11Device* device,
-                                                const InputLayoutKey& inputLayoutKey) {
-    auto findIt = inputLayoutMap.find(inputLayoutKey);
-    if (findIt != end(inputLayoutMap)) return findIt->second;
-    ID3D11InputLayoutPtr inputLayout;
-    device->CreateInputLayout(inputLayoutKey.data(), inputLayoutKey.size(),
-                              byteCode->GetBufferPointer(), byteCode->GetBufferSize(),
-                              &inputLayout);
-    inputLayoutMap[inputLayoutKey] = inputLayout;
-    return inputLayout;
-}
-
-PixelShader::PixelShader(ID3D11Device* device, ID3D10Blob* s, const char* name) : numUniformInfo(0) {
+PixelShader::PixelShader(ID3D11Device* device, ID3DBlob* s, const char* name) : numUniformInfo(0) {
     device->CreatePixelShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DPix);
     SetDebugObjectName(D3DPix, name);
 
@@ -314,8 +305,8 @@ void PixelShader::SetUniform(const char* name, int n, const float* v) {
 
 RasterizerStateManager::ResourceType* RasterizerStateManager::createResource(
     const RasterizerStateManager::KeyType& key) {
-    ID3D11RasterizerState* rs;
-    device->CreateRasterizerState(&key, &rs);
+    ID3D11RasterizerState* rs = nullptr;
+    ThrowOnFailure(device->CreateRasterizerState(&key, &rs));
     return rs;
 }
 
@@ -392,4 +383,12 @@ PixelShaderManager::ResourceHandle ShaderDatabase::GetPixelShader(const char* fi
 void ShaderDatabase::ReloadShaders() {
     vertexShaderManager.recreateAll();
     pixelShaderManager.recreateAll();
+}
+
+InputLayoutManager::ResourceType* InputLayoutManager::createResource(const KeyType& key) {
+    ID3D11InputLayout* inputLayout = nullptr;
+    device->CreateInputLayout(key.inputElementDescs.data(), key.inputElementDescs.size(),
+                              key.shaderInputSignature->GetBufferPointer(),
+                              key.shaderInputSignature->GetBufferSize(), &inputLayout);
+    return inputLayout;
 }

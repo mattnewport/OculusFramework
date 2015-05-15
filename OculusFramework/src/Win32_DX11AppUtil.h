@@ -32,7 +32,7 @@ limitations under the License.
 
 #include "d3dhelper.h"
 
-#include "Kernel/OVR_Math.h"
+#include "OVR_Kernel.h"
 
 struct DataBuffer {
     ID3D11BufferPtr D3DBuffer;
@@ -56,27 +56,35 @@ struct ImageBuffer {
                 bool rendertarget, bool depth, OVR::Sizei size, int mipLevels = 1, bool aa = false);
 };
 
-using InputLayoutKey = std::vector<D3D11_INPUT_ELEMENT_DESC>;
+using InputElementDescs = std::vector<D3D11_INPUT_ELEMENT_DESC>;
 
-inline bool operator<(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y) {
-    auto tupleify = [](const D3D11_INPUT_ELEMENT_DESC& x) {
-        return std::make_tuple(std::string{x.SemanticName}, x.SemanticIndex, x.Format, x.InputSlot,
-                               x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
-    };
-    return tupleify(x) < tupleify(y);
-}
-
-struct CompareInputLayoutKeys {
-    bool operator()(const InputLayoutKey& x, const InputLayoutKey& y) const {
-        return lexicographical_compare(begin(x), end(x), begin(y), end(y));
+namespace std {
+template <>
+struct hash<D3D11_INPUT_ELEMENT_DESC> {
+    size_t operator()(const D3D11_INPUT_ELEMENT_DESC& x) const {
+        auto lcSemantic = std::string(x.SemanticName);
+        for (auto& c : lcSemantic) c = static_cast<char>(tolower(c));
+        return hashCombine(lcSemantic, x.SemanticIndex, x.Format, x.InputSlot, x.AlignedByteOffset,
+                           x.InputSlotClass, x.InstanceDataStepRate);
     }
 };
+}
+
+inline bool operator==(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y) {
+    auto tupleify = [](const D3D11_INPUT_ELEMENT_DESC& x) {
+        auto lcSemantic = std::string(x.SemanticName);
+        for (auto& c : lcSemantic) c = static_cast<char>(tolower(c));
+        return std::make_tuple(lcSemantic, x.SemanticIndex, x.Format, x.InputSlot,
+            x.AlignedByteOffset, x.InputSlotClass, x.InstanceDataStepRate);
+    };
+    return tupleify(x) == tupleify(y);
+}
 
 struct VertexShader {
     ID3DBlobPtr byteCode;
     ID3D11VertexShaderPtr D3DVert;
+    ID3DBlobPtr inputSignature;
     std::vector<unsigned char> UniformData;
-    std::map<InputLayoutKey, ID3D11InputLayoutPtr, CompareInputLayoutKeys> inputLayoutMap;
 
     struct Uniform {
         char Name[40];
@@ -89,7 +97,6 @@ struct VertexShader {
     VertexShader(ID3D11Device* device, ID3DBlob* s, const char* name);
 
     void SetUniform(const char* name, int n, const float* v);
-    ID3D11InputLayout* GetInputLayout(ID3D11Device* device, const InputLayoutKey& layout);
 };
 
 struct PixelShader {
@@ -104,7 +111,7 @@ struct PixelShader {
     int numUniformInfo;
     Uniform UniformInfo[10];
 
-    PixelShader(ID3D11Device* device, ID3D10Blob* s, const char* name);
+    PixelShader(ID3D11Device* device, ID3DBlob* s, const char* name);
 
     void SetUniform(const char* name, int n, const float* v);
 };
@@ -164,18 +171,52 @@ private:
     ID3D11DevicePtr device;
 };
 
+struct InputLayoutKey {
+    InputLayoutKey(const InputElementDescs& inputElementDescs_, ID3DBlob* shaderInputSignature_)
+        : inputElementDescs{inputElementDescs_},
+          shaderInputSignature{shaderInputSignature_},
+          hashVal{hashCombine(
+              std::hash<InputElementDescs>{}(inputElementDescs),
+              hashWithSeed(static_cast<const char*>(shaderInputSignature->GetBufferPointer()),
+                           shaderInputSignature->GetBufferSize(), 0))} {}
+    InputElementDescs inputElementDescs;
+    ID3DBlobPtr shaderInputSignature;
+    size_t hashVal;
+};
+
+inline bool operator==(const InputLayoutKey& a, const InputLayoutKey& b) {
+    return a.hashVal == b.hashVal;
+}
+
+namespace std {
+template <>
+struct hash<InputLayoutKey> {
+    size_t operator()(const InputLayoutKey& x) const { return x.hashVal; };
+};
+}
+
+class InputLayoutManager : public ResourceManagerBase<InputLayoutKey, ID3D11InputLayout> {
+public:
+    void setDevice(ID3D11Device* device_) { device = device_; }
+private:
+    ResourceType* createResource(const KeyType& key) override;
+    void destroyResource(ResourceType* resource) override { resource->Release(); }
+    ID3D11DevicePtr device;
+};
+
 class ShaderDatabase {
 public:
     void SetDevice(ID3D11Device* device_) {
         device = device_;
         vertexShaderManager.setDevice(device);
         pixelShaderManager.setDevice(device);
+        inputLayoutManager.setDevice(device);
     }
     VertexShaderManager::ResourceHandle GetVertexShader(const char* filename);
     PixelShaderManager::ResourceHandle GetPixelShader(const char* filename);
 
-    ID3D11InputLayout* GetInputLayout(VertexShader* vs, const InputLayoutKey& layout) {
-        return vs->GetInputLayout(device, layout);
+    InputLayoutManager::ResourceHandle GetInputLayout(VertexShader* vs, const InputElementDescs& layout) {
+        return inputLayoutManager.get(InputLayoutKey{ layout, vs->inputSignature });
     }
 
     void ReloadShaders();
@@ -184,6 +225,7 @@ private:
     ID3D11Device* device = nullptr;
     VertexShaderManager vertexShaderManager;
     PixelShaderManager pixelShaderManager;
+    InputLayoutManager inputLayoutManager;
 };
 
 struct DirectX11 {

@@ -26,12 +26,12 @@ limitations under the License.
 // 4.  Supporting D3D11 and utility code is in Win32_DX11AppUtil.h
 
 #include "Win32_DX11AppUtil.h"  // Include Non-SDK supporting utilities
-#include "OVR_CAPI.h"           // Include the OculusVR SDK
+#include "OVR.h"           // Include the OculusVR SDK
 
 #include "scene.h"
 
 #define OVR_D3D_VERSION 11
-#include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
+#include "../Src/OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
 
 #include "libovrwrapper.h"
 

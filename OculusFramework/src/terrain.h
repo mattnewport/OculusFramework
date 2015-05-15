@@ -15,8 +15,8 @@ struct HeightField {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        mathlib::Vec3f Pos;
-        float u, v;
+        mathlib::Vec3f pos;
+        mathlib::Vec2f uv;
     };
 
     mathlib::Vec3f Pos;
@@ -31,6 +31,7 @@ struct HeightField {
     Texture2DManager::ResourceHandle normalsTex;
     VertexShaderManager::ResourceHandle vertexShader;
     PixelShaderManager::ResourceHandle pixelShader;
+    InputLayoutManager::ResourceHandle inputLayout;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{ arg_pos } {}
     const mathlib::Mat4f& GetMatrix() {
@@ -43,6 +44,5 @@ struct HeightField {
 
     void AddVertices(ID3D11Device* device, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase);
 
-    void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
-        DataBuffer* uniformBuffer);
+    void Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer);
 };

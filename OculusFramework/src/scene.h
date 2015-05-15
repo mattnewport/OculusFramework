@@ -33,9 +33,9 @@ struct Model {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        OVR::Vector3f Pos;
-        Color C;
-        float U, V;
+        mathlib::Vec3f pos;
+        Color c;
+        mathlib::Vec2f uv;
     };
 
     OVR::Vector3f Pos;
@@ -79,6 +79,7 @@ struct Scene {
     std::unique_ptr<DataBuffer> UniformBufferGen;
     VertexShaderManager::ResourceHandle vertexShader;
     PixelShaderManager::ResourceHandle pixelShader;
+    InputLayoutManager::ResourceHandle inputLayout;
 
     // temporary 
     VertexShaderManager::ResourceHandle terrainVertexShader;

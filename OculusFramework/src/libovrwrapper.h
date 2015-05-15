@@ -1,6 +1,6 @@
 #pragma once
 
-#include "OVR_CAPI.h"
+#include "OVR.h"
 
 #include <array>
 #include <memory>

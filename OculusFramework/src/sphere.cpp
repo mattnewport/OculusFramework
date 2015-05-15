@@ -121,21 +121,21 @@ void Sphere::GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasteri
 
     vertexShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
     pixelShader = shaderDatabase.GetPixelShader("sphereps.hlsl");
+
+    const auto sphereInputElementDescs = InputElementDescs{
+        MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")
+    };
+    inputLayout = shaderDatabase.GetInputLayout(vertexShader.get(), sphereInputElementDescs);
 }
 
-void Sphere::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
-                    DataBuffer* uniformBuffer) {
+void Sphere::Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer) {
     context->RSSetState(rs.get());
 
     uniformBuffer->Refresh(context, vertexShader.get()->UniformData.data(), vertexShader.get()->UniformData.size());
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    const auto modelVertexDesc = InputLayoutKey{
-        D3D11_INPUT_ELEMENT_DESC{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-                                 offsetof(Vertex, pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc));
+    context->IASetInputLayout(inputLayout.get());
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

@@ -37,19 +37,18 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 
     for (int v = 0; v < 24; v++) {
         Vertex vvv;
-        vvv.Pos = Vert[v][0];
-        vvv.U = Vert[v][1].x;
-        vvv.V = Vert[v][1].y;
-        float dist1 = (vvv.Pos - Vector3f(-2, 4, -2)).Length();
-        float dist2 = (vvv.Pos - Vector3f(3, 4, -3)).Length();
-        float dist3 = (vvv.Pos - Vector3f(-4, 3, 25)).Length();
+        vvv.pos = mathlib::Vec3f{ Vert[v][0].x, Vert[v][0].y, Vert[v][0].z };
+        vvv.uv = mathlib::Vec2f{ Vert[v][1].x, Vert[v][1].y };
+        float dist1 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-2.0f, 4.0f, -2.0f});
+        float dist2 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{3.0f, 4.0f, -3.0f});
+        float dist3 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-4.0f, 3.0f, 25.0f});
         int bri = rand() % 160;
         float RRR = c.R * (bri + 192.0f * (0.65f + 8 / dist1 + 1 / dist2 + 4 / dist3)) / 255.0f;
         float GGG = c.G * (bri + 192.0f * (0.65f + 8 / dist1 + 1 / dist2 + 4 / dist3)) / 255.0f;
         float BBB = c.B * (bri + 192.0f * (0.65f + 8 / dist1 + 1 / dist2 + 4 / dist3)) / 255.0f;
-        vvv.C.R = RRR > 255 ? 255 : (unsigned char)RRR;
-        vvv.C.G = GGG > 255 ? 255 : (unsigned char)GGG;
-        vvv.C.B = BBB > 255 ? 255 : (unsigned char)BBB;
+        vvv.c.R = RRR > 255 ? 255 : (unsigned char)RRR;
+        vvv.c.G = GGG > 255 ? 255 : (unsigned char)GGG;
+        vvv.c.B = BBB > 255 ? 255 : (unsigned char)BBB;
         AddVertex(vvv);
     }
 }
@@ -103,7 +102,11 @@ ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool 
     device->CreateSamplerState(&ss, &SamplerState);
 }
 
-// Simple latency box (keep similar vertex format and shader params same, for ease of code)
+template<>
+inline DXGI_FORMAT getDXGIFormat<Model::Color>() {
+    return DXGI_FORMAT_R8G8B8A8_UNORM;
+}
+
 Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, RasterizerStateManager& rasterizerStateManager, Texture2DManager& texture2DManager, ShaderDatabase& shaderDatabase) {
     CD3D11_RASTERIZER_DESC rs{D3D11_DEFAULT};
     rasterizerHandle = rasterizerStateManager.get(rs);
@@ -232,6 +235,13 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext, Rasterize
     vertexShader = shaderDatabase.GetVertexShader("simplevs.hlsl");
     pixelShader = shaderDatabase.GetPixelShader("simpleps.hlsl");
 
+    const InputElementDescs modelInputElementDescs{
+        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, pos, "POSITION"),
+        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, c, "COLOR"),
+        MAKE_INPUT_ELEMENT_DESC(Model::Vertex, uv, "TEXCOORD"),
+    };
+    inputLayout = shaderDatabase.GetInputLayout(vertexShader.get(), modelInputElementDescs);
+
     // temporary
     terrainVertexShader = shaderDatabase.GetVertexShader("terrainvs.hlsl");
     sphereVertexShader = shaderDatabase.GetVertexShader("spherevs.hlsl");
@@ -247,15 +257,7 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
     ID3D11Buffer* vsConstantBuffers[] = {UniformBufferGen->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    const vector<D3D11_INPUT_ELEMENT_DESC> modelVertexDesc{
-        D3D11_INPUT_ELEMENT_DESC{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-                                 offsetof(Model::Vertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
-        D3D11_INPUT_ELEMENT_DESC{"Color", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0,
-                                 offsetof(Model::Vertex, C), D3D11_INPUT_PER_VERTEX_DATA, 0},
-        D3D11_INPUT_ELEMENT_DESC{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
-                                 offsetof(Model::Vertex, U), D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-    context->IASetInputLayout(shaderDatabase.GetInputLayout(vertexShader.get(), modelVertexDesc));
+    context->IASetInputLayout(inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -294,7 +296,7 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         vs->SetUniform("Proj", 16, proj.data());
         vs->SetUniform("eye", 3, &eye.x());
 
-        heightField->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
+        heightField->Render(dx11.Context, UniformBufferGen.get());
     }
 
     {
@@ -304,6 +306,6 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         vs->SetUniform("Proj", 16, proj.data());
         vs->SetUniform("eye", 3, &eye.x());
 
-        sphere->Render(dx11.Context, dx11.shaderDatabase, UniformBufferGen.get());
+        sphere->Render(dx11.Context, UniformBufferGen.get());
     }
 }

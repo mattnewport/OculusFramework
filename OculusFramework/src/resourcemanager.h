@@ -2,8 +2,10 @@
 
 #include "farmhash.h"
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
+#include <numeric>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -56,36 +58,48 @@
 // destroyed - but it should be simple to extend the system to support reference counting since we
 // already track that information.
 
-inline size_t hashCombine32(size_t seed) { return seed; }
-
-template <typename T, typename... Ts>
-inline size_t hashCombine32(size_t seed, const T& t, Ts&&... ts) {
-    seed = util::Hash32WithSeed(reinterpret_cast<const char*>(&t), sizeof(t), seed);
-    return hashCombine32(seed, ts...);
-}
-
-inline size_t hashCombine64(size_t seed) { return seed; }
-
-template <typename T, typename... Ts>
-inline size_t hashCombine64(size_t seed, const T& t, Ts&&... ts) {
-    seed = static_cast<size_t>(
-        util::Hash64WithSeed(reinterpret_cast<const char*>(&t), sizeof(t), seed));
-    return hashCombine64(seed, ts...);
-}
-
-template <typename... Ts>
-inline size_t hashCombine(Ts&&... ts) {
+inline size_t hashWithSeed(const char* data, size_t dataSize, size_t seed) {
 #pragma warning(push)
 #pragma warning(disable : 4127)  // conditional expression is constant
     if (sizeof(size_t) == sizeof(uint32_t)) {
-        return hashCombine32(0, ts...);
-    } else if (sizeof(size_t) == sizeof(uint64_t)) {
-        return hashCombine64(0, ts...);
-    } else {  // should never get here...
+        return util::Hash32WithSeed(data, dataSize, seed);
+    }
+    else if (sizeof(size_t) == sizeof(uint64_t)) {
+        return static_cast<size_t>(util::Hash64WithSeed(data, dataSize, seed));
+    }
+    else { // should never get here
         assert(false);
         return 0;
     }
 #pragma warning(pop)
+}
+
+inline size_t hashCombineHelper(size_t seed) { return seed; }
+
+template <typename T, typename... Ts>
+inline size_t hashCombineHelper(size_t seed, const T& t, Ts&&... ts) {
+    seed = hashWithSeed(reinterpret_cast<const char*>(&t), sizeof(t), seed);
+    return hashCombineHelper(seed, ts...);
+}
+
+template <typename... Ts>
+inline size_t hashCombine(Ts&&... ts) {
+    return hashCombineHelper(0, ts...);
+}
+
+template <typename It>
+inline size_t hashCombineRange(It first, It last) {
+    return std::accumulate(first, last, size_t{0}, [](auto seed, auto val) {
+        const auto valHash = std::hash<decltype(val)>{}(val);
+        return hashWithSeed(reinterpret_cast<const char*>(&valHash), sizeof(valHash), seed);
+    });
+}
+
+namespace std {
+template <typename T>
+struct hash<vector<T>> {
+    size_t operator()(const vector<T>& x) const { return hashCombineRange(begin(x), end(x)); }
+};
 }
 
 template <typename Key, typename Resource>

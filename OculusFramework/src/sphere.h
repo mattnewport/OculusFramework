@@ -17,8 +17,7 @@ public:
 
     void GenerateVerts(ID3D11Device& device, RasterizerStateManager& rasterizerStateManager, ShaderDatabase& shaderDatabase);
 
-    void Render(ID3D11DeviceContext* context, ShaderDatabase& shaderDatabase,
-        DataBuffer* uniformBuffer);
+    void Render(ID3D11DeviceContext* context, DataBuffer* uniformBuffer);
 
     const mathlib::Mat4f GetMatrix() {
         auto scale = mathlib::Mat4fScale(0.25f);
@@ -33,4 +32,5 @@ private:
     size_t indexCount = 0;
     VertexShaderManager::ResourceHandle vertexShader;
     PixelShaderManager::ResourceHandle pixelShader;
+    InputLayoutManager::ResourceHandle inputLayout;
 };
