@@ -60,6 +60,9 @@
     <ClInclude Include="src\d3dresourcemanagers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="auto_pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\d3dhelper.cpp">
@@ -96,6 +99,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\d3dresourcemanagers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="auto_pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
