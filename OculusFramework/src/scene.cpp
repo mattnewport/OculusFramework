@@ -1,5 +1,7 @@
 #include "scene.h"
 
+#include "pipelinestateobject.h"
+
 #include <vector>
 
 using namespace std;
@@ -276,19 +278,18 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
 
 void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                    const mathlib::Mat4f& proj) {
-    dx11.Context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
-    dx11.Context->OMSetDepthStencilState(pipelineStateObject.get()->depthStencilState.get(), 0);
+    dx11.applyState(*dx11.Context, *pipelineStateObject.get());
 
+    auto vs = pipelineStateObject.get()->vertexShader.get();
     for (auto& model : Models) {
-        pipelineStateObject.get()->vertexShader.get()->SetUniform(
-            "World", 16, &model->GetMatrix().Transposed().M[0][0]);
-        pipelineStateObject.get()->vertexShader.get()->SetUniform("View", 16, view.data());
-        pipelineStateObject.get()->vertexShader.get()->SetUniform("Proj", 16, proj.data());
+        vs->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
+        vs->SetUniform("View", 16, view.data());
+        vs->SetUniform("Proj", 16, proj.data());
 
         Render(dx11.Context, model->Fill.get(), model->VertexBuffer.get(), model->IndexBuffer.get(),
                sizeof(Model::Vertex), model->Indices.size());
     }
 
-    heightField->Render(dx11.Context, eye, view, proj, UniformBufferGen.get());
-    sphere->Render(dx11.Context, eye, view, proj, UniformBufferGen.get());
+    heightField->Render(dx11, dx11.Context, eye, view, proj, UniformBufferGen.get());
+    sphere->Render(dx11, dx11.Context, eye, view, proj, UniformBufferGen.get());
 }

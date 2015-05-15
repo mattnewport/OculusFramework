@@ -28,6 +28,7 @@ limitations under the License.
 #include "Win32_DX11AppUtil.h"  // Include Non-SDK supporting utilities
 #include "OVR.h"                // Include the OculusVR SDK
 
+#include "pipelinestateobject.h"
 #include "scene.h"
 
 #define OVR_D3D_VERSION 11

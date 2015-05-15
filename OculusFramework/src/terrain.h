@@ -44,6 +44,6 @@ struct HeightField {
     void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
                      Texture2DManager& texture2DManager);
 
-    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                 const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
 };

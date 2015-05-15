@@ -1,6 +1,7 @@
 #include "libovrwrapper.h"
 
 #include "d3dhelper.h"
+#include "pipelinestateobject.h"
 
 #define OVR_D3D_VERSION 11
 #include "../Src/OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version

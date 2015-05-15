@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Win32_DX11AppUtil.h"
-#include "terrain.h"
-#include "sphere.h"
-
+#include "d3dhelper.h"
 #include "matrix.h"
+#include "sphere.h"
+#include "terrain.h"
+#include "Win32_DX11AppUtil.h"
 
 #include <memory>
 #include <string>

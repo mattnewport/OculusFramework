@@ -28,6 +28,7 @@ limitations under the License.
 #include <vector>
 
 #include "d3dresourcemanagers.h"
+#include "pipelinestateobjectmanager.h"
 
 #include "OVR_Kernel.h"
 
@@ -78,4 +79,6 @@ struct DirectX11 {
     void HandleMessages();
     void OutputFrameTime(double currentTime);
     void ReleaseWindow(HINSTANCE hinst);
+
+    void applyState(ID3D11DeviceContext& context, PipelineStateObject& pso);
 };

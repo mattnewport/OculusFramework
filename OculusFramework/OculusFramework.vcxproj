@@ -101,12 +101,15 @@
     <ClInclude Include="auto_pch.h" />
     <ClInclude Include="src\d3dhelper.h" />
     <ClInclude Include="src\d3dresourcemanagers.h" />
+    <ClInclude Include="src\d3dstatemanagers.h" />
     <ClInclude Include="src\dds.h" />
     <ClInclude Include="src\DDSTextureLoader.h" />
     <ClInclude Include="src\DirectXHelpers.h" />
     <ClInclude Include="src\farmhash.h" />
     <ClInclude Include="src\hashhelpers.h" />
     <ClInclude Include="src\libovrwrapper.h" />
+    <ClInclude Include="src\pipelinestateobject.h" />
+    <ClInclude Include="src\pipelinestateobjectmanager.h" />
     <ClInclude Include="src\PlatformHelpers.h" />
     <ClInclude Include="src\resourcemanager.h" />
     <ClInclude Include="src\scene.h" />
@@ -121,10 +124,13 @@
     </ClCompile>
     <ClCompile Include="src\d3dhelper.cpp" />
     <ClCompile Include="src\d3dresourcemanagers.cpp" />
+    <ClCompile Include="src\d3dstatemanagers.cpp" />
     <ClCompile Include="src\DDSTextureLoader.cpp" />
     <ClCompile Include="src\farmhash.cpp" />
     <ClCompile Include="src\hashhelpers.cpp" />
     <ClCompile Include="src\libovrwrapper.cpp" />
+    <ClCompile Include="src\pipelinestateobject.cpp" />
+    <ClCompile Include="src\pipelinestateobjectmanager.cpp" />
     <ClCompile Include="src\resourcemanager.cpp" />
     <ClCompile Include="src\scene.cpp" />
     <ClCompile Include="src\sphere.cpp" />

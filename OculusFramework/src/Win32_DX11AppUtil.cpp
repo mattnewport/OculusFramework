@@ -1,5 +1,6 @@
 #include "Win32_DX11AppUtil.h"
 
+#include "pipelinestateobject.h"
 #include "scene.h"
 
 #include <algorithm>
@@ -225,3 +226,12 @@ void DirectX11::ReleaseWindow(HINSTANCE hinst) {
     UnregisterClassW(L"OVRAppWindow", hinst);
 }
 
+void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& pso) {
+    context.VSSetShader(pso.vertexShader.get()->D3DVert, nullptr, 0);
+    context.PSSetShader(pso.pixelShader.get()->D3DPix, nullptr, 0);
+    context.OMSetBlendState(pso.blendState.get(), nullptr, 0xffffffff);
+    context.RSSetState(pso.rasterizerState.get());
+    context.OMSetDepthStencilState(pso.depthStencilState.get(), 0);
+    context.IASetInputLayout(pso.inputLayout.get());
+    context.IASetPrimitiveTopology(pso.primitiveTopology);
+}

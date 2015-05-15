@@ -18,7 +18,7 @@ public:
     void GenerateVerts(ID3D11Device& device,
                        PipelineStateObjectManager& pipelineStateObjectManager);
 
-    void Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                 const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
 
     const mathlib::Mat4f GetMatrix() {

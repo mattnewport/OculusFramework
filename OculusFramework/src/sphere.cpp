@@ -1,5 +1,7 @@
 #include "sphere.h"
 
+#include "pipelinestateobject.h"
+
 #include <array>
 #include <numeric>
 #include <vector>
@@ -121,10 +123,10 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 }
 
-void Sphere::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
+void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
                     const mathlib::Mat4f& view, const mathlib::Mat4f& proj,
                     DataBuffer* uniformBuffer) {
-    context->RSSetState(pipelineStateObject.get()->rasterizerState.get());
+    dx11.applyState(*context, *pipelineStateObject.get());
 
     auto vs = pipelineStateObject.get()->vertexShader.get();
     vs->SetUniform("World", 16, GetMatrix().data());
@@ -136,13 +138,7 @@ void Sphere::Render(ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
     ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
     context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
 
-    context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
-
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(vs->D3DVert, NULL, 0);
-
-    context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
 
     ID3D11Buffer* vertexBuffers[] = {vb};
     const UINT strides[] = {sizeof(Vertex)};
