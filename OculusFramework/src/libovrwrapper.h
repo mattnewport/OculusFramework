@@ -64,6 +64,8 @@ struct OculusTexture {
         if (hmd) {
             ovrHmd_DestroySwapTextureSet(hmd, TextureSet);
         } else {
+            dummyTexture.D3D11.pSRView->Release();
+            dummyTexture.D3D11.pTexture->Release();
             delete TextureSet;
         }
     }
@@ -90,8 +92,9 @@ public:
     virtual bool getCap(ovrHmdCaps cap) const = 0;
 
     virtual OculusTexture* createSwapTextureSetD3D11(OVR::Sizei size, ID3D11Device* device) = 0;
-    virtual void releaseSwapTextureSetD3D11(OculusTexture* tex) = 0;
+    virtual void destroySwapTextureSetD3D11(OculusTexture* tex) = 0;
     virtual ovrTexture* createMirrorTextureD3D11(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) = 0;
+    virtual void destroyMirrorTextureD3D11(ovrTexture* tex) = 0;
 
     virtual void configureTracking(unsigned int supportedTrackingCaps,
         unsigned int requiredTrackingCaps = 0) = 0;
@@ -127,8 +130,9 @@ public:
     virtual void setCap(ovrHmdCaps cap) override;
     virtual bool getCap(ovrHmdCaps cap) const override;
     virtual OculusTexture * createSwapTextureSetD3D11(OVR::Sizei size, ID3D11Device * device) override;
-    virtual void releaseSwapTextureSetD3D11(OculusTexture * tex) override;
+    virtual void destroySwapTextureSetD3D11(OculusTexture * tex) override;
     virtual ovrTexture * createMirrorTextureD3D11(ID3D11Device * device, const D3D11_TEXTURE2D_DESC & desc) override;
+    virtual void destroyMirrorTextureD3D11(ovrTexture* tex) override;
     virtual void configureTracking(unsigned int supportedTrackingCaps, unsigned int requiredTrackingCaps = 0) override;
     virtual std::array<ovrEyeRenderDesc, 2> getRenderDesc() override;
     virtual bool submitFrame(unsigned int frameIndex, const ovrViewScaleDesc* viewScaleDesc,
@@ -177,7 +181,7 @@ public:
         return new OculusTexture{hmd_, size, device};
     }
 
-    void releaseSwapTextureSetD3D11(OculusTexture* tex) override {
+    void destroySwapTextureSetD3D11(OculusTexture* tex) override {
         tex->Release(hmd_);
     }
 
@@ -187,6 +191,10 @@ public:
         if (!OVR_SUCCESS(ovrHmd_CreateMirrorTextureD3D11(hmd_, device, &desc, &mirrorTexture)))
             throwOvrError("ovrHmd_CreateMirrorTextureD3D11() failed!");
         return mirrorTexture;
+    }
+
+    void destroyMirrorTextureD3D11(ovrTexture* tex) override {
+        ovrHmd_DestroyMirrorTexture(hmd_, tex);
     }
 
     void configureTracking(unsigned int supportedTrackingCaps,

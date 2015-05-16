@@ -340,8 +340,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     // Release and close down
     // Release
-    // ovrHmd_DestroyMirrorTexture(HMD, mirrorTexture);
-    hmd->releaseSwapTextureSetD3D11(eyeResolveTexture);
+    hmd->destroyMirrorTextureD3D11(mirrorTexture);
+    hmd->destroySwapTextureSetD3D11(eyeResolveTexture);
 
     DX11.ReleaseWindow(hinst);
 

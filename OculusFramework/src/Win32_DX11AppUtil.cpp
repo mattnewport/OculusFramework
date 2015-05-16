@@ -159,7 +159,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
         DXGI_SWAP_CHAIN_DESC scDesc{};
         scDesc.BufferDesc.Width = RenderTargetSize.w;
         scDesc.BufferDesc.Height = RenderTargetSize.h;
-        scDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        scDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
         scDesc.SampleDesc.Count = 1;
         scDesc.SampleDesc.Quality = 0;
         scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
