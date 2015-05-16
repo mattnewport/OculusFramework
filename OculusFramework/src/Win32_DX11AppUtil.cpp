@@ -70,7 +70,7 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
 
 DirectX11::DirectX11() { fill(begin(Key), end(Key), false); }
 
-DirectX11::~DirectX11() {}
+DirectX11::~DirectX11() { Context->ClearState(); Context->Flush(); }
 
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
                                         ID3D11DepthStencilView* dsv) {
@@ -173,6 +173,8 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
             creationFlags, nullptr, 0, D3D11_SDK_VERSION, &scDesc, &SwapChain, &Device, nullptr,
             &Context));
 
+        SetDebugObjectName(Device, "Direct3D11::Device");
+        SetDebugObjectName(Context, "Direct3D11::Context");
         SetDebugObjectName(SwapChain, "Direct3D11::SwapChain");
     }();
 

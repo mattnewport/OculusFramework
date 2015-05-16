@@ -84,6 +84,7 @@ RasterizerStateManager::ResourceType* RasterizerStateManager::createResource(
     const RasterizerStateManager::KeyType& key) {
     ID3D11RasterizerState* rs = nullptr;
     ThrowOnFailure(device->CreateRasterizerState(&key, &rs));
+    SetDebugObjectName(rs, __FUNCTION__);
     return rs;
 }
 
@@ -144,12 +145,14 @@ InputLayoutManager::ResourceType* InputLayoutManager::createResource(const KeyTy
     device->CreateInputLayout(key.inputElementDescs.data(), key.inputElementDescs.size(),
                               key.shaderInputSignature->GetBufferPointer(),
                               key.shaderInputSignature->GetBufferSize(), &inputLayout);
+    SetDebugObjectName(inputLayout, __FUNCTION__);
     return inputLayout;
 }
 
 BlendStateManager::ResourceType* BlendStateManager::createResource(const KeyType& key) {
     ID3D11BlendState* blendState = nullptr;
     ThrowOnFailure(device->CreateBlendState(&key, &blendState));
+    SetDebugObjectName(blendState, __FUNCTION__);
     return blendState;
 }
 
@@ -157,6 +160,7 @@ DepthStencilStateManager::ResourceType* DepthStencilStateManager::createResource
     const KeyType& key) {
     ID3D11DepthStencilState* depthStencilState = nullptr;
     ThrowOnFailure(device->CreateDepthStencilState(&key, &depthStencilState));
+    SetDebugObjectName(depthStencilState, __FUNCTION__);
     return depthStencilState;
 }
 

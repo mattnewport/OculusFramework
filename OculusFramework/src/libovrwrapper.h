@@ -50,10 +50,6 @@ struct OculusTexture {
         } else {
             if (!OVR_SUCCESS(ovrHmd_CreateSwapTextureSetD3D11(hmd, device, &dsDesc, &TextureSet)))
                 throwOvrError("ovrHmd_CreateSwapTextureSetD3D11() failed!", hmd);
-            for (int i = 0; i < TextureSet->TextureCount; ++i) {
-                ovrD3D11Texture* tex = (ovrD3D11Texture*)&TextureSet->Textures[i];
-                device->CreateRenderTargetView(tex->D3D11.pTexture, NULL, &TexRtv[i]);
-            }
         }
     }
 
