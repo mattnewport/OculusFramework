@@ -3,8 +3,11 @@
 #include "d3dhelper.h"
 #include "pipelinestateobject.h"
 
+#pragma warning(push)
+#pragma warning(disable: 4244 4127)
 #define OVR_D3D_VERSION 11
-#include "../Src/OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
+#include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
+#pragma warning(pop)
 
 #include "Win32_DX11AppUtil.h"
 
@@ -41,11 +44,9 @@ struct DummyHmd::RenderHelper {
     DummyHmd& dummyHmd;
     DirectX11& directX11;
 
-    ID3D11RenderTargetViewPtr backBufferRTV;
-    IDXGISwapChainPtr swapChain;
-
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
     ID3D11SamplerStatePtr samplerState;
+    ID3D11RenderTargetViewPtr mirrorTextureRT;
 };
 
 DummyHmd::DummyHmd()
@@ -58,24 +59,20 @@ ovrVector2i DummyHmd::getWindowsPos() const { return {0, 0}; }
 
 ovrSizei DummyHmd::getResolution() const { return {1920, 1080}; }
 
+ovrFovPort DummyHmd::getDefaultEyeFov(ovrEyeType eye) const {
+    return ovrFovPort();
+}
+
 bool DummyHmd::testCap(ovrHmdCaps cap) const { return false; }
 
 void DummyHmd::setCap(ovrHmdCaps cap) {}
 
 bool DummyHmd::getCap(ovrHmdCaps cap) const { return false; }
 
-void DummyHmd::attachToWindow(void* window) {}
-
 void DummyHmd::configureTracking(unsigned int supportedTrackingCaps,
                                  unsigned int requiredTrackingCaps) {}
 
-std::array<ovrEyeRenderDesc, 2> DummyHmd::configureRendering(const ovrRenderAPIConfig* apiConfig,
-                                                             unsigned int distortionCaps) {
-    // Grab D3D API objects
-    auto d3d11Config = reinterpret_cast<const ovrD3D11Config*>(apiConfig);
-    renderHelper->backBufferRTV = d3d11Config->D3D11.pBackBufferRT;
-    renderHelper->swapChain = d3d11Config->D3D11.pSwapChain;
-
+std::array<ovrEyeRenderDesc, 2> DummyHmd::getRenderDesc() {
     // Fake out default DK2 values
     // Left eye
     eyeRenderDescs[0].Eye = ovrEye_Left;
@@ -101,14 +98,11 @@ std::array<ovrEyeRenderDesc, 2> DummyHmd::configureRendering(const ovrRenderAPIC
     return eyeRenderDescs;
 }
 
-void DummyHmd::shutdownRendering() {
-    renderHelper.reset();
-}
-
-ovrFrameTiming DummyHmd::beginFrame(unsigned int frameIndex) { return ovrFrameTiming(); }
-
-void DummyHmd::endFrame(const ovrPosef renderPose[2], const ovrTexture eyeTexture[2]) {
-    renderHelper->render(eyeTexture);
+bool DummyHmd::submitFrame(unsigned int frameIndex, const ovrViewScaleDesc * viewScaleDesc, ovrLayerHeader const * const * layerPtrList, unsigned int layerCount) {
+    auto layer = reinterpret_cast<const ovrLayerEyeFov*>(layerPtrList[0]);
+    auto textureSet = layer->ColorTexture[0];
+    renderHelper->render(&textureSet->Textures[0]);
+    return false;
 }
 
 ovrSizei DummyHmd::getFovTextureSize(ovrEyeType eye) {
@@ -140,10 +134,28 @@ void DummyHmd::setDirectX11(DirectX11& directX11_) {
     }
 }
 
+OculusTexture * DummyHmd::createSwapTextureSetD3D11(OVR::Sizei size, ID3D11Device * device) {
+    return new OculusTexture{nullptr, size, device};
+}
+
+ovrTexture * DummyHmd::createMirrorTextureD3D11(ID3D11Device * device, const D3D11_TEXTURE2D_DESC & desc) {
+    ovrD3D11Texture* tex = new ovrD3D11Texture{};
+    auto newDesc = desc;
+    newDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+    device->CreateTexture2D(&newDesc, nullptr, &tex->D3D11.pTexture);
+    device->CreateRenderTargetView(tex->D3D11.pTexture, nullptr, &renderHelper.get()->mirrorTextureRT);
+    return &tex->Texture;
+}
+
+void DummyHmd::releaseSwapTextureSetD3D11(OculusTexture * tex) {
+    tex->Release(nullptr);
+    delete tex;
+}
+
 void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
     [this, eyeTexture] {
         directX11.applyState(*directX11.Context, *pipelineStateObject.get());
-        ID3D11RenderTargetView* rtvs[] = {backBufferRTV};
+        ID3D11RenderTargetView* rtvs[] = {mirrorTextureRT};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
         ID3D11SamplerState* samplers[] = {samplerState};
         directX11.Context->PSSetSamplers(0, 1, samplers);
@@ -168,7 +180,6 @@ void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
         ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
         directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
     }();
-    swapChain->Present(0, 0);
 }
 
 IHmd::~IHmd()
@@ -176,19 +187,18 @@ IHmd::~IHmd()
 }
 
 Ovr::Ovr() {
-    if (!ovr_Initialize()) throwOvrError("ovr_Initialize() returned false!");
+    if (!OVR_SUCCESS(ovr_Initialize(nullptr))) throwOvrError("ovr_Initialize() returned false!");
 }
 
 Ovr::~Ovr() { ovr_Shutdown(); }
 
 Hmd Ovr::CreateHmd(int index) {
-    ovrHmd hmd = ovrHmd_Create(index);
-    if (!hmd) {
+    ovrHmd hmd{};
+    if (!OVR_SUCCESS(ovrHmd_Create(index, &hmd))) {
         MessageBoxA(NULL, "Oculus Rift not detected.\nAttempting to create debug HMD.", "", MB_OK);
 
         // If we didn't detect an Hmd, create a simulated one for debugging.
-        hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
-        if (!hmd) throwOvrError("Failed to create HMD!");
+        if (!OVR_SUCCESS(ovrHmd_CreateDebug(ovrHmd_DK2, &hmd))) throwOvrError("Failed to create HMD!");
     }
 
     if (hmd->ProductName[0] == '\0')
@@ -197,11 +207,12 @@ Hmd Ovr::CreateHmd(int index) {
 }
 
 void throwOvrError(const char * msg, ovrHmd hmd) {
-    const char* errString = ovrHmd_GetLastError(hmd);
+    ovrErrorInfo errorInfo{};
+    ovr_GetLastErrorInfo(&errorInfo);
 #ifdef _DEBUG
-    OutputDebugStringA(errString);
+    OutputDebugStringA(errorInfo.ErrorString);
 #endif
-    throw std::runtime_error(std::string{ msg } +errString);
+    throw std::runtime_error(std::string{ msg } + errorInfo.ErrorString);
 }
 
 }  // namespace libovrwrapper

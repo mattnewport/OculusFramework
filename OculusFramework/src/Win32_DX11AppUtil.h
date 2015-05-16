@@ -30,7 +30,10 @@ limitations under the License.
 #include "d3dresourcemanagers.h"
 #include "pipelinestateobjectmanager.h"
 
+#pragma warning(push)
+#pragma warning(disable: 4244 4127)
 #include "OVR_Kernel.h"
+#pragma warning(pop)
 
 struct DataBuffer {
     ID3D11BufferPtr D3DBuffer;

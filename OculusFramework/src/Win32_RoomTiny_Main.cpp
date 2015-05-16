@@ -26,14 +26,15 @@ limitations under the License.
 // 4.  Supporting D3D11 and utility code is in Win32_DX11AppUtil.h
 
 #include "Win32_DX11AppUtil.h"  // Include Non-SDK supporting utilities
-#include "OVR.h"                // Include the OculusVR SDK
+#pragma warning(push)
+#pragma warning(disable : 4244 4127)
+#include "OVR.h"  // Include the OculusVR SDK
+#define OVR_D3D_VERSION 11
+#include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
+#pragma warning(pop)
 
 #include "pipelinestateobject.h"
 #include "scene.h"
-
-#define OVR_D3D_VERSION 11
-#include "../Src/OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
-
 #include "libovrwrapper.h"
 
 #include <vector.h>
@@ -89,9 +90,6 @@ void ExampleFeatures1(const DirectX11& DX11, IHmd& hmd, const float* pSpeed,
 
     OVR_UNUSED(pSpeed);
     OVR_UNUSED(pTimesToRenderScene);
-
-    // Dismiss the Health and Safety message by pressing any key
-    if (DX11.IsAnyKeyPressed()) hmd.dismissHSWDisplay();
 }
 
 void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
@@ -149,7 +147,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         }
     }();
 
-    hmd->attachToWindow(DX11.Window);
     hmd->setCap(ovrHmdCap_LowPersistence);
     hmd->setCap(ovrHmdCap_DynamicPrediction);
 
@@ -158,37 +155,37 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                            ovrTrackingCap_Position);
 
     // Make the eye render buffers (caution if actual size < requested due to HW limits).
-    auto idealSizeL = hmd->getFovTextureSize(ovrEyeType(ovrEye_Left));
-    auto idealSizeR = hmd->getFovTextureSize(ovrEyeType(ovrEye_Right));
-    auto eyeBufferSize = OVR::Sizei{idealSizeL.w + idealSizeR.w, max(idealSizeL.h, idealSizeR.h)};
+    const auto idealSizeL = hmd->getFovTextureSize(ovrEyeType(ovrEye_Left));
+    const auto idealSizeR = hmd->getFovTextureSize(ovrEyeType(ovrEye_Right));
+    const auto eyeBufferpadding =
+        16;  // leave a gap between the rendered areas as suggested by Oculus
+    auto eyeBufferSize =
+        OVR::Sizei{idealSizeL.w + idealSizeR.w + eyeBufferpadding, max(idealSizeL.h, idealSizeR.h)};
     auto EyeRenderTexture =
         ImageBuffer{"EyeRenderTexture", DX11.Device, true, false, eyeBufferSize, 1, true};
-    auto EyeResolveTexture =
-        ImageBuffer{"EyeResolveTexture", DX11.Device, true, false, eyeBufferSize};
     auto EyeDepthBuffer =
         ImageBuffer{"EyeDepthBuffer", DX11.Device, true, true, eyeBufferSize, 1, true};
     ovrRecti EyeRenderViewport[2];  // Useful to remember when varying resolution
     EyeRenderViewport[ovrEye_Left].Pos = Vector2i{0, 0};
     EyeRenderViewport[ovrEye_Left].Size = idealSizeL;
-    EyeRenderViewport[ovrEye_Right].Pos = Vector2i{idealSizeL.w, 0};
+    EyeRenderViewport[ovrEye_Right].Pos = Vector2i{idealSizeL.w + eyeBufferpadding, 0};
     EyeRenderViewport[ovrEye_Right].Size = idealSizeR;
 
     // Setup VR components
-    std::array<ovrEyeRenderDesc, 2> EyeRenderDesc;
-    [&EyeRenderDesc, &hmd, &DX11] {
-        ovrD3D11Config d3d11cfg;
-        d3d11cfg.D3D11.Header.API = ovrRenderAPI_D3D11;
-        d3d11cfg.D3D11.Header.BackBufferSize = hmd->getResolution();
-        d3d11cfg.D3D11.Header.Multisample = 1;
-        d3d11cfg.D3D11.pDevice = DX11.Device;
-        d3d11cfg.D3D11.pDeviceContext = DX11.Context;
-        d3d11cfg.D3D11.pBackBufferRT = DX11.BackBufferRT;
-        d3d11cfg.D3D11.pSwapChain = DX11.SwapChain;
+    OculusTexture* eyeResolveTexture = hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device);
 
-        EyeRenderDesc = hmd->configureRendering(
-            &d3d11cfg.Config, ovrDistortionCap_Chromatic | ovrDistortionCap_Vignette |
-                                  ovrDistortionCap_TimeWarp | ovrDistortionCap_Overdrive);
-    }();
+    // Create a mirror to see on the monitor.
+    D3D11_TEXTURE2D_DESC td = {};
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    td.Width = windowRect.w;
+    td.Height = windowRect.h;
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.SampleDesc.Count = 1;
+    td.MipLevels = 1;
+    ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(DX11.Device, td);
+
+    const auto EyeRenderDesc = hmd->getRenderDesc();
 
     {
         // Create the room model
@@ -207,8 +204,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             int timesToRenderScene = 1;  // Can adjust the render burden on the app.
             ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[0].HmdToEyeViewOffset,
                                                     EyeRenderDesc[1].HmdToEyeViewOffset};
-
-            hmd->beginFrame(0);
 
             // Handle key toggles for re-centering, meshes, FOV, etc.
             ExampleFeatures1(DX11, *hmd, &speed, &timesToRenderScene, useHmdToEyeViewOffset);
@@ -265,9 +260,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             pos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y());
 
             // Animate the cube
-            if (speed)
-                roomScene.Models[0]->Pos =
-                    Vector3f(9 * sin(0.01f * appClock), 3, 9 * cos(0.01f * appClock));
+            roomScene.Models[0]->Pos =
+                Vector3f(9 * sin(0.01f * appClock), 3, 9 * cos(0.01f * appClock)) * speed;
 
             // Get both eye poses simultaneously, with IPD offset already included.
             auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
@@ -314,26 +308,41 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                      view, proj);
             }
 
-            DX11.Context->ResolveSubresource(EyeResolveTexture.Tex, 0, EyeRenderTexture.Tex, 0,
-                                             DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+            eyeResolveTexture->AdvanceToNextTexture();
+            DX11.Context->ResolveSubresource(
+                reinterpret_cast<ovrD3D11Texture&>(
+                    eyeResolveTexture->TextureSet
+                        ->Textures[eyeResolveTexture->TextureSet->CurrentIndex])
+                    .D3D11.pTexture,
+                0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB);
 
-            // Do distortion rendering, Present and flush/sync
-            if (hmd) {
-                ovrD3D11Texture eyeTexture[2];  // Gather data for eye textures
-                for (int eye = 0; eye < 2; eye++) {
-                    eyeTexture[eye].D3D11.Header.API = ovrRenderAPI_D3D11;
-                    eyeTexture[eye].D3D11.Header.TextureSize = EyeResolveTexture.Size;
-                    eyeTexture[eye].D3D11.Header.RenderViewport = EyeRenderViewport[eye];
-                    eyeTexture[eye].D3D11.pTexture = EyeResolveTexture.Tex;
-                    eyeTexture[eye].D3D11.pSRView = EyeResolveTexture.TexSv;
-                }
-                hmd->endFrame(EyeRenderPose, &eyeTexture[0].Texture);
+            // Initialize our single full screen Fov layer.
+            ovrLayerEyeFov ld;
+            ld.Header.Type = ovrLayerType_EyeFov;
+            ld.Header.Flags = 0;
+
+            for (int eye = 0; eye < 2; eye++) {
+                ld.ColorTexture[eye] = eyeResolveTexture->TextureSet;
+                ld.Viewport[eye] = EyeRenderViewport[eye];
+                ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
+                ld.RenderPose[eye] = EyeRenderPose[eye];
             }
+
+            ovrLayerHeader* layers = &ld.Header;
+            hmd->submitFrame(0, nullptr, &layers, 1);
+
+            // Render mirror
+            ovrD3D11Texture* tex = (ovrD3D11Texture*)mirrorTexture;
+            DX11.Context->CopyResource(DX11.BackBuffer, tex->D3D11.pTexture);
+            DX11.SwapChain->Present(0, 0);
         }
     }
 
     // Release and close down
-    hmd->shutdownRendering();
+    // Release
+    // ovrHmd_DestroyMirrorTexture(HMD, mirrorTexture);
+    hmd->releaseSwapTextureSetD3D11(eyeResolveTexture);
+
     DX11.ReleaseWindow(hinst);
 
     return 0;

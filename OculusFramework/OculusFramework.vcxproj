@@ -54,7 +54,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;NOMINMAX;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVRKernel\Src;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -66,8 +66,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OVR_SDK)\LibOVR\Lib\$(Platform)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libovrd.lib;ws2_32.lib;%(AdditionalDependencies);winmm.lib;d3d11.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;xinput.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OVR_SDK)\LibOVR\Lib\Windows\$(Platform)\$(Configuration)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libovr.lib;ws2_32.lib;%(AdditionalDependencies);winmm.lib;d3d11.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;xinput.lib</AdditionalDependencies>
       <AdditionalOptions>/DEBUG:FASTLINK /time+ %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -81,7 +81,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;NOMINMAX;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVRKernel\Src;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -92,7 +92,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(OVR_SDK)\LibOVR\Lib\$(Platform)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OVR_SDK)\LibOVR\Lib\Windows\$(Platform)\$(Configuration)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libovr.lib;ws2_32.lib;%(AdditionalDependencies);winmm.lib;d3d11.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;xinput.lib</AdditionalDependencies>
       <AdditionalOptions>/DEBUG:FASTLINK /time+ %(AdditionalOptions)</AdditionalOptions>
       <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>

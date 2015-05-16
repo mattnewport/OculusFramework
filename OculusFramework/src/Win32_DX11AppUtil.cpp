@@ -38,7 +38,7 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
                          Sizei size, int mipLevels, bool aa)
     : name(name_), Size(size) {
     CD3D11_TEXTURE2D_DESC dsDesc(
-        depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h, 1,
+        depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, size.w, size.h, 1,
         mipLevels);
 
     if (rendertarget) {
@@ -159,7 +159,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
         DXGI_SWAP_CHAIN_DESC scDesc{};
         scDesc.BufferDesc.Width = RenderTargetSize.w;
         scDesc.BufferDesc.Height = RenderTargetSize.h;
-        scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        scDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         scDesc.SampleDesc.Count = 1;
         scDesc.SampleDesc.Quality = 0;
         scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
