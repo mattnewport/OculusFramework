@@ -32,13 +32,13 @@ struct OculusTexture {
         dsDesc.Height = size.h;
         dsDesc.MipLevels = 1;
         dsDesc.ArraySize = 1;
-        dsDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        dsDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
         dsDesc.SampleDesc.Count = 1;  // No multi-sampling allowed
         dsDesc.SampleDesc.Quality = 0;
         dsDesc.Usage = D3D11_USAGE_DEFAULT;
         dsDesc.CPUAccessFlags = 0;
         dsDesc.MiscFlags = 0;
-        dsDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        dsDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
         if (!hmd) {
             TextureSet = new ovrSwapTextureSet{};

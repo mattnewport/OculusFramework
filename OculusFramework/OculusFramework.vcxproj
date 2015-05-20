@@ -108,6 +108,7 @@
     <ClInclude Include="src\DirectXHelpers.h" />
     <ClInclude Include="src\farmhash.h" />
     <ClInclude Include="src\hashhelpers.h" />
+    <ClInclude Include="src\hlslmacros.h" />
     <ClInclude Include="src\libovrwrapper.h" />
     <ClInclude Include="src\pipelinestateobject.h" />
     <ClInclude Include="src\pipelinestateobjectmanager.h" />
@@ -190,6 +191,8 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="commoncbuffers.hlsli" />
+    <None Include="commonstructs.hlsli" />
     <None Include="lighting.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

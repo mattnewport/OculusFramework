@@ -31,6 +31,8 @@ struct HeightField {
     ID3D11SamplerStatePtr samplerState;
     Texture2DManager::ResourceHandle shapesTex;
     Texture2DManager::ResourceHandle normalsTex;
+    ID3D11BufferPtr cameraConstantBuffer;
+    ID3D11BufferPtr objectConstantBuffer;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos} {}
     const mathlib::Mat4f& GetMatrix() {

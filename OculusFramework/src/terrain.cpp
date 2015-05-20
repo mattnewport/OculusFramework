@@ -9,9 +9,14 @@
 #include <array>
 #include <fstream>
 
+#include "hlslmacros.h"
+#include "../commonstructs.hlsli"
+
 using namespace std;
 
 using namespace mathlib;
+
+auto roundUp16 = [](size_t size) { return (1 + (size / 16)) * 16; };
 
 void HeightField::AddVertices(ID3D11Device* device,
                               PipelineStateObjectManager& pipelineStateObjectManager,
@@ -125,22 +130,49 @@ void HeightField::AddVertices(ID3D11Device* device,
     desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
                               MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
+
+    [this, device] {
+        const CD3D11_BUFFER_DESC desc{roundUp16(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
+                                      D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer);
+    }();
+
+    [this, device] {
+        const CD3D11_BUFFER_DESC desc{roundUp16(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
+                                      D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        device->CreateBuffer(&desc, nullptr, &objectConstantBuffer);
+    }();
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
                          const mathlib::Mat4f& view, const mathlib::Mat4f& proj,
-                         DataBuffer* uniformBuffer) {
+                         DataBuffer* /*uniformBuffer*/) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
-    auto vs = pipelineStateObject.get()->vertexShader.get();
-    vs->SetUniform("World", 16, GetMatrix().data());
-    vs->SetUniform("View", 16, view.data());
-    vs->SetUniform("Proj", 16, proj.data());
-    vs->SetUniform("eye", 3, &eye.x());
+    Camera camera;
+    camera.proj = proj;
+    camera.view = view;
+    camera.eye = eye;
 
-    uniformBuffer->Refresh(context, vs->UniformData.data(), vs->UniformData.size());
-    ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
-    context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
+    [this, &camera, &dx11] {
+        D3D11_MAPPED_SUBRESOURCE mappedResource{};
+        dx11.Context->Map(cameraConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        memcpy(mappedResource.pData, &camera, sizeof(camera));
+        dx11.Context->Unmap(cameraConstantBuffer, 0);
+    }();
+
+    Object object;
+    object.world = GetMatrix();
+
+    [this, &object, &dx11] {
+        D3D11_MAPPED_SUBRESOURCE mappedResource{};
+        dx11.Context->Map(objectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        memcpy(mappedResource.pData, &object, sizeof(object));
+        dx11.Context->Unmap(objectConstantBuffer, 0);
+    }();
+
+    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer, objectConstantBuffer};
+    context->VSSetConstantBuffers(0, 2, vsConstantBuffers);
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 

@@ -38,7 +38,7 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
                          Sizei size, int mipLevels, bool aa)
     : name(name_), Size(size) {
     CD3D11_TEXTURE2D_DESC dsDesc(
-        depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, size.w, size.h, 1,
+        depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h, 1,
         mipLevels);
 
     if (rendertarget) {

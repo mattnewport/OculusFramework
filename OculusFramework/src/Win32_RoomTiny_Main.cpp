@@ -314,7 +314,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     eyeResolveTexture->TextureSet
                         ->Textures[eyeResolveTexture->TextureSet->CurrentIndex])
                     .D3D11.pTexture,
-                0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB);
+                0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
             // Initialize our single full screen Fov layer.
             ovrLayerEyeFov ld;

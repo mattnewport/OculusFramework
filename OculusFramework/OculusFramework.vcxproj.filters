@@ -72,6 +72,9 @@
     <ClInclude Include="src\d3dstatemanagers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\hlslmacros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\d3dhelper.cpp">
@@ -151,6 +154,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="commoncbuffers.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="commonstructs.hlsli">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>
