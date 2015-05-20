@@ -38,20 +38,21 @@ struct Model {
         mathlib::Vec2f uv;
     };
 
-    OVR::Vector3f Pos;
-    OVR::Quatf Rot;
-    OVR::Matrix4f Mat;
+    mathlib::Vec3f Pos;
+    mathlib::Quatf Rot;
+    mathlib::Mat4f Mat;
+
     std::vector<Vertex> Vertices;
     std::vector<uint16_t> Indices;
     std::unique_ptr<ShaderFill> Fill;
     std::unique_ptr<DataBuffer> VertexBuffer;
     std::unique_ptr<DataBuffer> IndexBuffer;
+    ID3D11BufferPtr objectConstantBuffer;
 
-    Model(OVR::Vector3f arg_pos, std::unique_ptr<ShaderFill>&& arg_Fill)
-        : Pos{arg_pos}, Fill{std::move(arg_Fill)} {}
-    OVR::Matrix4f& GetMatrix() {
-        Mat = OVR::Matrix4f(Rot);
-        Mat = OVR::Matrix4f::Translation(Pos) * Mat;
+    Model(mathlib::Vec3f pos_, std::unique_ptr<ShaderFill>&& arg_Fill)
+        : Pos{pos_}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f}, Fill{std::move(arg_Fill)} {}
+    const mathlib::Mat4f& GetMatrix() {
+        Mat = Mat4FromQuat(Rot) * Mat4fTranslation(Pos);
         return Mat;
     }
     void AddVertex(const Vertex& v) { Vertices.push_back(v); }
@@ -76,9 +77,10 @@ struct Scene {
     void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                 const mathlib::Mat4f& proj);
     void Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
-                DataBuffer* indices, UINT stride, int count);
+                DataBuffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer);
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
     std::unique_ptr<DataBuffer> UniformBufferGen;
+    ID3D11BufferPtr cameraConstantBuffer;
 };

@@ -6,6 +6,9 @@
 #include <numeric>
 #include <vector>
 
+#include "hlslmacros.h"
+#include "../commonstructs.hlsli"
+
 using namespace mathlib;
 
 using namespace std;
@@ -121,22 +124,29 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     desc.pixelShader = "sphereps.hlsl";
     desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
+
+    [this, &device] {
+        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
+            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        device.CreateBuffer(&desc, nullptr, &objectConstantBuffer);
+    }();
 }
 
-void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, const mathlib::Vec3f& eye,
-                    const mathlib::Mat4f& view, const mathlib::Mat4f& proj,
-                    DataBuffer* uniformBuffer) {
+void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
-    auto vs = pipelineStateObject.get()->vertexShader.get();
-    vs->SetUniform("World", 16, GetMatrix().data());
-    vs->SetUniform("View", 16, view.data());
-    vs->SetUniform("Proj", 16, proj.data());
-    vs->SetUniform("eye", 3, &eye.x());
+    Object object;
+    object.world = GetMatrix();
 
-    uniformBuffer->Refresh(context, vs->UniformData.data(), vs->UniformData.size());
-    ID3D11Buffer* vsConstantBuffers[] = {uniformBuffer->D3DBuffer};
-    context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
+    [this, &object, &dx11] {
+        D3D11_MAPPED_SUBRESOURCE mappedResource{};
+        dx11.Context->Map(objectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        memcpy(mappedResource.pData, &object, sizeof(object));
+        dx11.Context->Unmap(objectConstantBuffer, 0);
+    }();
+
+    ID3D11Buffer* vsConstantBuffers[] = {&cameraConstantBuffer, objectConstantBuffer};
+    context->VSSetConstantBuffers(0, 2, vsConstantBuffers);
 
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
 

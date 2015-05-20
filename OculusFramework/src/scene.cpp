@@ -4,15 +4,26 @@
 
 #include <vector>
 
+#include "hlslmacros.h"
+#include "../commonstructs.hlsli"
+
 using namespace std;
 
 using namespace OVR;
+
+using namespace mathlib;
 
 void Model::AllocateBuffers(ID3D11Device* device) {
     VertexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, &Vertices[0],
                                                 Vertices.size() * sizeof(Vertex));
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
                                                Indices.size() * sizeof(uint16_t));
+
+    [this, device] {
+        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
+            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        device->CreateBuffer(&desc, nullptr, &objectConstantBuffer);
+    }();
 }
 
 void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c) {
@@ -150,12 +161,12 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
 
     // Construct geometry
     std::unique_ptr<Model> m =
-        make_unique<Model>(Vector3f(0, 0, 0), std::move(generated_texture[2]));  // Moving box
+        make_unique<Model>(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[2]));  // Moving box
     m->AddSolidColorBox(0, 0, 0, +1.0f, +1.0f, 1.0f, Model::Color(64, 64, 64));
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(Vector3f(0, 0, 0), std::move(generated_texture[1])));  // Walls
+    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[1])));  // Walls
     m->AddSolidColorBox(-10.1f, 0.0f, -20.0f, -10.0f, 4.0f, 20.0f,
                         Model::Color(128, 128, 128));  // Left Wall
     m->AddSolidColorBox(-10.0f, -0.1f, -20.1f, 10.0f, 4.0f, -20.0f,
@@ -165,7 +176,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(Vector3f(0, 0, 0), std::move(generated_texture[0])));  // Floors
+    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[0])));  // Floors
     m->AddSolidColorBox(-10.0f, -0.1f, -20.0f, 10.0f, 0.0f, 20.1f,
                         Model::Color(128, 128, 128));  // Main floor
     m->AddSolidColorBox(-15.0f, -6.1f, 18.0f, 15.0f, -6.0f, 30.0f,
@@ -173,12 +184,12 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(Vector3f(0, 0, 0), std::move(generated_texture[4])));  // Ceiling
+    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[4])));  // Ceiling
     m->AddSolidColorBox(-10.0f, 4.0f, -20.0f, 10.0f, 4.1f, 20.1f, Model::Color(128, 128, 128));
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(Vector3f(0, 0, 0), std::move(generated_texture[3])));  // Fixtures & furniture
+    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[3])));  // Fixtures & furniture
     m->AddSolidColorBox(9.5f, 0.75f, 3.0f, 10.1f, 2.5f, 3.1f,
                         Model::Color(96, 96, 96));  // Right side shelf// Verticals
     m->AddSolidColorBox(9.5f, 0.95f, 3.7f, 10.1f, 2.75f, 3.8f,
@@ -242,19 +253,22 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         MAKE_INPUT_ELEMENT_DESC(Model::Vertex, uv, "TEXCOORD"),
     };
     pipelineStateObject = pipelineStateObjectManager.get(desc);
+
+    [this, device] {
+        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
+            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer);
+    }();
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
-                   DataBuffer* indices, UINT stride, int count) {
+                   DataBuffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer) {
     UINT offset = 0;
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
     context->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
 
-    UniformBufferGen->Refresh(context,
-                              pipelineStateObject.get()->vertexShader.get()->UniformData.data(),
-                              pipelineStateObject.get()->vertexShader.get()->UniformData.size());
-    ID3D11Buffer* vsConstantBuffers[] = {UniformBufferGen->D3DBuffer};
-    context->VSSetConstantBuffers(0, 1, vsConstantBuffers);
+    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer, &objectConstantBuffer};
+    context->VSSetConstantBuffers(0, 2, vsConstantBuffers);
 
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
@@ -280,16 +294,36 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
                    const mathlib::Mat4f& proj) {
     dx11.applyState(*dx11.Context, *pipelineStateObject.get());
 
-    auto vs = pipelineStateObject.get()->vertexShader.get();
+    Camera camera;
+    camera.proj = proj;
+    camera.view = view;
+    camera.eye = eye;
+
+    [this, &camera, &dx11] {
+        D3D11_MAPPED_SUBRESOURCE mappedResource{};
+        dx11.Context->Map(cameraConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        memcpy(mappedResource.pData, &camera, sizeof(camera));
+        dx11.Context->Unmap(cameraConstantBuffer, 0);
+    }();
+
+    /*
+    */
+
     for (auto& model : Models) {
-        vs->SetUniform("World", 16, &model->GetMatrix().Transposed().M[0][0]);
-        vs->SetUniform("View", 16, view.data());
-        vs->SetUniform("Proj", 16, proj.data());
+        Object object;
+        object.world = model->GetMatrix();
+
+        [this, &object, &dx11, &model] {
+            D3D11_MAPPED_SUBRESOURCE mappedResource{};
+            dx11.Context->Map(model->objectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+            memcpy(mappedResource.pData, &object, sizeof(object));
+            dx11.Context->Unmap(model->objectConstantBuffer, 0);
+        }();
 
         Render(dx11.Context, model->Fill.get(), model->VertexBuffer.get(), model->IndexBuffer.get(),
-               sizeof(Model::Vertex), model->Indices.size());
+               sizeof(Model::Vertex), model->Indices.size(), model->objectConstantBuffer);
     }
 
-    heightField->Render(dx11, dx11.Context, eye, view, proj, UniformBufferGen.get());
-    sphere->Render(dx11, dx11.Context, eye, view, proj, UniformBufferGen.get());
+    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer);
+    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer);
 }

@@ -146,4 +146,10 @@ struct hash<CD3D11_DEPTH_STENCIL_DESC> {
         return hashHelper(x);
     }
 };
+
 }
+
+// Misc helpers
+
+inline auto roundUpConstantBufferSize(size_t size) { return (1 + (size / 16)) * 16; };
+

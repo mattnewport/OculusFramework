@@ -261,7 +261,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
             // Animate the cube
             roomScene.Models[0]->Pos =
-                Vector3f(9 * sin(0.01f * appClock), 3, 9 * cos(0.01f * appClock)) * speed;
+                mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock)) * speed;
 
             // Get both eye poses simultaneously, with IPD offset already included.
             auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);

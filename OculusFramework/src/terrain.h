@@ -20,7 +20,7 @@ struct HeightField {
     };
 
     mathlib::Vec3f Pos;
-    OVR::Quatf Rot;
+    mathlib::Quatf Rot;
     mathlib::Mat4f Mat;
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
@@ -31,21 +31,16 @@ struct HeightField {
     ID3D11SamplerStatePtr samplerState;
     Texture2DManager::ResourceHandle shapesTex;
     Texture2DManager::ResourceHandle normalsTex;
-    ID3D11BufferPtr cameraConstantBuffer;
     ID3D11BufferPtr objectConstantBuffer;
 
-    HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos} {}
+    HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
-        auto matTemp = OVR::Matrix4f(Rot);
-        matTemp.Transpose();
-        memcpy(&Mat, &matTemp, sizeof(Mat));
-        Mat = Mat * Mat4fTranslation(Pos);
+        Mat = Mat4FromQuat(Rot) * Mat4fTranslation(Pos);
         return Mat;
     }
 
     void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
                      Texture2DManager& texture2DManager);
 
-    void Render(DirectX11& dx11, ID3D11DeviceContext* context, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
-                const mathlib::Mat4f& proj, DataBuffer* uniformBuffer);
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraBuffer);
 };
