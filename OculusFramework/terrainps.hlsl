@@ -9,20 +9,13 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
 {
     float4 diffuse = Texture.Sample(Linear, TexCoord);
 
-    PhongMaterialParams mat;
-    mat.ka = Color.xyz * diffuse.xyz;
-    mat.kd = Color.xyz * diffuse.xyz;
-    mat.ks = Color.xyz * diffuse.xyz;
-    mat.alpha = 30.0f;
+    MicrofacetMaterialParams mat;
+    mat.albedo = Color.xyz * diffuse.xyz;
+    mat.specColor = float3(0.04f, 0.04f, 0.04f);// Color.xyz * diffuse.xyz;
+    mat.gloss = saturate(1.0f - dot(diffuse.xyz, float3(0.33f, 0.33f, 0.33f)));
 
     float3 n = normalize(normals.Sample(Linear, TexCoord).xzy * 2.0f - 1.0f);
-    float3 l = lightPos - worldPos;
-    float lmag = length(l);
     float3 v = normalize(viewDir);
 
-    PhongLightParams light;
-    light.ia = 0.2f;
-    light.i = 1.0f / lmag*lmag;
-
-    return float4(phong(mat, light, n, l / lmag, v), 1.0f);
+    return float4(light(worldPos, mat, n, v), 1.0f);
 };
