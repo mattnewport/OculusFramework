@@ -107,7 +107,7 @@ ovrSizei DummyHmd::getFovTextureSize(ovrEyeType eye) {
 }
 
 ovrSizei DummyHmd::getFovTextureSize(ovrEyeType eye, ovrFovPort fov, float pixelsPerDisplayPixel) {
-    return {1182, 1461};
+    return {1182, 1464};
 }
 
 float DummyHmd::getProperty(const char* propertyName, const float defaultValue) const {

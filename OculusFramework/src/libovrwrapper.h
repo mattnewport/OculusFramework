@@ -32,7 +32,7 @@ struct OculusTexture {
         dsDesc.Height = size.h;
         dsDesc.MipLevels = 1;
         dsDesc.ArraySize = 1;
-        dsDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        dsDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         dsDesc.SampleDesc.Count = 1;  // No multi-sampling allowed
         dsDesc.SampleDesc.Quality = 0;
         dsDesc.Usage = D3D11_USAGE_DEFAULT;

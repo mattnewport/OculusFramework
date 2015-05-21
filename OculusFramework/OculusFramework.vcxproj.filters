@@ -151,6 +151,12 @@
     <FxCompile Include="terrainvs.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+    <FxCompile Include="tonemapps.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapvs.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.hlsli">

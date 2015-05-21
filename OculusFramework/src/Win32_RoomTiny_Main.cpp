@@ -118,6 +118,80 @@ void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
     OVR_UNUSED3(pUseYaw, pUseEyePose, pUseBuffer);
 }
 
+struct ToneMapper {
+    ToneMapper(DirectX11& directX11_, int width_, int height_)
+        : directX11{directX11_}, width{static_cast<unsigned>(width_)}, height{static_cast<unsigned>(height_)} {
+        [this]{
+            PipelineStateObjectDesc desc;
+            desc.vertexShader = "tonemapvs.hlsl";
+            desc.pixelShader = "tonemapps.hlsl";
+            desc.depthStencilState = [] {
+                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
+                desc.DepthEnable = FALSE;
+                return desc;
+            }();
+            pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
+        }();
+
+        [this] {
+            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
+            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
+        }();
+
+        [this] {
+            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height};
+            ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &sourceTex));
+            SetDebugObjectName(sourceTex, "ToneMapper::sourceTex");
+            ThrowOnFailure(directX11.Device->CreateShaderResourceView(sourceTex, nullptr, &sourceTexSRV));
+            SetDebugObjectName(sourceTexSRV, "ToneMapper::sourceTexSRV");
+        }();
+
+        [this]{
+            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1, D3D11_BIND_RENDER_TARGET};
+            ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
+            SetDebugObjectName(renderTargetTex, "ToneMapper::renderTargetTex");
+            CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB};
+            ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex, &rtDesc, &renderTargetView));
+            SetDebugObjectName(renderTargetView, "ToneMapper::renderTargetView");
+        }();
+    }
+
+    void render();
+
+    DirectX11& directX11;
+    unsigned width = 0;
+    unsigned height = 0;
+
+    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
+    ID3D11SamplerStatePtr samplerState;
+    ID3D11Texture2DPtr sourceTex;
+    ID3D11ShaderResourceViewPtr sourceTexSRV;
+    ID3D11Texture2DPtr renderTargetTex;
+    ID3D11RenderTargetViewPtr renderTargetView;
+};
+
+void ToneMapper::render() {
+    directX11.applyState(*directX11.Context, *pipelineStateObject.get());
+    ID3D11RenderTargetView* rtvs[] = {renderTargetView};
+    directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+    ID3D11SamplerState* samplers[] = {samplerState};
+    directX11.Context->PSSetSamplers(0, 1, samplers);
+    D3D11_VIEWPORT vp;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+    vp.Width = static_cast<float>(width);
+    vp.Height = static_cast<float>(height);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    directX11.Context->RSSetViewports(1, &vp);
+    ID3D11ShaderResourceView* srvs[] = {sourceTexSRV};
+    directX11.Context->PSSetShaderResources(0, 1, srvs);
+    directX11.Context->Draw(3, 0);
+    ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
+    directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+}
+
+
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     auto argMap = parseArgs(args);
 
@@ -174,10 +248,13 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     // Setup VR components
     OculusTexture* eyeResolveTexture = hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device);
 
+    // ToneMapper
+    ToneMapper toneMapper{DX11, eyeBufferSize.w, eyeBufferSize.h};
+
     // Create a mirror to see on the monitor.
     D3D11_TEXTURE2D_DESC td = {};
     td.ArraySize = 1;
-    td.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     td.Width = windowRect.w;
     td.Height = windowRect.h;
     td.Usage = D3D11_USAGE_DEFAULT;
@@ -308,13 +385,15 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                      view, proj);
             }
 
+            DX11.Context->ResolveSubresource(toneMapper.sourceTex, 0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
+            toneMapper.render();
+
             eyeResolveTexture->AdvanceToNextTexture();
-            DX11.Context->ResolveSubresource(
+            DX11.Context->CopyResource(
                 reinterpret_cast<ovrD3D11Texture&>(
                     eyeResolveTexture->TextureSet
                         ->Textures[eyeResolveTexture->TextureSet->CurrentIndex])
-                    .D3D11.pTexture,
-                0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
+                    .D3D11.pTexture, toneMapper.renderTargetTex);
 
             // Initialize our single full screen Fov layer.
             ovrLayerEyeFov ld;
