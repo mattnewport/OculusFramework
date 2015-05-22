@@ -5,10 +5,7 @@ float4 main(in float4 Position : SV_Position, in float3 worldPos : TEXCOORD0, in
     float3 n = normalize(normal);
     float3 v = normalize(viewDir);
 
-    MicrofacetMaterialParams mat;
-    mat.albedo = float3(0.5f, 0.5f, 0.5f);
-    mat.specColor = float3(0.04f, 0.04f, 0.04f);
-    mat.gloss = 0.1f;
+    MicrofacetMaterialParams mat = makeMaterial(float3(0.95f, 0.64f, 0.54f), .04f, .6f);
 
-    return float4(light(worldPos, mat, n, v), 1.0f);
+    return float4(lightEnv(worldPos, mat, n, v), 1.0f);
 };

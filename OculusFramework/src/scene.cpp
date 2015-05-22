@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "DDSTextureLoader.h"
+
 #include "hlslmacros.h"
 #include "../commonstructs.hlsli"
 
@@ -257,7 +259,14 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     [this, device] {
         const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
             D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
-        device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer);
+        ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer));
+    }();
+
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_pmrem.dds)", &pmremEnvMapTex, &pmremEnvMapSRV));
+    ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_irrad.dds)", &irradEnvMapTex, &irradEnvMapSRV));
+    [this, device] {
+        const CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
+        ThrowOnFailure(device->CreateSamplerState(&desc, &cubeSampler));
     }();
 }
 
@@ -277,15 +286,15 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
     context->VSSetShader(pipelineStateObject.get()->vertexShader.get()->D3DVert, NULL, 0);
 
     context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
-    ID3D11SamplerState* samplerStates[] = {fill->SamplerState};
-    context->PSSetSamplers(0, 1, samplerStates);
+    ID3D11SamplerState* samplerStates[] = {cubeSampler, fill->SamplerState};
+    context->PSSetSamplers(0, 2, samplerStates);
 
     if (fill && fill->OneTexture) {
-        ID3D11ShaderResourceView* srvs[] = {fill->OneTexture->TexSv};
-        context->PSSetShaderResources(0, 1, srvs);
+        ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, fill->OneTexture->TexSv};
+        context->PSSetShaderResources(0, 3, srvs);
     } else {
-        ID3D11ShaderResourceView* srvs[] = {nullptr};
-        context->PSSetShaderResources(0, 1, srvs);
+        ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, nullptr};
+        context->PSSetShaderResources(0, 3, srvs);
     }
     context->DrawIndexed(count, 0, 0);
 }
@@ -306,9 +315,6 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         dx11.Context->Unmap(cameraConstantBuffer, 0);
     }();
 
-    /*
-    */
-
     for (auto& model : Models) {
         Object object;
         object.world = model->GetMatrix();
@@ -324,6 +330,6 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
                sizeof(Model::Vertex), model->Indices.size(), model->objectConstantBuffer);
     }
 
-    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer);
-    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer);
+    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
+    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
 }

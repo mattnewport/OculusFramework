@@ -18,7 +18,7 @@ public:
     void GenerateVerts(ID3D11Device& device,
                        PipelineStateObjectManager& pipelineStateObjectManager);
 
-    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer);
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler);
 
     const mathlib::Mat4f GetMatrix() {
         auto scale = mathlib::Mat4fScale(0.25f);
@@ -32,4 +32,5 @@ private:
     size_t indexCount = 0;
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
     ID3D11BufferPtr objectConstantBuffer;
+    ID3D11SamplerStatePtr pmremEnvMapSampler;
 };

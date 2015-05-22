@@ -83,4 +83,9 @@ struct Scene {
 
     std::unique_ptr<DataBuffer> UniformBufferGen;
     ID3D11BufferPtr cameraConstantBuffer;
+    ID3D11ResourcePtr pmremEnvMapTex;
+    ID3D11ShaderResourceViewPtr pmremEnvMapSRV;
+    ID3D11ResourcePtr irradEnvMapTex;
+    ID3D11ShaderResourceViewPtr irradEnvMapSRV;
+    ID3D11SamplerStatePtr cubeSampler;
 };

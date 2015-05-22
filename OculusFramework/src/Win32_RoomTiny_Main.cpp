@@ -150,7 +150,7 @@ struct ToneMapper {
             CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1, D3D11_BIND_RENDER_TARGET};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
             SetDebugObjectName(renderTargetTex, "ToneMapper::renderTargetTex");
-            CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB};
+            CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM};
             ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex, &rtDesc, &renderTargetView));
             SetDebugObjectName(renderTargetView, "ToneMapper::renderTargetView");
         }();

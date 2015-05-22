@@ -136,7 +136,7 @@ void HeightField::AddVertices(ID3D11Device* device,
     }();
 }
 
-void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer) {
+void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
     Object object;
@@ -154,10 +154,10 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Bu
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-    ID3D11SamplerState* samplerStates[] = {samplerState};
-    context->PSSetSamplers(0, 1, samplerStates);
-    ID3D11ShaderResourceView* srvs[] = {shapesTex.get(), normalsTex.get()};
-    context->PSSetShaderResources(0, 2, srvs);
+    ID3D11SamplerState* samplerStates[] = {&cubeSampler, samplerState};
+    context->PSSetSamplers(0, 2, samplerStates);
+    ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSRV, &irradEnvMapSRV, shapesTex.get(), normalsTex.get()};
+    context->PSSetShaderResources(0, 4, srvs);
 
     for (const auto& vertexBuffer : VertexBuffers) {
         ID3D11Buffer* vertexBuffers[] = {vertexBuffer->D3DBuffer};
