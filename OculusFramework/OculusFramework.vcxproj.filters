@@ -157,6 +157,15 @@
     <FxCompile Include="tonemapvs.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+    <FxCompile Include="luminancerangeps.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="luminancerangevs.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="loglumps.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.hlsli">

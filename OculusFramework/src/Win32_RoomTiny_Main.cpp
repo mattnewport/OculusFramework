@@ -45,6 +45,7 @@ limitations under the License.
 #include <cmath>
 #include <regex>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 #include <Xinput.h>
@@ -139,7 +140,7 @@ struct ToneMapper {
         }();
 
         [this] {
-            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height};
+            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, 1, 1};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &sourceTex));
             SetDebugObjectName(sourceTex, "ToneMapper::sourceTex");
             ThrowOnFailure(directX11.Device->CreateShaderResourceView(sourceTex, nullptr, &sourceTexSRV));
@@ -147,7 +148,7 @@ struct ToneMapper {
         }();
 
         [this]{
-            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1, D3D11_BIND_RENDER_TARGET};
+            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
             SetDebugObjectName(renderTargetTex, "ToneMapper::renderTargetTex");
             CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM};
@@ -156,7 +157,7 @@ struct ToneMapper {
         }();
     }
 
-    void render();
+    void render(ID3D11ShaderResourceView* avgLogLuminance);
 
     DirectX11& directX11;
     unsigned width = 0;
@@ -170,7 +171,7 @@ struct ToneMapper {
     ID3D11RenderTargetViewPtr renderTargetView;
 };
 
-void ToneMapper::render() {
+void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
     directX11.applyState(*directX11.Context, *pipelineStateObject.get());
     ID3D11RenderTargetView* rtvs[] = {renderTargetView};
     directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
@@ -184,11 +185,99 @@ void ToneMapper::render() {
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
     directX11.Context->RSSetViewports(1, &vp);
-    ID3D11ShaderResourceView* srvs[] = {sourceTexSRV};
-    directX11.Context->PSSetShaderResources(0, 1, srvs);
+    ID3D11ShaderResourceView* srvs[] = {sourceTexSRV, avgLogLuminance};
+    directX11.Context->PSSetShaderResources(0, 2, srvs);
     directX11.Context->Draw(3, 0);
     ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
     directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+}
+
+struct LuminanceRangeFinder {
+    LuminanceRangeFinder(DirectX11& directX11_, int width_, int height_)
+        : directX11{directX11_}, width{static_cast<unsigned>(width_)}, height{static_cast<unsigned>(height_)} {
+        [this] {
+            PipelineStateObjectDesc desc;
+            desc.vertexShader = "luminancerangevs.hlsl";
+            desc.pixelShader = "loglumps.hlsl";
+            desc.depthStencilState = [] {
+                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
+                desc.DepthEnable = FALSE;
+                return desc;
+            }();
+            pipelineStateObjectLogLum = directX11.pipelineStateObjectManager->get(desc);
+        }();
+
+        [this] {
+            PipelineStateObjectDesc desc;
+            desc.vertexShader = "luminancerangevs.hlsl";
+            desc.pixelShader = "luminancerangeps.hlsl";
+            desc.depthStencilState = [] {
+                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
+                desc.DepthEnable = FALSE;
+                return desc;
+            }();
+            pipelineStateObjectAverage = directX11.pipelineStateObjectManager->get(desc);
+        }();
+
+        [this] {
+            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
+            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
+        }();
+
+        [this] {
+            for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u; texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
+                CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1, 1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
+                ID3D11Texture2DPtr tex;
+                ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &tex));
+                SetDebugObjectName(tex, "LuminanceRangeFinder::tex");
+                ID3D11ShaderResourceViewPtr srv;
+                ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex, nullptr, &srv));
+                SetDebugObjectName(tex, "LuminanceRangeFinder::srv");
+                ID3D11RenderTargetViewPtr rtv;
+                ThrowOnFailure(directX11.Device->CreateRenderTargetView(tex, nullptr, &rtv));
+                textureChain.emplace_back(make_tuple(tex, srv, rtv));
+                SetDebugObjectName(tex, "LuminanceRangeFinder::rtv");
+            }
+        }();
+    }
+
+    void render(ID3D11ShaderResourceView* sourceSRV);
+
+    DirectX11& directX11;
+    unsigned width = 0;
+    unsigned height = 0;
+
+    PipelineStateObjectManager::ResourceHandle pipelineStateObjectLogLum;
+    PipelineStateObjectManager::ResourceHandle pipelineStateObjectAverage;
+    ID3D11SamplerStatePtr samplerState;
+    vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>> textureChain;
+};
+
+void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
+    for (auto i = 0u; i < textureChain.size(); ++i) {
+        if (i == 0) directX11.applyState(*directX11.Context, *pipelineStateObjectLogLum.get());
+        else directX11.applyState(*directX11.Context, *pipelineStateObjectAverage.get());
+
+        auto& target = textureChain[i];
+        ID3D11RenderTargetView* rtvs[] = {get<2>(target)};
+        directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+        ID3D11SamplerState* samplers[] = {samplerState};
+        directX11.Context->PSSetSamplers(0, 1, samplers);
+        D3D11_VIEWPORT vp;
+        vp.TopLeftX = 0;
+        vp.TopLeftY = 0;
+        vp.Width = static_cast<float>(1024 >> i);
+        vp.Height = static_cast<float>(1024 >> i);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        directX11.Context->RSSetViewports(1, &vp);
+        ID3D11ShaderResourceView* srvs[] = {sourceSRV};
+        directX11.Context->PSSetShaderResources(0, 1, srvs);
+        directX11.Context->Draw(3, 0);
+        ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
+        directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+        sourceSRV = get<1>(target);
+    }
 }
 
 
@@ -250,6 +339,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     // ToneMapper
     ToneMapper toneMapper{DX11, eyeBufferSize.w, eyeBufferSize.h};
+    LuminanceRangeFinder luminanceRangeFinder{DX11, eyeBufferSize.w, eyeBufferSize.h};
 
     // Create a mirror to see on the monitor.
     D3D11_TEXTURE2D_DESC td = {};
@@ -386,7 +476,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             }
 
             DX11.Context->ResolveSubresource(toneMapper.sourceTex, 0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
-            toneMapper.render();
+            luminanceRangeFinder.render(toneMapper.sourceTexSRV);
+            toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()));
 
             eyeResolveTexture->AdvanceToNextTexture();
             DX11.Context->CopyResource(
