@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <string>
 
+extern LRESULT ImGui_ImplDX11_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 using namespace std;
 
 using namespace OVR;
@@ -70,7 +72,10 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
 
 DirectX11::DirectX11() { fill(begin(Key), end(Key), false); }
 
-DirectX11::~DirectX11() { Context->ClearState(); Context->Flush(); }
+DirectX11::~DirectX11() {
+    Context->ClearState();
+    Context->Flush();
+}
 
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
                                         ID3D11DepthStencilView* dsv) {
@@ -92,6 +97,8 @@ void DirectX11::setViewport(const OVR::Recti& vp) {
 }
 
 LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    if (ImGui_ImplDX11_WndProcHandler(arg_hwnd, msg, wp, lp)) return true;
+
     static DirectX11* dx11 = nullptr;
 
     switch (msg) {

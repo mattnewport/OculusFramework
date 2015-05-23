@@ -37,6 +37,9 @@ limitations under the License.
 #include "scene.h"
 #include "libovrwrapper.h"
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_dx11.h"
+
 #include <vector.h>
 #include <matrix.h>
 
@@ -119,10 +122,75 @@ void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
     OVR_UNUSED3(pUseYaw, pUseEyePose, pUseBuffer);
 }
 
+struct QuadRenderer {
+    QuadRenderer(DirectX11& directX11_, const char* pixelShader,
+                 const bool alphaBlendEnable = false)
+        : directX11{directX11_} {
+        [this, pixelShader, alphaBlendEnable] {
+            PipelineStateObjectDesc desc;
+            desc.vertexShader = "quadvs.hlsl";
+            desc.pixelShader = pixelShader;
+            desc.depthStencilState = [] {
+                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
+                desc.DepthEnable = FALSE;
+                return desc;
+            }();
+            desc.blendState = [alphaBlendEnable] {
+                CD3D11_BLEND_DESC desc{D3D11_DEFAULT};
+                auto& rt0Blend = desc.RenderTarget[0];
+                rt0Blend.BlendEnable = alphaBlendEnable ? TRUE : FALSE;
+                rt0Blend.SrcBlend = D3D11_BLEND_ONE;
+                rt0Blend.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+                rt0Blend.BlendOp = D3D11_BLEND_OP_ADD;
+                rt0Blend.SrcBlendAlpha = D3D11_BLEND_ONE;
+                rt0Blend.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+                rt0Blend.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+                rt0Blend.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+                return desc;
+            }();
+            pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
+        }();
+
+        [this] {
+            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
+            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
+        }();
+    }
+
+    void render(ID3D11RenderTargetView& rtv, ID3D11ShaderResourceView& sourceTexSRV, int x, int y,
+                int width, int height) {
+        directX11.applyState(*directX11.Context, *pipelineStateObject.get());
+        ID3D11RenderTargetView* rtvs[] = {&rtv};
+        directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+        ID3D11SamplerState* samplers[] = {samplerState};
+        directX11.Context->PSSetSamplers(0, 1, samplers);
+        D3D11_VIEWPORT vp;
+        vp.TopLeftX = static_cast<float>(x);
+        vp.TopLeftY = static_cast<float>(y);
+        vp.Width = static_cast<float>(width);
+        vp.Height = static_cast<float>(height);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        directX11.Context->RSSetViewports(1, &vp);
+        ID3D11ShaderResourceView* srvs[] = {&sourceTexSRV};
+        directX11.Context->PSSetShaderResources(0, 1, srvs);
+        directX11.Context->Draw(3, 0);
+        ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
+        directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+    }
+
+    DirectX11& directX11;
+
+    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
+    ID3D11SamplerStatePtr samplerState;
+};
+
 struct ToneMapper {
     ToneMapper(DirectX11& directX11_, int width_, int height_)
-        : directX11{directX11_}, width{static_cast<unsigned>(width_)}, height{static_cast<unsigned>(height_)} {
-        [this]{
+        : directX11{directX11_},
+          width{static_cast<unsigned>(width_)},
+          height{static_cast<unsigned>(height_)} {
+        [this] {
             PipelineStateObjectDesc desc;
             desc.vertexShader = "tonemapvs.hlsl";
             desc.pixelShader = "tonemapps.hlsl";
@@ -143,16 +211,20 @@ struct ToneMapper {
             CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, 1, 1};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &sourceTex));
             SetDebugObjectName(sourceTex, "ToneMapper::sourceTex");
-            ThrowOnFailure(directX11.Device->CreateShaderResourceView(sourceTex, nullptr, &sourceTexSRV));
+            ThrowOnFailure(
+                directX11.Device->CreateShaderResourceView(sourceTex, nullptr, &sourceTexSRV));
             SetDebugObjectName(sourceTexSRV, "ToneMapper::sourceTexSRV");
         }();
 
-        [this]{
-            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
+        [this] {
+            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1,
+                                       D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
             SetDebugObjectName(renderTargetTex, "ToneMapper::renderTargetTex");
-            CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM};
-            ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex, &rtDesc, &renderTargetView));
+            CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D,
+                                                  DXGI_FORMAT_B8G8R8A8_UNORM};
+            ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex, &rtDesc,
+                                                                    &renderTargetView));
             SetDebugObjectName(renderTargetView, "ToneMapper::renderTargetView");
         }();
     }
@@ -194,7 +266,9 @@ void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
 
 struct LuminanceRangeFinder {
     LuminanceRangeFinder(DirectX11& directX11_, int width_, int height_)
-        : directX11{directX11_}, width{static_cast<unsigned>(width_)}, height{static_cast<unsigned>(height_)} {
+        : directX11{directX11_},
+          width{static_cast<unsigned>(width_)},
+          height{static_cast<unsigned>(height_)} {
         [this] {
             PipelineStateObjectDesc desc;
             desc.vertexShader = "luminancerangevs.hlsl";
@@ -225,8 +299,11 @@ struct LuminanceRangeFinder {
         }();
 
         [this] {
-            for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u; texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
-                CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1, 1, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
+            for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
+                 texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
+                CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1,
+                                           1,
+                                           D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
                 ID3D11Texture2DPtr tex;
                 ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &tex));
                 SetDebugObjectName(tex, "LuminanceRangeFinder::tex");
@@ -250,13 +327,16 @@ struct LuminanceRangeFinder {
     PipelineStateObjectManager::ResourceHandle pipelineStateObjectLogLum;
     PipelineStateObjectManager::ResourceHandle pipelineStateObjectAverage;
     ID3D11SamplerStatePtr samplerState;
-    vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>> textureChain;
+    vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>>
+        textureChain;
 };
 
 void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
     for (auto i = 0u; i < textureChain.size(); ++i) {
-        if (i == 0) directX11.applyState(*directX11.Context, *pipelineStateObjectLogLum.get());
-        else directX11.applyState(*directX11.Context, *pipelineStateObjectAverage.get());
+        if (i == 0)
+            directX11.applyState(*directX11.Context, *pipelineStateObjectLogLum.get());
+        else
+            directX11.applyState(*directX11.Context, *pipelineStateObjectAverage.get());
 
         auto& target = textureChain[i];
         ID3D11RenderTargetView* rtvs[] = {get<2>(target)};
@@ -279,7 +359,6 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
         sourceSRV = get<1>(target);
     }
 }
-
 
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     auto argMap = parseArgs(args);
@@ -309,6 +388,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             dummyHmd->setDirectX11(DX11);
         }
     }();
+
+    ImGui_ImplDX11_Init(DX11.Window, DX11.Device, DX11.Context);
 
     hmd->setCap(ovrHmdCap_LowPersistence);
     hmd->setCap(ovrHmdCap_DynamicPrediction);
@@ -351,6 +432,36 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     td.SampleDesc.Count = 1;
     td.MipLevels = 1;
     ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(DX11.Device, td);
+
+    // Create a render target for IMGUI
+    ID3D11Texture2DPtr imguiRenderTargetTex;
+    ID3D11ShaderResourceViewPtr imguiRenderTargetSRV;
+    ID3D11RenderTargetViewPtr imguiRTV;
+    const auto imguiRTVWidth =
+        max(EyeRenderViewport[ovrEye_Left].Size.w, EyeRenderViewport[ovrEye_Right].Size.w);
+    const auto imguiRTVHeight =
+        max(EyeRenderViewport[ovrEye_Left].Size.h, EyeRenderViewport[ovrEye_Right].Size.h);
+    [&DX11, &EyeRenderViewport, &imguiRenderTargetTex, &imguiRenderTargetSRV, &imguiRTV,
+     imguiRTVWidth, imguiRTVHeight] {
+        D3D11_TEXTURE2D_DESC td{};
+        td.Width = imguiRTVWidth;
+        td.Height = imguiRTVHeight;
+        td.MipLevels = 1;
+        td.ArraySize = 1;
+        td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        td.SampleDesc.Count = 1;
+        td.SampleDesc.Quality = 0;
+        td.Usage = D3D11_USAGE_DEFAULT;
+        td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        td.CPUAccessFlags = 0;
+        td.MiscFlags = 0;
+        ThrowOnFailure(DX11.Device->CreateTexture2D(&td, nullptr, &imguiRenderTargetTex));
+        ThrowOnFailure(DX11.Device->CreateShaderResourceView(imguiRenderTargetTex, nullptr,
+                                                             &imguiRenderTargetSRV));
+        ThrowOnFailure(
+            DX11.Device->CreateRenderTargetView(imguiRenderTargetTex, nullptr, &imguiRTV));
+    }();
+    QuadRenderer imguiQuadRenderer{DX11, "imguips.hlsl", true};
 
     const auto EyeRenderDesc = hmd->getRenderDesc();
 
@@ -428,7 +539,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
             // Animate the cube
             roomScene.Models[0]->Pos =
-                mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock)) * speed;
+                mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock)) *
+                speed;
 
             // Get both eye poses simultaneously, with IPD offset already included.
             auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
@@ -475,16 +587,41 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                      view, proj);
             }
 
-            DX11.Context->ResolveSubresource(toneMapper.sourceTex, 0, EyeRenderTexture.Tex, 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
+            DX11.Context->ResolveSubresource(toneMapper.sourceTex, 0, EyeRenderTexture.Tex, 0,
+                                             DXGI_FORMAT_R16G16B16A16_FLOAT);
             luminanceRangeFinder.render(toneMapper.sourceTexSRV);
             toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()));
+
+            // IMGUI update/rendering
+            ID3D11RenderTargetView* rtvs[] = {imguiRTV};
+            float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
+            DX11.Context->ClearRenderTargetView(imguiRTV, clearColor);
+            DX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+            DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
+            ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
+                               static_cast<float>(imguiRTVHeight)};
+            ImGui_ImplDX11_NewFrame(displaySize);
+            ImGui::GetIO().MouseDrawCursor = true;
+            ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
+                                           static_cast<float>(imguiRTVHeight / 4)),
+                                    ImGuiSetCond_FirstUseEver);
+            ImGui::ShowTestWindow();
+            ImGui::Render();
+            imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
+                                     0, 0, imguiRTVWidth,
+                                     imguiRTVHeight);
+            imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
+                                     EyeRenderViewport[ovrEye_Right].Pos.x,
+                                     EyeRenderViewport[ovrEye_Right].Pos.y,
+                                     imguiRTVWidth, imguiRTVHeight);
 
             eyeResolveTexture->AdvanceToNextTexture();
             DX11.Context->CopyResource(
                 reinterpret_cast<ovrD3D11Texture&>(
                     eyeResolveTexture->TextureSet
                         ->Textures[eyeResolveTexture->TextureSet->CurrentIndex])
-                    .D3D11.pTexture, toneMapper.renderTargetTex);
+                    .D3D11.pTexture,
+                toneMapper.renderTargetTex);
 
             // Initialize our single full screen Fov layer.
             ovrLayerEyeFov ld;

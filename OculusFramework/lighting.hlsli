@@ -2,6 +2,11 @@ SamplerState envMapSampler : register(s0);
 TextureCube pmremEnvMap : register(t0);
 TextureCube irradEnvMap : register(t1);
 
+// Assumes irradiance and spec cubemaps have been prefiltered with Sebastian Legarde's modified AMD
+// CubeMapGen tools:
+// https://seblagarde.wordpress.com/2012/06/10/amd-cubemapgen-for-physically-based-rendering/ using
+// Blinn BRDF filtering
+
 struct MicrofacetMaterialParams {
     float3 albedo;
     float3 specColor;
@@ -32,7 +37,8 @@ float3 fresnelEnvMap(float3 specColor, float gloss, float n, float v) {
 // http://renderwonk.com/publications/s2010-shading-course/hoffman/s2010_physically_based_shading_hoffman_b.pdf
 float3 microfacet(MicrofacetMaterialParams mat, float3 lightColor, float3 n, float3 l, float3 h) {
     float specPower = exp2(10 * mat.gloss + 1);
-    float3 specTerm = fresnelSchlick(mat.specColor, l, h) * ((specPower + 2.0f) / 8.0f) * pow(saturate(dot(n, h)), specPower);
+    float3 specTerm = fresnelSchlick(mat.specColor, l, h) * ((specPower + 2.0f) / 8.0f) *
+                      pow(saturate(dot(n, h)), specPower);
     float nDotL = saturate(dot(n, l));
     return (mat.albedo + specTerm) * nDotL * lightColor;
 }
@@ -59,7 +65,8 @@ float3 lightEnv(float3 worldPos, MicrofacetMaterialParams mat, float3 n, float3 
     float3 r = 2.0f * dot(v, n) * n - v;
     float targetLod = -0.5f * log2(mat.specPower) + 5.5;
     float sampleLod = max(pmremEnvMap.CalculateLevelOfDetail(envMapSampler, r), targetLod);
-    float3 env = fresnelSchlick(mat.specColor, r, n) * pmremEnvMap.SampleLevel(envMapSampler, r, sampleLod).xyz;
+    float3 env = fresnelSchlick(mat.specColor, r, n) *
+                 pmremEnvMap.SampleLevel(envMapSampler, r, sampleLod).xyz;
     float3 amb = irradEnvMap.Sample(envMapSampler, n).xyz * mat.albedo;
     return amb + env + microfacet(mat, lightIntensity, n, l, h);
 }
