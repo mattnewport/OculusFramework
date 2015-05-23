@@ -475,7 +475,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
         // MAIN LOOP
         // =========
-        while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL]) && !DX11.Key[VK_ESCAPE]) {
+        while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
             DX11.HandleMessages();
 
             const float speed = 1.0f;    // Can adjust the movement speed.
@@ -593,27 +593,39 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()));
 
             // IMGUI update/rendering
-            ID3D11RenderTargetView* rtvs[] = {imguiRTV};
-            float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
-            DX11.Context->ClearRenderTargetView(imguiRTV, clearColor);
-            DX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-            DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
-            ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
-                               static_cast<float>(imguiRTVHeight)};
-            ImGui_ImplDX11_NewFrame(displaySize);
-            ImGui::GetIO().MouseDrawCursor = true;
-            ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
-                                           static_cast<float>(imguiRTVHeight / 4)),
-                                    ImGuiSetCond_FirstUseEver);
-            ImGui::ShowTestWindow();
-            ImGui::Render();
-            imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
-                                     0, 0, imguiRTVWidth,
-                                     imguiRTVHeight);
-            imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
-                                     EyeRenderViewport[ovrEye_Right].Pos.x,
-                                     EyeRenderViewport[ovrEye_Right].Pos.y,
-                                     imguiRTVWidth, imguiRTVHeight);
+            if (DX11.imguiActive) {
+                ID3D11RenderTargetView* rtvs[] = {imguiRTV};
+                float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
+                DX11.Context->ClearRenderTargetView(imguiRTV, clearColor);
+                DX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+                DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
+                ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
+                    static_cast<float>(imguiRTVHeight)};
+                ImGui_ImplDX11_NewFrame(displaySize);
+                ImGui::GetIO().MouseDrawCursor = true;
+                ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
+                    static_cast<float>(imguiRTVHeight / 4)),
+                    ImGuiSetCond_FirstUseEver);
+                ImGui::ShowTestWindow();
+                ImGui::Render();
+                imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
+                    0, 0, imguiRTVWidth,
+                    imguiRTVHeight);
+                imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
+                    EyeRenderViewport[ovrEye_Right].Pos.x,
+                    EyeRenderViewport[ovrEye_Right].Pos.y,
+                    imguiRTVWidth, imguiRTVHeight);
+
+                if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
+                    DX11.keyPressed[VK_ESCAPE] = false;
+                    DX11.imguiActive = false;
+                }
+            } else {
+                if (DX11.keyPressed[VK_ESCAPE]) {
+                    DX11.keyPressed[VK_ESCAPE] = false;
+                    DX11.imguiActive = true;
+                }
+            }
 
             eyeResolveTexture->AdvanceToNextTexture();
             DX11.Context->CopyResource(
@@ -646,7 +658,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     }
 
     // Release and close down
-    // Release
+    ImGui_ImplDX11_Shutdown();
     hmd->destroyMirrorTextureD3D11(mirrorTexture);
     hmd->destroySwapTextureSetD3D11(eyeResolveTexture);
     hmd.reset();

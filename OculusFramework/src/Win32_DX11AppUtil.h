@@ -60,6 +60,8 @@ struct ImageBuffer {
 struct DirectX11 {
     HWND Window = nullptr;
     bool Key[256];
+    bool keyPressed[256];
+    bool imguiActive = false;
     OVR::Sizei RenderTargetSize;
     ID3D11DevicePtr Device;
     ID3D11DeviceContextPtr Context;

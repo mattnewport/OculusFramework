@@ -3,6 +3,8 @@
 #include "pipelinestateobject.h"
 #include "scene.h"
 
+#include "imgui/imgui.h"
+
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -70,7 +72,10 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
     }
 }
 
-DirectX11::DirectX11() { fill(begin(Key), end(Key), false); }
+DirectX11::DirectX11() {
+    fill(begin(Key), end(Key), false);
+    fill(begin(keyPressed), end(keyPressed), false);
+}
 
 DirectX11::~DirectX11() {
     Context->ClearState();
@@ -97,10 +102,9 @@ void DirectX11::setViewport(const OVR::Recti& vp) {
 }
 
 LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    if (ImGui_ImplDX11_WndProcHandler(arg_hwnd, msg, wp, lp)) return true;
-
     static DirectX11* dx11 = nullptr;
 
+    ImGuiIO& io = ImGui::GetIO();
     switch (msg) {
         case (WM_NCCREATE): {
             CREATESTRUCT* createStruct = reinterpret_cast<CREATESTRUCT*>(lp);
@@ -110,12 +114,42 @@ LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             break;
         }
+        case WM_LBUTTONDOWN:
+            io.MouseDown[0] = true;
+            return true;
+        case WM_LBUTTONUP:
+            io.MouseDown[0] = false;
+            return true;
+        case WM_RBUTTONDOWN:
+            io.MouseDown[1] = true;
+            return true;
+        case WM_RBUTTONUP:
+            io.MouseDown[1] = false;
+            return true;
+        case WM_MOUSEWHEEL:
+            io.MouseWheel += GET_WHEEL_DELTA_WPARAM(wp) > 0 ? +1.0f : -1.0f;
+            return true;
+        case WM_MOUSEMOVE:
+            io.MousePos.x = (signed short)(lp);
+            io.MousePos.y = (signed short)(lp >> 16);
+            return true;
         case WM_KEYDOWN:
-            dx11->Key[(unsigned)wp] = true;
-            break;
+            if (wp < 256) {
+                dx11->Key[(unsigned)wp] = true;
+                io.KeysDown[wp] = 1;
+            }
+            return true;
         case WM_KEYUP:
-            dx11->Key[(unsigned)wp] = false;
-            break;
+            if (wp < 256) {
+                dx11->Key[(unsigned)wp] = false;
+                dx11->keyPressed[(unsigned)wp] = true;
+                io.KeysDown[wp] = 0;
+            }
+            return true;
+        case WM_CHAR:
+            // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
+            if (wp > 0 && wp < 0x10000) io.AddInputCharacter((unsigned short)wp);
+            return true;
         case WM_SETFOCUS:
             SetCapture(dx11->Window);
             ShowCursor(FALSE);
@@ -125,6 +159,7 @@ LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp)
             ShowCursor(TRUE);
             break;
     }
+
     return DefWindowProc(arg_hwnd, msg, wp, lp);
 }
 
