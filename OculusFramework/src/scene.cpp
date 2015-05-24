@@ -6,6 +6,8 @@
 
 #include "DDSTextureLoader.h"
 
+#include "imgui/imgui.h"
+
 #include "hlslmacros.h"
 #include "../commonstructs.hlsli"
 
@@ -260,6 +262,14 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
             D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
         ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer));
+        SetDebugObjectName(cameraConstantBuffer, "Scene::cameraConstantBuffer");
+    }();
+
+    [this, device] {
+        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Lighting)), D3D11_BIND_CONSTANT_BUFFER,
+            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &lightingConstantBuffer));
+        SetDebugObjectName(lightingConstantBuffer, "Scene::lightingConstantBuffer");
     }();
 
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_pmrem.dds)", &pmremEnvMapTex, &pmremEnvMapSRV));
@@ -268,6 +278,21 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         const CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
         ThrowOnFailure(device->CreateSamplerState(&desc, &cubeSampler));
     }();
+
+    lighting.lightPos = Vec4f{0.0f, 3.7f, -2.0f, 1.0f};
+    lighting.lightColor = Vec4f{1.0f, 1.0f, 1.0f, 1.0f} *2.0f;
+    lighting.lightAmbient = Vec4f{1.0f, 1.0f, 1.0f, 1.0f} *2.0f;
+}
+
+void Scene::showGui() {
+    if (ImGui::CollapsingHeader("Scene")) {
+        static Vec4f lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        ImGui::ColorEdit3("Light color", &lightColor.x());
+        static float lightIntensity = 2.0f;
+        ImGui::SliderFloat("Light intensity", &lightIntensity, 0.0f, 10.0f, "intensity = %.3f");
+        lighting.lightColor = lightColor * lightIntensity;
+        ImGui::DragFloat3("Light position", &lighting.lightPos.x(), 0.1f);
+    }
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
@@ -276,14 +301,17 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
     context->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
 
-    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer, &objectConstantBuffer};
-    context->VSSetConstantBuffers(0, 2, vsConstantBuffers);
+    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer, &objectConstantBuffer, lightingConstantBuffer};
+    context->VSSetConstantBuffers(0, 3, vsConstantBuffers);
 
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->VSSetShader(pipelineStateObject.get()->vertexShader.get()->D3DVert, NULL, 0);
+
+    ID3D11Buffer* psConstantBuffers[] = {lightingConstantBuffer};
+    context->PSSetConstantBuffers(2, 1, psConstantBuffers);
 
     context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
     ID3D11SamplerState* samplerStates[] = {cubeSampler, fill->SamplerState};
@@ -315,6 +343,13 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         dx11.Context->Unmap(cameraConstantBuffer, 0);
     }();
 
+    [this, &dx11] {
+        D3D11_MAPPED_SUBRESOURCE mappedResource{};
+        dx11.Context->Map(lightingConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        memcpy(mappedResource.pData, &lighting, sizeof(lighting));
+        dx11.Context->Unmap(lightingConstantBuffer, 0);
+    }();
+
     for (auto& model : Models) {
         Object object;
         object.world = model->GetMatrix();
@@ -330,6 +365,6 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
                sizeof(Model::Vertex), model->Indices.size(), model->objectConstantBuffer);
     }
 
-    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
-    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
+    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
+    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
 }

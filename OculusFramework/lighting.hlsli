@@ -1,3 +1,5 @@
+#include "commoncbuffers.hlsli"
+
 SamplerState envMapSampler : register(s0);
 TextureCube pmremEnvMap : register(t0);
 TextureCube irradEnvMap : register(t1);
@@ -40,28 +42,24 @@ float3 microfacet(MicrofacetMaterialParams mat, float3 lightColor, float3 n, flo
     float3 specTerm = fresnelSchlick(mat.specColor, l, h) * ((specPower + 2.0f) / 8.0f) *
                       pow(saturate(dot(n, h)), specPower);
     float nDotL = saturate(dot(n, l));
-    return (mat.albedo + specTerm) * nDotL * lightColor;
+    return (mat.albedo + specTerm) * nDotL * lightColor.xyz;
 }
 
-static const float3 lightPos = float3(0, 3.7, -2);
-static const float3 lightColor = float3(1.0f, 1.0f, 1.0f) * 2.0f;
-static const float3 lightAmbient = lightColor * 0.01f;
-
 float3 light(float3 worldPos, MicrofacetMaterialParams mat, float3 n, float3 v) {
-    float3 ld = lightPos - worldPos;
+    float3 ld = lighting.lightPos.xyz - worldPos;
     float lmag = length(ld);
     float3 l = ld / lmag;
     float3 h = normalize(l + v);
-    float3 lightIntensity = lightColor / lmag*lmag;
-    return lightAmbient + microfacet(mat, lightIntensity, n, l, h);
+    float3 lightIntensity = lighting.lightColor.xyz / lmag*lmag;
+    return lighting.lightAmbient.xyz + microfacet(mat, lightIntensity, n, l, h);
 }
 
 float3 lightEnv(float3 worldPos, MicrofacetMaterialParams mat, float3 n, float3 v) {
-    float3 ld = lightPos - worldPos;
+    float3 ld = lighting.lightPos.xyz - worldPos;
     float lmag = length(ld);
     float3 l = ld / lmag;
     float3 h = normalize(l + v);
-    float3 lightIntensity = lightColor / lmag*lmag;
+    float3 lightIntensity = lighting.lightColor.xyz / lmag*lmag;
     float3 r = 2.0f * dot(v, n) * n - v;
     float targetLod = -0.5f * log2(mat.specPower) + 5.5;
     float sampleLod = max(pmremEnvMap.CalculateLevelOfDetail(envMapSampler, r), targetLod);

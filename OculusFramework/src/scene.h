@@ -6,6 +6,9 @@
 #include "terrain.h"
 #include "Win32_DX11AppUtil.h"
 
+#include "hlslmacros.h"
+#include "../commonstructs.hlsli"
+
 #include <memory>
 #include <string>
 
@@ -74,6 +77,8 @@ struct Scene {
           PipelineStateObjectManager& pipelineStateObjectManager,
           Texture2DManager& texture2DManager);
 
+    void showGui();
+
     void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                 const mathlib::Mat4f& proj);
     void Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
@@ -88,4 +93,7 @@ struct Scene {
     ID3D11ResourcePtr irradEnvMapTex;
     ID3D11ShaderResourceViewPtr irradEnvMapSRV;
     ID3D11SamplerStatePtr cubeSampler;
+
+    Lighting lighting;
+    ID3D11BufferPtr lightingConstantBuffer;
 };

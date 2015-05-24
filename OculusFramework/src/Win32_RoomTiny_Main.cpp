@@ -370,6 +370,20 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
     swap(previousFrame, textureChain.back());
 }
 
+void showGui(Scene& scene) {
+    if (!ImGui::Begin()) {
+        // Early out if the window is collapsed, as an optimization.
+        ImGui::End();
+        return;
+    }
+
+    ImGui::PushItemWidth(-140);                                 // Right align, keep 140 pixels for labels
+
+    scene.showGui();
+
+    ImGui::End();
+}
+
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     auto argMap = parseArgs(args);
 
@@ -400,6 +414,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     }();
 
     ImGui_ImplDX11_Init(DX11.Window, DX11.Device, DX11.Context);
+    ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
 
     hmd->setCap(ovrHmdCap_LowPersistence);
     hmd->setCap(ovrHmdCap_DynamicPrediction);
@@ -616,7 +631,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
                     static_cast<float>(imguiRTVHeight / 4)),
                     ImGuiSetCond_FirstUseEver);
-                ImGui::ShowTestWindow();
+                showGui(roomScene);
+                //ImGui::ShowTestWindow();
                 ImGui::Render();
                 vector<ID3D11ShaderResourceView*> srvs{imguiRenderTargetSRV, nullptr};
                 imguiQuadRenderer.render(toneMapper.renderTargetView, srvs,

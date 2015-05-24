@@ -136,7 +136,7 @@ void HeightField::AddVertices(ID3D11Device* device,
     }();
 }
 
-void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler) {
+void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
     Object object;
@@ -149,10 +149,13 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Bu
         dx11.Context->Unmap(objectConstantBuffer, 0);
     }();
 
-    ID3D11Buffer* vsConstantBuffers[] = {&cameraConstantBuffer, objectConstantBuffer};
-    context->VSSetConstantBuffers(0, 2, vsConstantBuffers);
+    ID3D11Buffer* vsConstantBuffers[] = {&cameraConstantBuffer, objectConstantBuffer, &lightingBuffer};
+    context->VSSetConstantBuffers(0, 3, vsConstantBuffers);
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+    ID3D11Buffer* psConstantBuffers[] = {&lightingBuffer};
+    context->PSSetConstantBuffers(2, 1, psConstantBuffers);
 
     ID3D11SamplerState* samplerStates[] = {&cubeSampler, samplerState};
     context->PSSetSamplers(0, 2, samplerStates);
