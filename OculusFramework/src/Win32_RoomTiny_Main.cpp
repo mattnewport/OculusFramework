@@ -157,7 +157,7 @@ struct QuadRenderer {
         }();
     }
 
-    void render(ID3D11RenderTargetView& rtv, ID3D11ShaderResourceView& sourceTexSRV, int x, int y,
+    void render(ID3D11RenderTargetView& rtv, const vector<ID3D11ShaderResourceView*>& sourceTexSRVs, int x, int y,
                 int width, int height) {
         directX11.applyState(*directX11.Context, *pipelineStateObject.get());
         ID3D11RenderTargetView* rtvs[] = {&rtv};
@@ -172,10 +172,9 @@ struct QuadRenderer {
         vp.MinDepth = 0.0f;
         vp.MaxDepth = 1.0f;
         directX11.Context->RSSetViewports(1, &vp);
-        ID3D11ShaderResourceView* srvs[] = {&sourceTexSRV};
-        directX11.Context->PSSetShaderResources(0, 1, srvs);
+        directX11.Context->PSSetShaderResources(0, sourceTexSRVs.size(), sourceTexSRVs.data());
         directX11.Context->Draw(3, 0);
-        ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
+        ID3D11ShaderResourceView* clearSrvs[] = {nullptr, nullptr};
         directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
     }
 
@@ -268,7 +267,8 @@ struct LuminanceRangeFinder {
     LuminanceRangeFinder(DirectX11& directX11_, int width_, int height_)
         : directX11{directX11_},
           width{static_cast<unsigned>(width_)},
-          height{static_cast<unsigned>(height_)} {
+          height{static_cast<unsigned>(height_)},
+          luminanceBlender{directX11_, "loglumblendps.hlsl"} {
         [this] {
             PipelineStateObjectDesc desc;
             desc.vertexShader = "luminancerangevs.hlsl";
@@ -299,8 +299,7 @@ struct LuminanceRangeFinder {
         }();
 
         [this] {
-            for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
-                 texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
+            auto makeLumTex = [this](unsigned texWidth, unsigned texHeight) {
                 CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1,
                                            1,
                                            D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
@@ -309,12 +308,17 @@ struct LuminanceRangeFinder {
                 SetDebugObjectName(tex, "LuminanceRangeFinder::tex");
                 ID3D11ShaderResourceViewPtr srv;
                 ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex, nullptr, &srv));
-                SetDebugObjectName(tex, "LuminanceRangeFinder::srv");
+                SetDebugObjectName(srv, "LuminanceRangeFinder::srv");
                 ID3D11RenderTargetViewPtr rtv;
                 ThrowOnFailure(directX11.Device->CreateRenderTargetView(tex, nullptr, &rtv));
-                textureChain.emplace_back(make_tuple(tex, srv, rtv));
-                SetDebugObjectName(tex, "LuminanceRangeFinder::rtv");
+                SetDebugObjectName(rtv, "LuminanceRangeFinder::rtv");
+                return make_tuple(tex, srv, rtv);
+            };
+            for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
+                 texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
+                textureChain.emplace_back(makeLumTex(texWidth, texHeight));
             }
+            previousFrame = makeLumTex(1, 1);
         }();
     }
 
@@ -329,10 +333,12 @@ struct LuminanceRangeFinder {
     ID3D11SamplerStatePtr samplerState;
     vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>>
         textureChain;
+    tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr> previousFrame;
+    QuadRenderer luminanceBlender;
 };
 
 void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
-    for (auto i = 0u; i < textureChain.size(); ++i) {
+    for (auto i = 0u; i < textureChain.size() - 1; ++i) {
         if (i == 0)
             directX11.applyState(*directX11.Context, *pipelineStateObjectLogLum.get());
         else
@@ -358,6 +364,10 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
         directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
         sourceSRV = get<1>(target);
     }
+    vector<ID3D11ShaderResourceView*> srvs{get<1>(textureChain[textureChain.size() - 2]),
+                                           get<1>(previousFrame)};
+    luminanceBlender.render(get<2>(textureChain.back()), srvs, 0, 0, 1, 1);
+    swap(previousFrame, textureChain.back());
 }
 
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
@@ -608,10 +618,11 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     ImGuiSetCond_FirstUseEver);
                 ImGui::ShowTestWindow();
                 ImGui::Render();
-                imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
+                vector<ID3D11ShaderResourceView*> srvs{imguiRenderTargetSRV, nullptr};
+                imguiQuadRenderer.render(toneMapper.renderTargetView, srvs,
                     0, 0, imguiRTVWidth,
                     imguiRTVHeight);
-                imguiQuadRenderer.render(toneMapper.renderTargetView, imguiRenderTargetSRV,
+                imguiQuadRenderer.render(toneMapper.renderTargetView, srvs,
                     EyeRenderViewport[ovrEye_Right].Pos.x,
                     EyeRenderViewport[ovrEye_Right].Pos.y,
                     imguiRTVWidth, imguiRTVHeight);
