@@ -16,6 +16,7 @@ struct HeightField {
     };
     struct Vertex {
         mathlib::Vec3f pos;
+        mathlib::Vec3f normal;
         mathlib::Vec2f uv;
     };
 
@@ -30,7 +31,6 @@ struct HeightField {
     std::unique_ptr<DataBuffer> IndexBuffer;
     ID3D11SamplerStatePtr samplerState;
     Texture2DManager::ResourceHandle shapesTex;
-    Texture2DManager::ResourceHandle normalsTex;
     ID3D11BufferPtr objectConstantBuffer;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f} {}

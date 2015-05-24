@@ -89,9 +89,20 @@ void HeightField::AddVertices(ID3D11Device* device,
 
     const auto uvStepX = 1.0f / width;
     const auto uvStepY = 1.0f / height;
-    const auto gridWidth = widthM / 10000.0f;
-    const auto gridStep = gridWidth / width;
-    const auto gridElevationScale = 1.0f / 10000.0f;
+    auto getPos = [width, widthM, getHeight](int x, int y) {
+        const auto gridWidth = widthM / 10000.0f;
+        const auto gridStep = gridWidth / width;
+        const auto gridElevationScale = 1.0f / 10000.0f;
+        const auto gridHeight = getHeight(width - 1 - x, y);
+        return Vec3f{x * gridStep, gridHeight * gridElevationScale, y * gridStep};
+    };
+    auto getNormal = [getPos](int x, int y) {
+        const auto p = getPos(x, y);
+        const Vec3f ps[] = {getPos(x - 1, y), getPos(x + 1, y), getPos(x, y - 1), getPos(x, y + 1)};
+        const Vec3f vs[] = {ps[0] - p, ps[1] - p, ps[2] - p, ps[3] - p};
+        const Vec3f ns[] = {cross(vs[0], vs[3]), cross(vs[1], vs[2]), cross(vs[2], vs[0]), cross(vs[3], vs[1])};
+        return normalize(ns[0] + ns[1] + ns[2] + ns[3]);
+    };
     for (auto y = 0; y < height; y += blockSize) {
         for (auto x = 0; x < width; x += blockSize) {
             auto vertices = vector<Vertex>{};
@@ -101,9 +112,8 @@ void HeightField::AddVertices(ID3D11Device* device,
                     Vertex v;
                     const auto localX = min(x + blockX, width);
                     const auto localY = min(y + blockY, height);
-                    const auto gridHeight = getHeight(width - 1 - localX, localY);
-                    v.pos = Vec3f{localX * gridStep, gridHeight * gridElevationScale,
-                                  localY * gridStep};
+                    v.pos = getPos(localX, localY);
+                    v.normal = getNormal(localX, localY);
                     v.uv = Vec2f{1.0f - (localX * uvStepX), 1.0f - (localY * uvStepY)};
                     vertices.push_back(v);
                 }
@@ -120,12 +130,12 @@ void HeightField::AddVertices(ID3D11Device* device,
     device->CreateSamplerState(&ss, &samplerState);
 
     shapesTex = texture2DManager.get(R"(data\shapes2.dds)");
-    normalsTex = texture2DManager.get(R"(data\cdem_dem_150508_205233_normal.dds)");
 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "terrainvs.hlsl";
     desc.pixelShader = "terrainps.hlsl";
     desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
+                              MAKE_INPUT_ELEMENT_DESC(Vertex, normal, "NORMAL"),
                               MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
@@ -159,8 +169,8 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Bu
 
     ID3D11SamplerState* samplerStates[] = {&cubeSampler, samplerState};
     context->PSSetSamplers(0, 2, samplerStates);
-    ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSRV, &irradEnvMapSRV, shapesTex.get(), normalsTex.get()};
-    context->PSSetShaderResources(0, 4, srvs);
+    ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSRV, &irradEnvMapSRV, shapesTex.get()};
+    context->PSSetShaderResources(0, 3, srvs);
 
     for (const auto& vertexBuffer : VertexBuffers) {
         ID3D11Buffer* vertexBuffers[] = {vertexBuffer->D3DBuffer};

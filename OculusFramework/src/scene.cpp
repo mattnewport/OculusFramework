@@ -288,8 +288,8 @@ void Scene::showGui() {
     if (ImGui::CollapsingHeader("Scene")) {
         static Vec4f lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
         ImGui::ColorEdit3("Light color", &lightColor.x());
-        static float lightIntensity = 2.0f;
-        ImGui::SliderFloat("Light intensity", &lightIntensity, 0.0f, 10.0f, "intensity = %.3f");
+        static float lightIntensity = 10.0f;
+        ImGui::SliderFloat("Light intensity", &lightIntensity, 0.0f, 16.0f, "intensity = %.3f");
         lighting.lightColor = lightColor * lightIntensity;
         ImGui::DragFloat3("Light position", &lighting.lightPos.x(), 0.1f);
     }
