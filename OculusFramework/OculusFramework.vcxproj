@@ -123,6 +123,7 @@
     <ClInclude Include="src\scene.h" />
     <ClInclude Include="src\sphere.h" />
     <ClInclude Include="src\terrain.h" />
+    <ClInclude Include="src\util.h" />
     <ClInclude Include="src\Win32_DX11AppUtil.h" />
   </ItemGroup>
   <ItemGroup>

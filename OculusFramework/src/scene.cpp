@@ -1,7 +1,9 @@
 #include "scene.h"
 
 #include "pipelinestateobject.h"
+#include "util.h"
 
+#include <iterator>
 #include <vector>
 
 #include "DDSTextureLoader.h"
@@ -299,10 +301,10 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
                    DataBuffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer) {
     UINT offset = 0;
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
-    context->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
+    context->IASetVertexBuffers(0, size(vertexBuffers), vertexBuffers, &stride, &offset);
 
     ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer, &objectConstantBuffer, lightingConstantBuffer};
-    context->VSSetConstantBuffers(0, 3, vsConstantBuffers);
+    context->VSSetConstantBuffers(0, size(vsConstantBuffers), vsConstantBuffers);
 
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
@@ -311,18 +313,18 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
     context->VSSetShader(pipelineStateObject.get()->vertexShader.get()->D3DVert, NULL, 0);
 
     ID3D11Buffer* psConstantBuffers[] = {lightingConstantBuffer};
-    context->PSSetConstantBuffers(2, 1, psConstantBuffers);
+    context->PSSetConstantBuffers(2, size(psConstantBuffers), psConstantBuffers);
 
     context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
     ID3D11SamplerState* samplerStates[] = {cubeSampler, fill->SamplerState};
-    context->PSSetSamplers(0, 2, samplerStates);
+    context->PSSetSamplers(0, size(samplerStates), samplerStates);
 
     if (fill && fill->OneTexture) {
         ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, fill->OneTexture->TexSv};
-        context->PSSetShaderResources(0, 3, srvs);
+        context->PSSetShaderResources(0, size(srvs), srvs);
     } else {
         ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, nullptr};
-        context->PSSetShaderResources(0, 3, srvs);
+        context->PSSetShaderResources(0, size(srvs), srvs);
     }
     context->DrawIndexed(count, 0, 0);
 }
