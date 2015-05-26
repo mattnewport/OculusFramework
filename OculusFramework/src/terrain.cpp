@@ -124,11 +124,6 @@ void HeightField::AddVertices(ID3D11Device* device,
         }
     }
 
-    auto ss = CD3D11_SAMPLER_DESC{D3D11_DEFAULT};
-    ss.Filter = D3D11_FILTER_ANISOTROPIC;
-    ss.MaxAnisotropy = 8;
-    device->CreateSamplerState(&ss, &samplerState);
-
     shapesTex = texture2DManager.get(R"(data\shapes2.dds)");
 
     PipelineStateObjectDesc desc;
@@ -146,7 +141,7 @@ void HeightField::AddVertices(ID3D11Device* device,
     }();
 }
 
-void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler) {
+void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
     Object object;
@@ -167,8 +162,6 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Bu
     ID3D11Buffer* psConstantBuffers[] = {&lightingBuffer};
     context->PSSetConstantBuffers(2, 1, psConstantBuffers);
 
-    ID3D11SamplerState* samplerStates[] = {&cubeSampler, samplerState};
-    context->PSSetSamplers(0, 2, samplerStates);
     ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSRV, &irradEnvMapSRV, shapesTex.get()};
     context->PSSetShaderResources(0, 3, srvs);
 

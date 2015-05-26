@@ -111,14 +111,8 @@ Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* d
     }
 }
 
-ShaderFill::ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool wrap)
+ShaderFill::ShaderFill(std::unique_ptr<Texture>&& t)
     : OneTexture(std::move(t)) {
-    CD3D11_SAMPLER_DESC ss{D3D11_DEFAULT};
-    ss.AddressU = ss.AddressV = ss.AddressW =
-        wrap ? D3D11_TEXTURE_ADDRESS_WRAP : D3D11_TEXTURE_ADDRESS_BORDER;
-    ss.Filter = D3D11_FILTER_ANISOTROPIC;
-    ss.MaxAnisotropy = 8;
-    device->CreateSamplerState(&ss, &SamplerState);
 }
 
 template <>
@@ -162,7 +156,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         std::unique_ptr<Texture> t = std::make_unique<Texture>(
             "generated_texture", device, deviceContext, Sizei(texWidthHeight, texWidthHeight), 8,
             (unsigned char*)tex_pixels[k]);
-        generated_texture[k] = std::make_unique<ShaderFill>(device, std::move(t));
+        generated_texture[k] = std::make_unique<ShaderFill>(std::move(t));
     }
 
     // Construct geometry
@@ -278,7 +272,14 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_irrad.dds)", &irradEnvMapTex, &irradEnvMapSRV));
     [this, device] {
         const CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
-        ThrowOnFailure(device->CreateSamplerState(&desc, &cubeSampler));
+        ThrowOnFailure(device->CreateSamplerState(&desc, &linearSampler));
+    }();
+    [this, device] {
+        auto desc = CD3D11_SAMPLER_DESC{D3D11_DEFAULT};
+        desc.Filter = D3D11_FILTER_ANISOTROPIC;
+        desc.AddressU = desc.AddressV = desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        desc.MaxAnisotropy = 8;
+        device->CreateSamplerState(&desc, &standardTextureSampler);
     }();
 
     lighting.lightPos = Vec4f{0.0f, 3.7f, -2.0f, 1.0f};
@@ -310,14 +311,9 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->VSSetShader(pipelineStateObject.get()->vertexShader.get()->D3DVert, NULL, 0);
 
     ID3D11Buffer* psConstantBuffers[] = {lightingConstantBuffer};
     context->PSSetConstantBuffers(2, size(psConstantBuffers), psConstantBuffers);
-
-    context->PSSetShader(pipelineStateObject.get()->pixelShader.get()->D3DPix, NULL, 0);
-    ID3D11SamplerState* samplerStates[] = {cubeSampler, fill->SamplerState};
-    context->PSSetSamplers(0, size(samplerStates), samplerStates);
 
     if (fill && fill->OneTexture) {
         ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, fill->OneTexture->TexSv};
@@ -332,6 +328,9 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
 void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                    const mathlib::Mat4f& proj) {
     dx11.applyState(*dx11.Context, *pipelineStateObject.get());
+
+    ID3D11SamplerState* samplers[] = {linearSampler, standardTextureSampler};
+    dx11.Context->PSSetSamplers(0, size(samplers), samplers);
 
     Camera camera;
     camera.proj = proj;
@@ -367,6 +366,6 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
                sizeof(Model::Vertex), model->Indices.size(), model->objectConstantBuffer);
     }
 
-    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
-    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV, *cubeSampler);
+    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV);
+    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV);
 }

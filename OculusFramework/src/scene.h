@@ -23,9 +23,8 @@ struct Texture {
 
 struct ShaderFill {
     std::unique_ptr<Texture> OneTexture;
-    ID3D11SamplerStatePtr SamplerState;
 
-    ShaderFill(ID3D11Device* device, std::unique_ptr<Texture>&& t, bool wrap = 1);
+    ShaderFill(std::unique_ptr<Texture>&& t);
 };
 
 struct Model {
@@ -92,7 +91,8 @@ struct Scene {
     ID3D11ShaderResourceViewPtr pmremEnvMapSRV;
     ID3D11ResourcePtr irradEnvMapTex;
     ID3D11ShaderResourceViewPtr irradEnvMapSRV;
-    ID3D11SamplerStatePtr cubeSampler;
+    ID3D11SamplerStatePtr linearSampler;
+    ID3D11SamplerStatePtr standardTextureSampler;
 
     Lighting lighting;
     ID3D11BufferPtr lightingConstantBuffer;

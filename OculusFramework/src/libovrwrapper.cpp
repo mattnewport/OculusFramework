@@ -32,11 +32,6 @@ struct DummyHmd::RenderHelper {
             return desc;
         }();
         pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
-
-        [this] {
-            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
-            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
-        }();
     }
 
     void render(const ovrTexture eyeTexture[2]);
@@ -45,7 +40,6 @@ struct DummyHmd::RenderHelper {
     DirectX11& directX11;
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
-    ID3D11SamplerStatePtr samplerState;
     ID3D11RenderTargetViewPtr mirrorTextureRT;
 };
 
@@ -165,8 +159,6 @@ void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
         directX11.applyState(*directX11.Context, *pipelineStateObject.get());
         ID3D11RenderTargetView* rtvs[] = {mirrorTextureRT};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        ID3D11SamplerState* samplers[] = {samplerState};
-        directX11.Context->PSSetSamplers(0, 1, samplers);
         D3D11_VIEWPORT vp;
         vp.TopLeftX =
             static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Pos.x);

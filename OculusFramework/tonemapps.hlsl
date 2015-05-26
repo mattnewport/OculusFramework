@@ -1,6 +1,7 @@
+#include "commonsamplers.hlsli"
+
 Texture2D Texture : register(t0);
 Texture2D Luminance : register(t1);
-SamplerState Linear : register(s0);
 
 // hejl tonemap with different scale factor
 float4 main(in float4 pos : SV_Position, in float2 uv : TEXCOORD0) : SV_TARGET {

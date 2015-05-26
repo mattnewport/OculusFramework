@@ -29,7 +29,6 @@ struct HeightField {
     std::vector<uint16_t> Indices;
     std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
     std::unique_ptr<DataBuffer> IndexBuffer;
-    ID3D11SamplerStatePtr samplerState;
     Texture2DManager::ResourceHandle shapesTex;
     ID3D11BufferPtr objectConstantBuffer;
 
@@ -42,5 +41,5 @@ struct HeightField {
     void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
                      Texture2DManager& texture2DManager);
 
-    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler);
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV);
 };

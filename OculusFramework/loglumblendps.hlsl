@@ -1,6 +1,7 @@
+#include "commonsamplers.hlsli"
+
 Texture2D Texture : register(t0);
 Texture2D PrevFrame : register(t1);
-SamplerState Linear : register(s0);
 
 float main(in float4 pos : SV_Position, in float2 uv : TEXCOORD0) : SV_TARGET{
     int3 texPos = int3(pos.x, pos.y, 0) * 2;

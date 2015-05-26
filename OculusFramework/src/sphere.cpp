@@ -132,7 +132,7 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     }();
 }
 
-void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSrv, ID3D11ShaderResourceView& irradEnvMapSRV, ID3D11SamplerState& cubeSampler) {
+void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSrv, ID3D11ShaderResourceView& irradEnvMapSRV) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
     Object object;
@@ -157,9 +157,6 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer&
 
     ID3D11Buffer* psConstantBuffers[] = {&lightingBuffer};
     context->PSSetConstantBuffers(2, 1, psConstantBuffers);
-
-    ID3D11SamplerState* samps[] = {&cubeSampler};
-    context->PSSetSamplers(0, 1, samps);
 
     ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSrv, &irradEnvMapSRV};
     context->PSSetShaderResources(0, 2, srvs);

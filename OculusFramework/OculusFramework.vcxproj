@@ -249,6 +249,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="commoncbuffers.hlsli" />
+    <None Include="commonsamplers.hlsli" />
     <None Include="commonstructs.hlsli" />
     <None Include="lighting.hlsli" />
   </ItemGroup>

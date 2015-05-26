@@ -1,6 +1,6 @@
+#include "commonsamplers.hlsli"
 #include "commoncbuffers.hlsli"
 
-SamplerState envMapSampler : register(s0);
 TextureCube pmremEnvMap : register(t0);
 TextureCube irradEnvMap : register(t1);
 
@@ -62,9 +62,9 @@ float3 lightEnv(float3 worldPos, MicrofacetMaterialParams mat, float3 n, float3 
     float3 lightIntensity = lighting.lightColor.xyz / lmag*lmag;
     float3 r = 2.0f * dot(v, n) * n - v;
     float targetLod = -0.5f * log2(mat.specPower) + 5.5;
-    float sampleLod = max(pmremEnvMap.CalculateLevelOfDetail(envMapSampler, r), targetLod);
+    float sampleLod = max(pmremEnvMap.CalculateLevelOfDetail(Linear, r), targetLod);
     float3 env = fresnelSchlick(mat.specColor, r, n) *
-                 pmremEnvMap.SampleLevel(envMapSampler, r, sampleLod).xyz;
-    float3 amb = irradEnvMap.Sample(envMapSampler, n).xyz * mat.albedo;
+                 pmremEnvMap.SampleLevel(Linear, r, sampleLod).xyz;
+    float3 amb = irradEnvMap.Sample(Linear, n).xyz * mat.albedo;
     return amb + env + microfacet(mat, lightIntensity, n, l, h);
 }

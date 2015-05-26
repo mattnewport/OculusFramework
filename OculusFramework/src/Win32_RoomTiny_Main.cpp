@@ -150,11 +150,6 @@ struct QuadRenderer {
             }();
             pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
         }();
-
-        [this] {
-            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
-            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
-        }();
     }
 
     void render(ID3D11RenderTargetView& rtv, const vector<ID3D11ShaderResourceView*>& sourceTexSRVs, int x, int y,
@@ -162,8 +157,6 @@ struct QuadRenderer {
         directX11.applyState(*directX11.Context, *pipelineStateObject.get());
         ID3D11RenderTargetView* rtvs[] = {&rtv};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        ID3D11SamplerState* samplers[] = {samplerState};
-        directX11.Context->PSSetSamplers(0, 1, samplers);
         D3D11_VIEWPORT vp;
         vp.TopLeftX = static_cast<float>(x);
         vp.TopLeftY = static_cast<float>(y);
@@ -181,7 +174,6 @@ struct QuadRenderer {
     DirectX11& directX11;
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
-    ID3D11SamplerStatePtr samplerState;
 };
 
 struct ToneMapper {
@@ -199,11 +191,6 @@ struct ToneMapper {
                 return desc;
             }();
             pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
-        }();
-
-        [this] {
-            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
-            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
         }();
 
         [this] {
@@ -235,7 +222,6 @@ struct ToneMapper {
     unsigned height = 0;
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
-    ID3D11SamplerStatePtr samplerState;
     ID3D11Texture2DPtr sourceTex;
     ID3D11ShaderResourceViewPtr sourceTexSRV;
     ID3D11Texture2DPtr renderTargetTex;
@@ -246,8 +232,6 @@ void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
     directX11.applyState(*directX11.Context, *pipelineStateObject.get());
     ID3D11RenderTargetView* rtvs[] = {renderTargetView};
     directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-    ID3D11SamplerState* samplers[] = {samplerState};
-    directX11.Context->PSSetSamplers(0, 1, samplers);
     D3D11_VIEWPORT vp;
     vp.TopLeftX = 0;
     vp.TopLeftY = 0;
@@ -294,11 +278,6 @@ struct LuminanceRangeFinder {
         }();
 
         [this] {
-            CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
-            ThrowOnFailure(directX11.Device->CreateSamplerState(&desc, &samplerState));
-        }();
-
-        [this] {
             auto makeLumTex = [this](unsigned texWidth, unsigned texHeight) {
                 CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1,
                                            1,
@@ -330,7 +309,6 @@ struct LuminanceRangeFinder {
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObjectLogLum;
     PipelineStateObjectManager::ResourceHandle pipelineStateObjectAverage;
-    ID3D11SamplerStatePtr samplerState;
     vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>>
         textureChain;
     tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr> previousFrame;
@@ -347,8 +325,6 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
         auto& target = textureChain[i];
         ID3D11RenderTargetView* rtvs[] = {get<2>(target)};
         directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        ID3D11SamplerState* samplers[] = {samplerState};
-        directX11.Context->PSSetSamplers(0, 1, samplers);
         D3D11_VIEWPORT vp;
         vp.TopLeftX = 0;
         vp.TopLeftY = 0;
@@ -634,6 +610,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 showGui(roomScene);
                 //ImGui::ShowTestWindow();
                 ImGui::Render();
+                ID3D11SamplerState* samplers[] = {roomScene.linearSampler, roomScene.standardTextureSampler};
+                DX11.Context->PSSetSamplers(0, size(samplers), samplers);
                 vector<ID3D11ShaderResourceView*> srvs{imguiRenderTargetSRV, nullptr};
                 imguiQuadRenderer.render(toneMapper.renderTargetView, srvs,
                     0, 0, imguiRTVWidth,
