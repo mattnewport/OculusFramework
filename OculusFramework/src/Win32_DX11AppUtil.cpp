@@ -279,3 +279,21 @@ void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& ps
     context.IASetInputLayout(pso.inputLayout.get());
     context.IASetPrimitiveTopology(pso.primitiveTopology);
 }
+
+void QuadRenderer::render(ID3D11RenderTargetView & rtv, std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y, int width, int height) {
+    directX11.applyState(*directX11.Context, *pipelineStateObject.get());
+    ID3D11RenderTargetView* rtvs[] = {&rtv};
+    directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+    D3D11_VIEWPORT vp;
+    vp.TopLeftX = static_cast<float>(x);
+    vp.TopLeftY = static_cast<float>(y);
+    vp.Width = static_cast<float>(width);
+    vp.Height = static_cast<float>(height);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    directX11.Context->RSSetViewports(1, &vp);
+    directX11.Context->PSSetShaderResources(0, sourceTexSRVs.size(), sourceTexSRVs.begin());
+    directX11.Context->Draw(3, 0);
+    ID3D11ShaderResourceView* clearSrvs[] = {nullptr, nullptr};
+    directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+}

@@ -31,7 +31,7 @@ limitations under the License.
 #include "pipelinestateobjectmanager.h"
 
 #pragma warning(push)
-#pragma warning(disable: 4244 4127)
+#pragma warning(disable : 4244 4127)
 #include "OVR_Kernel.h"
 #pragma warning(pop)
 
@@ -86,4 +86,43 @@ struct DirectX11 {
     void ReleaseWindow(HINSTANCE hinst);
 
     void applyState(ID3D11DeviceContext& context, PipelineStateObject& pso);
+};
+
+struct QuadRenderer {
+    QuadRenderer(DirectX11& directX11_, const char* pixelShader,
+                 const bool alphaBlendEnable = false)
+        : directX11{directX11_} {
+        [this, pixelShader, alphaBlendEnable] {
+            PipelineStateObjectDesc desc;
+            desc.vertexShader = "quadvs.hlsl";
+            desc.pixelShader = pixelShader;
+            desc.depthStencilState = [] {
+                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
+                desc.DepthEnable = FALSE;
+                return desc;
+            }();
+            desc.blendState = [alphaBlendEnable] {
+                CD3D11_BLEND_DESC desc{D3D11_DEFAULT};
+                auto& rt0Blend = desc.RenderTarget[0];
+                rt0Blend.BlendEnable = alphaBlendEnable ? TRUE : FALSE;
+                rt0Blend.SrcBlend = D3D11_BLEND_ONE;
+                rt0Blend.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+                rt0Blend.BlendOp = D3D11_BLEND_OP_ADD;
+                rt0Blend.SrcBlendAlpha = D3D11_BLEND_ONE;
+                rt0Blend.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+                rt0Blend.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+                rt0Blend.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+                return desc;
+            }();
+            pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
+        }();
+    }
+
+    void render(ID3D11RenderTargetView& rtv,
+                std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y,
+                int width, int height);
+
+    DirectX11& directX11;
+
+    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 };

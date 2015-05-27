@@ -22,24 +22,14 @@ namespace libovrwrapper {
 
 struct DummyHmd::RenderHelper {
     RenderHelper(DummyHmd& dummyHmd_, DirectX11& directX11_)
-        : dummyHmd{dummyHmd_}, directX11{directX11_} {
-        PipelineStateObjectDesc desc;
-        desc.vertexShader = "dummyhmdvs.hlsl";
-        desc.pixelShader = "dummyhmdps.hlsl";
-        desc.depthStencilState = [] {
-            CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
-            desc.DepthEnable = FALSE;
-            return desc;
-        }();
-        pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
-    }
+        : dummyHmd{dummyHmd_}, directX11{directX11_}, quadRenderer{directX11_, "dummyhmdps.hlsl"} {}
 
     void render(const ovrTexture eyeTexture[2]);
 
     DummyHmd& dummyHmd;
     DirectX11& directX11;
 
-    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
+    QuadRenderer quadRenderer;
     ID3D11RenderTargetViewPtr mirrorTextureRT;
 };
 
@@ -156,29 +146,10 @@ void DummyHmd::destroySwapTextureSetD3D11(OculusTexture* tex) {
 
 void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
     [this, eyeTexture] {
-        directX11.applyState(*directX11.Context, *pipelineStateObject.get());
-        ID3D11RenderTargetView* rtvs[] = {mirrorTextureRT};
-        directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        D3D11_VIEWPORT vp;
-        vp.TopLeftX =
-            static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Pos.x);
-        vp.TopLeftY =
-            static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Pos.y);
-        vp.Width =
-            static_cast<float>(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Size.w +
-                               dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport.Size.w);
-        vp.Height =
-            static_cast<float>(max(dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport.Size.h,
-                                   dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport.Size.h));
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        directX11.Context->RSSetViewports(1, &vp);
         auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
-        ID3D11ShaderResourceView* srvs[] = {d3dEyeTexture[ovrEye_Left].D3D11.pSRView};
-        directX11.Context->PSSetShaderResources(0, 1, srvs);
-        directX11.Context->Draw(3, 0);
-        ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
-        directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+        const auto& leftVp = dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport;
+        const auto& rightVp = dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport;
+        quadRenderer.render(mirrorTextureRT, {d3dEyeTexture[ovrEye_Left].D3D11.pSRView}, leftVp.Pos.x, leftVp.Pos.y, leftVp.Size.w + rightVp.Size.w, max(leftVp.Size.h, rightVp.Size.h));
     }();
 }
 

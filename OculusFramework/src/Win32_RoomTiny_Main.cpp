@@ -122,60 +122,6 @@ void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
     OVR_UNUSED3(pUseYaw, pUseEyePose, pUseBuffer);
 }
 
-struct QuadRenderer {
-    QuadRenderer(DirectX11& directX11_, const char* pixelShader,
-                 const bool alphaBlendEnable = false)
-        : directX11{directX11_} {
-        [this, pixelShader, alphaBlendEnable] {
-            PipelineStateObjectDesc desc;
-            desc.vertexShader = "quadvs.hlsl";
-            desc.pixelShader = pixelShader;
-            desc.depthStencilState = [] {
-                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
-                desc.DepthEnable = FALSE;
-                return desc;
-            }();
-            desc.blendState = [alphaBlendEnable] {
-                CD3D11_BLEND_DESC desc{D3D11_DEFAULT};
-                auto& rt0Blend = desc.RenderTarget[0];
-                rt0Blend.BlendEnable = alphaBlendEnable ? TRUE : FALSE;
-                rt0Blend.SrcBlend = D3D11_BLEND_ONE;
-                rt0Blend.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-                rt0Blend.BlendOp = D3D11_BLEND_OP_ADD;
-                rt0Blend.SrcBlendAlpha = D3D11_BLEND_ONE;
-                rt0Blend.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-                rt0Blend.BlendOpAlpha = D3D11_BLEND_OP_ADD;
-                rt0Blend.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-                return desc;
-            }();
-            pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
-        }();
-    }
-
-    void render(ID3D11RenderTargetView& rtv, std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y,
-                int width, int height) {
-        directX11.applyState(*directX11.Context, *pipelineStateObject.get());
-        ID3D11RenderTargetView* rtvs[] = {&rtv};
-        directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        D3D11_VIEWPORT vp;
-        vp.TopLeftX = static_cast<float>(x);
-        vp.TopLeftY = static_cast<float>(y);
-        vp.Width = static_cast<float>(width);
-        vp.Height = static_cast<float>(height);
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        directX11.Context->RSSetViewports(1, &vp);
-        directX11.Context->PSSetShaderResources(0, sourceTexSRVs.size(), sourceTexSRVs.begin());
-        directX11.Context->Draw(3, 0);
-        ID3D11ShaderResourceView* clearSrvs[] = {nullptr, nullptr};
-        directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
-    }
-
-    DirectX11& directX11;
-
-    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
-};
-
 struct ToneMapper {
     ToneMapper(DirectX11& directX11_, int width_, int height_)
         : directX11{directX11_},
@@ -356,7 +302,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     ToneMapper toneMapper{DX11, eyeBufferSize.w, eyeBufferSize.h};
     LuminanceRangeFinder luminanceRangeFinder{DX11, eyeBufferSize.w, eyeBufferSize.h};
 
-    // Create a mirror to see on the monitor.
+    // Create a mirror texture to see on the monitor.
     D3D11_TEXTURE2D_DESC td = {};
     td.ArraySize = 1;
     td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -587,7 +533,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             ovrLayerHeader* layers = &ld.Header;
             hmd->submitFrame(0, nullptr, &layers, 1);
 
-            // Render mirror
+            // Copy mirror texture to back buffer
             ovrD3D11Texture* tex = (ovrD3D11Texture*)mirrorTexture;
             DX11.Context->CopyResource(DX11.BackBuffer, tex->D3D11.pTexture);
             DX11.SwapChain->Present(0, 0);
