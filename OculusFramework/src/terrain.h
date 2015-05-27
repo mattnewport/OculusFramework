@@ -15,8 +15,7 @@ struct HeightField {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        mathlib::Vec3f pos;
-        mathlib::Vec3f normal;
+        mathlib::Vec2f pos;
         mathlib::Vec2f uv;
     };
 
@@ -33,6 +32,8 @@ struct HeightField {
     ID3D11BufferPtr objectConstantBuffer;
     ID3D11Texture2DPtr heightsTex;
     ID3D11ShaderResourceViewPtr heightsSRV;
+    ID3D11Texture2DPtr normalsTex;
+    ID3D11ShaderResourceViewPtr normalsSRV;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f} {}
     const mathlib::Mat4f& GetMatrix() {

@@ -20,8 +20,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                               PipelineStateObjectManager& pipelineStateObjectManager,
                               Texture2DManager& texture2DManager) {
     auto file = ifstream{
-        R"(data\cdem_dem_150508_205233.dat)",
-        ios::in | ios::binary};
+        R"(data\cdem_dem_150508_205233.dat)", ios::in | ios::binary};
     file.seekg(0, ios::end);
     const auto endPos = file.tellg();
     file.seekg(0);
@@ -31,13 +30,15 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto widthM = 21072.0f;
     const auto height = 882;
     const auto heightM = 20486.0f;
+    const auto scale = 1 / 10000.0f;
     auto heights = vector<uint16_t>(width * height);
     file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
     const auto numRead = file.gcount();
     assert(numRead == fileSize);
-    [this, device, &heights, width, height]{
-        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width), static_cast<UINT>(height), 1u, 1u};
-        D3D11_SUBRESOURCE_DATA data{heights.data(), width*sizeof(heights[0]), 0};
+    [this, device, &heights, width, height] {
+        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width),
+                                   static_cast<UINT>(height), 1u, 1u};
+        D3D11_SUBRESOURCE_DATA data{heights.data(), width * sizeof(heights[0]), 0};
         ThrowOnFailure(device->CreateTexture2D(&desc, &data, &heightsTex));
         ThrowOnFailure(device->CreateShaderResourceView(heightsTex, nullptr, &heightsSRV));
     }();
@@ -47,6 +48,39 @@ void HeightField::AddVertices(ID3D11Device* device,
         y = min(max(0, y), height - 1);
         return heights[y * width + x];
     };
+
+    auto getElevation = [getHeight, width, scale](int x, int y) {
+        const auto gridHeight = getHeight(width - 1 - x, y);
+        return gridHeight * scale;
+    };
+
+    const auto gridStep = (widthM * scale) / width;
+
+    auto getNormal = [gridStep, getElevation](int x, int y) {
+        auto yl = getElevation(x - 1, y);
+        auto yr = getElevation(x + 1, y);
+        auto yd = getElevation(x, y - 1);
+        auto yu = getElevation(x, y + 1);
+        return normalize(Vec3f{2.0f * gridStep * (yl - yr), 4.0f * gridStep * gridStep,
+                               2.0f * gridStep * (yd - yu)});
+    };
+
+    [this, device, width, height, getNormal] {
+        vector<Vec2f> normals;
+        normals.reserve(width * height);
+        for (auto y = 0; y < height; ++y) {
+            for (auto x = 0; x < width; ++x) {
+                auto normal = getNormal(x, y);
+                assert(normal.y() > 0.0f);
+                normals.emplace_back(normal.x(), normal.z());
+            }
+        }
+        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width),
+                                   static_cast<UINT>(height), 1u, 1u};
+        D3D11_SUBRESOURCE_DATA data{normals.data(), width * sizeof(normals[0])};
+        ThrowOnFailure(device->CreateTexture2D(&desc, &data, &normalsTex));
+        ThrowOnFailure(device->CreateShaderResourceView(normalsTex, nullptr, &normalsSRV));
+    }();
 
     const auto blockPower = 6;
     const auto blockSize = 1 << blockPower;
@@ -93,25 +127,8 @@ void HeightField::AddVertices(ID3D11Device* device,
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
                                                Indices.size() * sizeof(Indices[0]));
 
-    const auto gridStep = (widthM / 10000.0f) / width;
     const auto uvStepX = 1.0f / width;
     const auto uvStepY = 1.0f / height;
-    auto getElevation = [getHeight, width](int x, int y) {
-        const auto gridElevationScale = 1.0f / 10000.0f;
-        const auto gridHeight = getHeight(width - 1 - x, y);
-        return gridHeight * gridElevationScale;
-    };
-    auto getPos = [gridStep, getElevation](int x, int y) {
-        return Vec3f{x * gridStep, getElevation(x, y), y * gridStep};
-    };
-    auto getNormal = [gridStep, getElevation](int x, int y) {
-        auto yl = getElevation(x - 1, y);
-        auto yr = getElevation(x + 1, y);
-        auto yd = getElevation(x, y - 1);
-        auto yu = getElevation(x, y + 1);
-        return normalize(Vec3f{2.0f * gridStep * (yl - yr), 4.0f * gridStep * gridStep,
-                               2.0f * gridStep * (yd - yu)});
-    };
     for (auto y = 0; y < height; y += blockSize) {
         for (auto x = 0; x < width; x += blockSize) {
             auto vertices = vector<Vertex>{};
@@ -121,9 +138,9 @@ void HeightField::AddVertices(ID3D11Device* device,
                     Vertex v;
                     const auto localX = min(x + blockX, width);
                     const auto localY = min(y + blockY, height);
-                    v.pos = getPos(localX, localY);
-                    v.normal = getNormal(localX, localY);
-                    v.uv = Vec2f{1.0f - (localX * uvStepX), 1.0f - (localY * uvStepY)};
+                    v.pos = Vec2f{localX * gridStep, localY * gridStep};
+                    v.uv = Vec2f{(width - 1 - localX + 0.5f) * uvStepX,
+                                 (height - 1 - localY + 0.5f) * uvStepY};
                     vertices.push_back(v);
                 }
             }
@@ -139,13 +156,13 @@ void HeightField::AddVertices(ID3D11Device* device,
     desc.vertexShader = "terrainvs.hlsl";
     desc.pixelShader = "terrainps.hlsl";
     desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
-                              MAKE_INPUT_ELEMENT_DESC(Vertex, normal, "NORMAL"),
                               MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
     [this, device] {
-        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
-                                      D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
+        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)),
+                                      D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC,
+                                      D3D11_CPU_ACCESS_WRITE};
         device->CreateBuffer(&desc, nullptr, &objectConstantBuffer);
     }();
 }
@@ -164,14 +181,15 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     }();
 
     ID3D11Buffer* vsConstantBuffers[] = {objectConstantBuffer};
-    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
+    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers),
+                                  vsConstantBuffers);
 
     ID3D11ShaderResourceView* vsSrvs[] = {heightsSRV};
     context->VSSetShaderResources(0, size(vsSrvs), vsSrvs);
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-    ID3D11ShaderResourceView* srvs[] = {shapesTex.get()};
+    ID3D11ShaderResourceView* srvs[] = {shapesTex.get(), normalsSRV};
     context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
 
     for (const auto& vertexBuffer : VertexBuffers) {
