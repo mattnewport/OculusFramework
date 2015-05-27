@@ -18,7 +18,7 @@ public:
     void GenerateVerts(ID3D11Device& device,
                        PipelineStateObjectManager& pipelineStateObjectManager);
 
-    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV);
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context);
 
     const mathlib::Mat4f GetMatrix() {
         auto scale = mathlib::Mat4fScale(0.25f);

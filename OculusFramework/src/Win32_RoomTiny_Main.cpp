@@ -152,7 +152,7 @@ struct QuadRenderer {
         }();
     }
 
-    void render(ID3D11RenderTargetView& rtv, const vector<ID3D11ShaderResourceView*>& sourceTexSRVs, int x, int y,
+    void render(ID3D11RenderTargetView& rtv, std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y,
                 int width, int height) {
         directX11.applyState(*directX11.Context, *pipelineStateObject.get());
         ID3D11RenderTargetView* rtvs[] = {&rtv};
@@ -165,7 +165,7 @@ struct QuadRenderer {
         vp.MinDepth = 0.0f;
         vp.MaxDepth = 1.0f;
         directX11.Context->RSSetViewports(1, &vp);
-        directX11.Context->PSSetShaderResources(0, sourceTexSRVs.size(), sourceTexSRVs.data());
+        directX11.Context->PSSetShaderResources(0, sourceTexSRVs.size(), sourceTexSRVs.begin());
         directX11.Context->Draw(3, 0);
         ID3D11ShaderResourceView* clearSrvs[] = {nullptr, nullptr};
         directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
@@ -180,19 +180,8 @@ struct ToneMapper {
     ToneMapper(DirectX11& directX11_, int width_, int height_)
         : directX11{directX11_},
           width{static_cast<unsigned>(width_)},
-          height{static_cast<unsigned>(height_)} {
-        [this] {
-            PipelineStateObjectDesc desc;
-            desc.vertexShader = "tonemapvs.hlsl";
-            desc.pixelShader = "tonemapps.hlsl";
-            desc.depthStencilState = [] {
-                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
-                desc.DepthEnable = FALSE;
-                return desc;
-            }();
-            pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
-        }();
-
+          height{static_cast<unsigned>(height_)},
+          quadRenderer{directX11_, "tonemapps.hlsl"} {
         [this] {
             CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, 1, 1};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &sourceTex));
@@ -221,7 +210,7 @@ struct ToneMapper {
     unsigned width = 0;
     unsigned height = 0;
 
-    PipelineStateObjectManager::ResourceHandle pipelineStateObject;
+    QuadRenderer quadRenderer;
     ID3D11Texture2DPtr sourceTex;
     ID3D11ShaderResourceViewPtr sourceTexSRV;
     ID3D11Texture2DPtr renderTargetTex;
@@ -229,22 +218,7 @@ struct ToneMapper {
 };
 
 void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
-    directX11.applyState(*directX11.Context, *pipelineStateObject.get());
-    ID3D11RenderTargetView* rtvs[] = {renderTargetView};
-    directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-    D3D11_VIEWPORT vp;
-    vp.TopLeftX = 0;
-    vp.TopLeftY = 0;
-    vp.Width = static_cast<float>(width);
-    vp.Height = static_cast<float>(height);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    directX11.Context->RSSetViewports(1, &vp);
-    ID3D11ShaderResourceView* srvs[] = {sourceTexSRV, avgLogLuminance};
-    directX11.Context->PSSetShaderResources(0, 2, srvs);
-    directX11.Context->Draw(3, 0);
-    ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
-    directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+    quadRenderer.render(renderTargetView, {sourceTexSRV, avgLogLuminance}, 0, 0, width, height);
 }
 
 struct LuminanceRangeFinder {
@@ -252,31 +226,9 @@ struct LuminanceRangeFinder {
         : directX11{directX11_},
           width{static_cast<unsigned>(width_)},
           height{static_cast<unsigned>(height_)},
+          logLumRenderer{directX11_, "loglumps.hlsl"},
+          logAverageRenderer{directX11_, "luminancerangeps.hlsl"},
           luminanceBlender{directX11_, "loglumblendps.hlsl"} {
-        [this] {
-            PipelineStateObjectDesc desc;
-            desc.vertexShader = "luminancerangevs.hlsl";
-            desc.pixelShader = "loglumps.hlsl";
-            desc.depthStencilState = [] {
-                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
-                desc.DepthEnable = FALSE;
-                return desc;
-            }();
-            pipelineStateObjectLogLum = directX11.pipelineStateObjectManager->get(desc);
-        }();
-
-        [this] {
-            PipelineStateObjectDesc desc;
-            desc.vertexShader = "luminancerangevs.hlsl";
-            desc.pixelShader = "luminancerangeps.hlsl";
-            desc.depthStencilState = [] {
-                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
-                desc.DepthEnable = FALSE;
-                return desc;
-            }();
-            pipelineStateObjectAverage = directX11.pipelineStateObjectManager->get(desc);
-        }();
-
         [this] {
             auto makeLumTex = [this](unsigned texWidth, unsigned texHeight) {
                 CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1,
@@ -307,42 +259,23 @@ struct LuminanceRangeFinder {
     unsigned width = 0;
     unsigned height = 0;
 
-    PipelineStateObjectManager::ResourceHandle pipelineStateObjectLogLum;
-    PipelineStateObjectManager::ResourceHandle pipelineStateObjectAverage;
     vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>>
         textureChain;
     tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr> previousFrame;
+    QuadRenderer logLumRenderer;
+    QuadRenderer logAverageRenderer;
     QuadRenderer luminanceBlender;
 };
 
 void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
     for (auto i = 0u; i < textureChain.size() - 1; ++i) {
-        if (i == 0)
-            directX11.applyState(*directX11.Context, *pipelineStateObjectLogLum.get());
-        else
-            directX11.applyState(*directX11.Context, *pipelineStateObjectAverage.get());
-
+        QuadRenderer& qr = i == 0 ? logLumRenderer : logAverageRenderer;
         auto& target = textureChain[i];
-        ID3D11RenderTargetView* rtvs[] = {get<2>(target)};
-        directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-        D3D11_VIEWPORT vp;
-        vp.TopLeftX = 0;
-        vp.TopLeftY = 0;
-        vp.Width = static_cast<float>(1024 >> i);
-        vp.Height = static_cast<float>(1024 >> i);
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        directX11.Context->RSSetViewports(1, &vp);
-        ID3D11ShaderResourceView* srvs[] = {sourceSRV};
-        directX11.Context->PSSetShaderResources(0, 1, srvs);
-        directX11.Context->Draw(3, 0);
-        ID3D11ShaderResourceView* clearSrvs[] = {nullptr};
-        directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+        qr.render(get<2>(target), {sourceSRV}, 0, 0, 1024 >> i, 1024 >> i);
         sourceSRV = get<1>(target);
     }
-    vector<ID3D11ShaderResourceView*> srvs{get<1>(textureChain[textureChain.size() - 2]),
-                                           get<1>(previousFrame)};
-    luminanceBlender.render(get<2>(textureChain.back()), srvs, 0, 0, 1, 1);
+    luminanceBlender.render(get<2>(textureChain.back()), {get<1>(textureChain[textureChain.size() - 2]),
+        get<1>(previousFrame)}, 0, 0, 1, 1);
     swap(previousFrame, textureChain.back());
 }
 
@@ -612,11 +545,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 ImGui::Render();
                 ID3D11SamplerState* samplers[] = {roomScene.linearSampler, roomScene.standardTextureSampler};
                 DX11.Context->PSSetSamplers(0, size(samplers), samplers);
-                vector<ID3D11ShaderResourceView*> srvs{imguiRenderTargetSRV, nullptr};
-                imguiQuadRenderer.render(toneMapper.renderTargetView, srvs,
+                imguiQuadRenderer.render(toneMapper.renderTargetView, {imguiRenderTargetSRV, nullptr},
                     0, 0, imguiRTVWidth,
                     imguiRTVHeight);
-                imguiQuadRenderer.render(toneMapper.renderTargetView, srvs,
+                imguiQuadRenderer.render(toneMapper.renderTargetView, {imguiRenderTargetSRV, nullptr},
                     EyeRenderViewport[ovrEye_Right].Pos.x,
                     EyeRenderViewport[ovrEye_Right].Pos.y,
                     imguiRTVWidth, imguiRTVHeight);

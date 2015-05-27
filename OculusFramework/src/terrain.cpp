@@ -141,7 +141,7 @@ void HeightField::AddVertices(ID3D11Device* device,
     }();
 }
 
-void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV) {
+void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
     Object object;
@@ -154,22 +154,19 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Bu
         dx11.Context->Unmap(objectConstantBuffer, 0);
     }();
 
-    ID3D11Buffer* vsConstantBuffers[] = {&cameraConstantBuffer, objectConstantBuffer, &lightingBuffer};
-    context->VSSetConstantBuffers(0, 3, vsConstantBuffers);
+    ID3D11Buffer* vsConstantBuffers[] = {objectConstantBuffer};
+    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-    ID3D11Buffer* psConstantBuffers[] = {&lightingBuffer};
-    context->PSSetConstantBuffers(2, 1, psConstantBuffers);
-
-    ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSRV, &irradEnvMapSRV, shapesTex.get()};
-    context->PSSetShaderResources(0, 3, srvs);
+    ID3D11ShaderResourceView* srvs[] = {shapesTex.get()};
+    context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
 
     for (const auto& vertexBuffer : VertexBuffers) {
         ID3D11Buffer* vertexBuffers[] = {vertexBuffer->D3DBuffer};
         const UINT strides[] = {sizeof(Vertex)};
         const UINT offsets[] = {0};
-        context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
+        context->IASetVertexBuffers(0, size(vertexBuffers), vertexBuffers, strides, offsets);
         context->DrawIndexed(Indices.size(), 0, 0);
     }
 }

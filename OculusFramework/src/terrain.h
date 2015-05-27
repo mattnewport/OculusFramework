@@ -41,5 +41,5 @@ struct HeightField {
     void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
                      Texture2DManager& texture2DManager);
 
-    void Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSRV, ID3D11ShaderResourceView& irradEnvMapSRV);
+    void Render(DirectX11& dx11, ID3D11DeviceContext* context);
 };

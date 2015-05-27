@@ -132,7 +132,7 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     }();
 }
 
-void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer& cameraConstantBuffer, ID3D11Buffer& lightingBuffer, ID3D11ShaderResourceView& pmremEnvMapSrv, ID3D11ShaderResourceView& irradEnvMapSRV) {
+void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     dx11.applyState(*context, *pipelineStateObject.get());
 
     Object object;
@@ -145,8 +145,8 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer&
         dx11.Context->Unmap(objectConstantBuffer, 0);
     }();
 
-    ID3D11Buffer* vsConstantBuffers[] = {&cameraConstantBuffer, objectConstantBuffer, &lightingBuffer};
-    context->VSSetConstantBuffers(0, 3, vsConstantBuffers);
+    ID3D11Buffer* vsConstantBuffers[] = {objectConstantBuffer};
+    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
 
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
 
@@ -154,12 +154,6 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context, ID3D11Buffer&
     const UINT strides[] = {sizeof(Vertex)};
     const UINT offsets[] = {0};
     context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
-
-    ID3D11Buffer* psConstantBuffers[] = {&lightingBuffer};
-    context->PSSetConstantBuffers(2, 1, psConstantBuffers);
-
-    ID3D11ShaderResourceView* srvs[] = {&pmremEnvMapSrv, &irradEnvMapSRV};
-    context->PSSetShaderResources(0, 2, srvs);
 
     context->DrawIndexed(indexCount, 0, 0);
 }

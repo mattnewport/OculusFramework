@@ -304,23 +304,20 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
     ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
     context->IASetVertexBuffers(0, size(vertexBuffers), vertexBuffers, &stride, &offset);
 
-    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer, &objectConstantBuffer, lightingConstantBuffer};
-    context->VSSetConstantBuffers(0, size(vsConstantBuffers), vsConstantBuffers);
+    ID3D11Buffer* vsConstantBuffers[] = {&objectConstantBuffer};
+    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
 
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    ID3D11Buffer* psConstantBuffers[] = {lightingConstantBuffer};
-    context->PSSetConstantBuffers(2, size(psConstantBuffers), psConstantBuffers);
-
     if (fill && fill->OneTexture) {
-        ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, fill->OneTexture->TexSv};
-        context->PSSetShaderResources(0, size(srvs), srvs);
+        ID3D11ShaderResourceView* srvs[] = {fill->OneTexture->TexSv};
+        context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
     } else {
-        ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV, nullptr};
-        context->PSSetShaderResources(0, size(srvs), srvs);
+        ID3D11ShaderResourceView* srvs[] = {nullptr};
+        context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
     }
     context->DrawIndexed(count, 0, 0);
 }
@@ -351,6 +348,15 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         dx11.Context->Unmap(lightingConstantBuffer, 0);
     }();
 
+    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer};
+    dx11.Context->VSSetConstantBuffers(0, size(vsConstantBuffers), vsConstantBuffers);
+
+    ID3D11Buffer* psConstantBuffers[] = {lightingConstantBuffer};
+    dx11.Context->PSSetConstantBuffers(2, size(psConstantBuffers), psConstantBuffers);
+
+    ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV};
+    dx11.Context->PSSetShaderResources(0, size(srvs), srvs);
+
     for (auto& model : Models) {
         Object object;
         object.world = model->GetMatrix();
@@ -366,6 +372,6 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
                sizeof(Model::Vertex), model->Indices.size(), model->objectConstantBuffer);
     }
 
-    heightField->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV);
-    sphere->Render(dx11, dx11.Context, *cameraConstantBuffer, *lightingConstantBuffer, *pmremEnvMapSRV, *irradEnvMapSRV);
+    heightField->Render(dx11, dx11.Context);
+    sphere->Render(dx11, dx11.Context);
 }
