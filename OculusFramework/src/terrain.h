@@ -31,6 +31,8 @@ struct HeightField {
     std::unique_ptr<DataBuffer> IndexBuffer;
     Texture2DManager::ResourceHandle shapesTex;
     ID3D11BufferPtr objectConstantBuffer;
+    ID3D11Texture2DPtr heightsTex;
+    ID3D11ShaderResourceViewPtr heightsSRV;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f} {}
     const mathlib::Mat4f& GetMatrix() {

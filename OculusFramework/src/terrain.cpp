@@ -35,6 +35,12 @@ void HeightField::AddVertices(ID3D11Device* device,
     file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
     const auto numRead = file.gcount();
     assert(numRead == fileSize);
+    [this, device, &heights, width, height]{
+        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width), static_cast<UINT>(height), 1u, 1u};
+        D3D11_SUBRESOURCE_DATA data{heights.data(), width*sizeof(heights[0]), 0};
+        ThrowOnFailure(device->CreateTexture2D(&desc, &data, &heightsTex));
+        ThrowOnFailure(device->CreateShaderResourceView(heightsTex, nullptr, &heightsSRV));
+    }();
 
     auto getHeight = [&heights, width, height](int x, int y) {
         x = min(max(0, x), width - 1);
@@ -87,21 +93,24 @@ void HeightField::AddVertices(ID3D11Device* device,
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
                                                Indices.size() * sizeof(Indices[0]));
 
+    const auto gridStep = (widthM / 10000.0f) / width;
     const auto uvStepX = 1.0f / width;
     const auto uvStepY = 1.0f / height;
-    auto getPos = [width, widthM, getHeight](int x, int y) {
-        const auto gridWidth = widthM / 10000.0f;
-        const auto gridStep = gridWidth / width;
+    auto getElevation = [getHeight, width](int x, int y) {
         const auto gridElevationScale = 1.0f / 10000.0f;
         const auto gridHeight = getHeight(width - 1 - x, y);
-        return Vec3f{x * gridStep, gridHeight * gridElevationScale, y * gridStep};
+        return gridHeight * gridElevationScale;
     };
-    auto getNormal = [getPos](int x, int y) {
-        const auto p = getPos(x, y);
-        const Vec3f ps[] = {getPos(x - 1, y), getPos(x + 1, y), getPos(x, y - 1), getPos(x, y + 1)};
-        const Vec3f vs[] = {ps[0] - p, ps[1] - p, ps[2] - p, ps[3] - p};
-        const Vec3f ns[] = {cross(vs[0], vs[3]), cross(vs[1], vs[2]), cross(vs[2], vs[0]), cross(vs[3], vs[1])};
-        return normalize(ns[0] + ns[1] + ns[2] + ns[3]);
+    auto getPos = [gridStep, getElevation](int x, int y) {
+        return Vec3f{x * gridStep, getElevation(x, y), y * gridStep};
+    };
+    auto getNormal = [gridStep, getElevation](int x, int y) {
+        auto yl = getElevation(x - 1, y);
+        auto yr = getElevation(x + 1, y);
+        auto yd = getElevation(x, y - 1);
+        auto yu = getElevation(x, y + 1);
+        return normalize(Vec3f{2.0f * gridStep * (yl - yr), 4.0f * gridStep * gridStep,
+                               2.0f * gridStep * (yd - yu)});
     };
     for (auto y = 0; y < height; y += blockSize) {
         for (auto x = 0; x < width; x += blockSize) {
@@ -156,6 +165,9 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
 
     ID3D11Buffer* vsConstantBuffers[] = {objectConstantBuffer};
     context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
+
+    ID3D11ShaderResourceView* vsSrvs[] = {heightsSRV};
+    context->VSSetShaderResources(0, size(vsSrvs), vsSrvs);
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
