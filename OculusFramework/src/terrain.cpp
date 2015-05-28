@@ -6,6 +6,9 @@
 
 #include "vector.h"
 
+#include "geotiff.h"
+#include "xtiffio.h"
+
 #include <array>
 #include <fstream>
 
@@ -19,6 +22,15 @@ using namespace mathlib;
 void HeightField::AddVertices(ID3D11Device* device,
                               PipelineStateObjectManager& pipelineStateObjectManager,
                               Texture2DManager& texture2DManager) {
+    auto tif = unique_ptr<TIFF, void (*)(TIFF*)>{
+        XTIFFOpen(R"(data\cdem_dem_150508_205233.tif)", "r"), [](TIFF* tiff) { XTIFFClose(tiff); }};
+    if (!tif) throw runtime_error{"Failed to load terrain elevation .tif"};
+    auto gtif =
+        unique_ptr<GTIF, void (*)(GTIF*)>{GTIFNew(tif.get()), [](GTIF* gtif) { GTIFFree(gtif); }};
+    if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
+    auto print = [](char* s, void*) { OutputDebugStringA(s); return 0; };
+    GTIFPrint(gtif.get(), print, nullptr);
+
     auto file = ifstream{
         R"(data\cdem_dem_150508_205233.dat)", ios::in | ios::binary};
     file.seekg(0, ios::end);
