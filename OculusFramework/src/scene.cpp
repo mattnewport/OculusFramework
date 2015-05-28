@@ -296,6 +296,7 @@ void Scene::showGui() {
         lighting.lightColor = lightColor * lightIntensity;
         ImGui::DragFloat3("Light position", &lighting.lightPos.x(), 0.1f);
     }
+    heightField->showGui();
 }
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,

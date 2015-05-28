@@ -4,6 +4,8 @@
 
 #include "DDSTextureLoader.h"
 
+#include "imgui/imgui.h"
+
 #include "vector.h"
 
 #include "cpl_serv.h"
@@ -111,7 +113,6 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto widthM = latLongDist(topLeft, topRight);
     const auto height = tifHeight;
     const auto heightM = latLongDist(topLeft, bottomLeft);
-    const auto scale = 1 / 10000.0f;
     [this, device, &heights, width, height] {
         CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width),
                                    static_cast<UINT>(height), 1u, 1u};
@@ -126,12 +127,12 @@ void HeightField::AddVertices(ID3D11Device* device,
         return heights[y * width + x];
     };
 
-    auto getElevation = [getHeight, width, height, scale](int x, int y) {
+    auto getElevation = [getHeight, width, height](int x, int y) {
         const auto gridHeight = getHeight(x, y);
-        return gridHeight * scale;
+        return gridHeight;
     };
 
-    const auto gridStep = Vec2f{(widthM * scale) / width, (heightM * scale) / height};
+    const auto gridStep = Vec2f{widthM / width, heightM / height};
 
     auto getNormal = [gridStep, getElevation](int x, int y) {
         auto yl = getElevation(x - 1, y);
@@ -274,5 +275,11 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         const UINT offsets[] = {0};
         context->IASetVertexBuffers(0, size(vertexBuffers), vertexBuffers, strides, offsets);
         context->DrawIndexed(Indices.size(), 0, 0);
+    }
+}
+
+void HeightField::showGui() {
+    if (ImGui::CollapsingHeader("Terrain")) {
+        ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
     }
 }

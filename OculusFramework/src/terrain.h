@@ -34,10 +34,11 @@ struct HeightField {
     ID3D11ShaderResourceViewPtr heightsSRV;
     ID3D11Texture2DPtr normalsTex;
     ID3D11ShaderResourceViewPtr normalsSRV;
+    float scale = 1e-4f;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
-        Mat = Mat4FromQuat(Rot) * Mat4fTranslation(Pos);
+        Mat = mathlib::Mat4fScale(scale) * Mat4FromQuat(Rot) * Mat4fTranslation(Pos);
         return Mat;
     }
 
@@ -45,4 +46,6 @@ struct HeightField {
                      Texture2DManager& texture2DManager);
 
     void Render(DirectX11& dx11, ID3D11DeviceContext* context);
+
+    void showGui();
 };
