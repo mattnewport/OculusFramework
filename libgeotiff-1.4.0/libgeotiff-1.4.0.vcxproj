@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{96219954-DBE3-413D-A514-8554C2BFB70D}</ProjectGuid>
+    <Keyword>MakeFileProj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <NMakeBuildCommandLine>nmake /f makefile.vc</NMakeBuildCommandLine>
+    <NMakeOutput>libgeotiff-1.4.0.exe</NMakeOutput>
+    <NMakeCleanCommandLine>nmake /f makefile.vc clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <IncludePath>$(SolutionDir)proj-4.9.1\src;$(SolutionDir)tiff-4.0.3\libtiff;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <NMakeBuildCommandLine>nmake /f makefile.vc</NMakeBuildCommandLine>
+    <NMakeOutput>libgeotiff-1.4.0.exe</NMakeOutput>
+    <NMakeCleanCommandLine>nmake /f makefile.vc clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>WIN32;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <IncludePath>$(SolutionDir)proj-4.9.1\src;$(SolutionDir)tiff-4.0.3\libtiff;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cpl_serv.h" />
+    <ClInclude Include="geokeys.h" />
+    <ClInclude Include="geonames.h" />
+    <ClInclude Include="geotiff.h" />
+    <ClInclude Include="geotiffio.h" />
+    <ClInclude Include="geovalues.h" />
+    <ClInclude Include="geo_config.h" />
+    <ClInclude Include="geo_incode_defs.h" />
+    <ClInclude Include="geo_keyp.h" />
+    <ClInclude Include="geo_normalize.h" />
+    <ClInclude Include="geo_simpletags.h" />
+    <ClInclude Include="geo_tiffp.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="bin\applygeo.c" />
+    <ClCompile Include="bin\geotifcp.c" />
+    <ClCompile Include="bin\getopt.c" />
+    <ClCompile Include="bin\listgeo.c" />
+    <ClCompile Include="bin\makegeo.c" />
+    <ClCompile Include="cpl_csv.c" />
+    <ClCompile Include="cpl_serv.c" />
+    <ClCompile Include="geotiff_proj4.c" />
+    <ClCompile Include="geo_extra.c" />
+    <ClCompile Include="geo_free.c" />
+    <ClCompile Include="geo_get.c" />
+    <ClCompile Include="geo_names.c" />
+    <ClCompile Include="geo_new.c" />
+    <ClCompile Include="geo_normalize.c" />
+    <ClCompile Include="geo_print.c" />
+    <ClCompile Include="geo_set.c" />
+    <ClCompile Include="geo_simpletags.c" />
+    <ClCompile Include="geo_strtod.c" />
+    <ClCompile Include="geo_tiffp.c" />
+    <ClCompile Include="geo_trans.c" />
+    <ClCompile Include="geo_write.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

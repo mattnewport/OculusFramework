@@ -5,6 +5,12 @@ VisualStudioVersion = 14.0.22823.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OculusFramework", "OculusFramework\OculusFramework.vcxproj", "{76D81AE9-5DE9-48E1-A034-5249559A7907}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tiff-4.0.3", "tiff-4.0.3\tiff-4.0.3.vcxproj", "{0BC0E692-0270-4B9E-B0D1-7EF5240F0F10}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libgeotiff-1.4.0", "libgeotiff-1.4.0\libgeotiff-1.4.0.vcxproj", "{96219954-DBE3-413D-A514-8554C2BFB70D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "proj-4.9.1", "proj-4.9.1\proj-4.9.1.vcxproj", "{624D79C0-DD5F-4665-856C-DF5FE24C0B3F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -15,6 +21,18 @@ Global
 		{76D81AE9-5DE9-48E1-A034-5249559A7907}.Debug|x86.Build.0 = Debug|Win32
 		{76D81AE9-5DE9-48E1-A034-5249559A7907}.Release|x86.ActiveCfg = Release|Win32
 		{76D81AE9-5DE9-48E1-A034-5249559A7907}.Release|x86.Build.0 = Release|Win32
+		{0BC0E692-0270-4B9E-B0D1-7EF5240F0F10}.Debug|x86.ActiveCfg = Debug|Win32
+		{0BC0E692-0270-4B9E-B0D1-7EF5240F0F10}.Debug|x86.Build.0 = Debug|Win32
+		{0BC0E692-0270-4B9E-B0D1-7EF5240F0F10}.Release|x86.ActiveCfg = Release|Win32
+		{0BC0E692-0270-4B9E-B0D1-7EF5240F0F10}.Release|x86.Build.0 = Release|Win32
+		{96219954-DBE3-413D-A514-8554C2BFB70D}.Debug|x86.ActiveCfg = Debug|Win32
+		{96219954-DBE3-413D-A514-8554C2BFB70D}.Debug|x86.Build.0 = Debug|Win32
+		{96219954-DBE3-413D-A514-8554C2BFB70D}.Release|x86.ActiveCfg = Release|Win32
+		{96219954-DBE3-413D-A514-8554C2BFB70D}.Release|x86.Build.0 = Release|Win32
+		{624D79C0-DD5F-4665-856C-DF5FE24C0B3F}.Debug|x86.ActiveCfg = Debug|Win32
+		{624D79C0-DD5F-4665-856C-DF5FE24C0B3F}.Debug|x86.Build.0 = Debug|Win32
+		{624D79C0-DD5F-4665-856C-DF5FE24C0B3F}.Release|x86.ActiveCfg = Release|Win32
+		{624D79C0-DD5F-4665-856C-DF5FE24C0B3F}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
