@@ -25,28 +25,48 @@ void HeightField::AddVertices(ID3D11Device* device,
     auto tif = unique_ptr<TIFF, void (*)(TIFF*)>{
         XTIFFOpen(R"(data\cdem_dem_150508_205233.tif)", "r"), [](TIFF* tiff) { XTIFFClose(tiff); }};
     if (!tif) throw runtime_error{"Failed to load terrain elevation .tif"};
+    const auto tifWidth = static_cast<int>([&tif] {
+        uint32_t width = 0;
+        TIFFGetField(tif.get(), TIFFTAG_IMAGEWIDTH, &width);
+        return width;
+    }());
+    const auto tifHeight = static_cast<int>([&tif] {
+        uint32_t length = 0;
+        TIFFGetField(tif.get(), TIFFTAG_IMAGELENGTH, &length);
+        return length;
+    }());
+    const auto tifBitsPerSample = [&tif] {
+        uint32_t bps = 0;
+        TIFFGetField(tif.get(), TIFFTAG_BITSPERSAMPLE, &bps);
+        return bps;
+    }();
+    const auto tifSamplesPerPixel = [&tif] {
+        uint16_t samplesPerPixel = 0;
+        TIFFGetField(tif.get(), TIFFTAG_SAMPLESPERPIXEL, &samplesPerPixel);
+        return samplesPerPixel;
+    }();
+    assert(tifBitsPerSample == 16 && tifSamplesPerPixel == 1);
+    auto heights = vector<uint16_t>(tifWidth * tifHeight);
+    [&tif, &heights] {
+        const auto stripCount = TIFFNumberOfStrips(tif.get());
+        const auto stripSize = TIFFStripSize(tif.get());
+        auto offset = 0;
+        for (tstrip_t strip = 0; strip < stripCount; ++strip) {
+            offset += TIFFReadEncodedStrip(tif.get(), strip, &heights[offset / sizeof(heights[0])], -1);
+        }
+    }();
+
     auto gtif =
         unique_ptr<GTIF, void (*)(GTIF*)>{GTIFNew(tif.get()), [](GTIF* gtif) { GTIFFree(gtif); }};
     if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
     auto print = [](char* s, void*) { OutputDebugStringA(s); return 0; };
     GTIFPrint(gtif.get(), print, nullptr);
 
-    auto file = ifstream{
-        R"(data\cdem_dem_150508_205233.dat)", ios::in | ios::binary};
-    file.seekg(0, ios::end);
-    const auto endPos = file.tellg();
-    file.seekg(0);
-    const auto fileSize = endPos - file.tellg();
-
-    const auto width = 907;
+    const auto width = tifWidth;
     const auto widthM = 21072.0f;
-    const auto height = 882;
+    const auto height = tifHeight;
     const auto heightM = 20486.0f;
     const auto scale = 1 / 10000.0f;
-    auto heights = vector<uint16_t>(width * height);
-    file.read(reinterpret_cast<char*>(heights.data()), heights.size() * sizeof(uint16_t));
-    const auto numRead = file.gcount();
-    assert(numRead == fileSize);
     [this, device, &heights, width, height] {
         CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width),
                                    static_cast<UINT>(height), 1u, 1u};
@@ -61,8 +81,8 @@ void HeightField::AddVertices(ID3D11Device* device,
         return heights[y * width + x];
     };
 
-    auto getElevation = [getHeight, width, scale](int x, int y) {
-        const auto gridHeight = getHeight(width - 1 - x, y);
+    auto getElevation = [getHeight, width, height, scale](int x, int y) {
+        const auto gridHeight = getHeight(x, y);
         return gridHeight * scale;
     };
 
@@ -151,8 +171,8 @@ void HeightField::AddVertices(ID3D11Device* device,
                     const auto localX = min(x + blockX, width);
                     const auto localY = min(y + blockY, height);
                     v.pos = Vec2f{localX * gridStep, localY * gridStep};
-                    v.uv = Vec2f{(width - 1 - localX + 0.5f) * uvStepX,
-                                 (height - 1 - localY + 0.5f) * uvStepY};
+                    v.uv = Vec2f{(localX + 0.5f) * uvStepX,
+                                 (localY + 0.5f) * uvStepY};
                     vertices.push_back(v);
                 }
             }
