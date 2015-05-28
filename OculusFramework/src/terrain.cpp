@@ -6,7 +6,11 @@
 
 #include "vector.h"
 
+#include "cpl_serv.h"
+#include "geodesic.h"
 #include "geotiff.h"
+#include "geo_normalize.h"
+#include "geovalues.h"
 #include "xtiffio.h"
 
 #include <array>
@@ -19,11 +23,17 @@ using namespace std;
 
 using namespace mathlib;
 
+static const char* CSVFileOverride(const char* pszInput) {
+    static char szPath[1024];
+    sprintf_s(szPath, "%s\\%s", "..\\libgeotiff-1.4.0\\csv", pszInput);
+    return szPath;
+}
+
 void HeightField::AddVertices(ID3D11Device* device,
                               PipelineStateObjectManager& pipelineStateObjectManager,
                               Texture2DManager& texture2DManager) {
     auto tif = unique_ptr<TIFF, void (*)(TIFF*)>{
-        XTIFFOpen(R"(data\cdem_dem_150508_205233.tif)", "r"), [](TIFF* tiff) { XTIFFClose(tiff); }};
+        XTIFFOpen(R"(data\cdem_dem_150528_015119.tif)", "r"), [](TIFF* tiff) { XTIFFClose(tiff); }};
     if (!tif) throw runtime_error{"Failed to load terrain elevation .tif"};
     const auto tifWidth = static_cast<int>([&tif] {
         uint32_t width = 0;
@@ -52,20 +62,55 @@ void HeightField::AddVertices(ID3D11Device* device,
         const auto stripSize = TIFFStripSize(tif.get());
         auto offset = 0;
         for (tstrip_t strip = 0; strip < stripCount; ++strip) {
-            offset += TIFFReadEncodedStrip(tif.get(), strip, &heights[offset / sizeof(heights[0])], -1);
+            offset +=
+                TIFFReadEncodedStrip(tif.get(), strip, &heights[offset / sizeof(heights[0])], -1);
         }
     }();
+
+    SetCSVFilenameHook(CSVFileOverride);
 
     auto gtif =
         unique_ptr<GTIF, void (*)(GTIF*)>{GTIFNew(tif.get()), [](GTIF* gtif) { GTIFFree(gtif); }};
     if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
-    auto print = [](char* s, void*) { OutputDebugStringA(s); return 0; };
+    auto print = [](char* s, void*) {
+        OutputDebugStringA(s);
+        return 0;
+    };
     GTIFPrint(gtif.get(), print, nullptr);
 
+    auto definition = GTIFDefn{};
+    if (!GTIFGetDefn(gtif.get(), &definition))
+        throw runtime_error{"Unable to read geotiff definition"};
+    assert(definition.Model == ModelTypeGeographic);
+    auto pixToLatLong = [&gtif](int x, int y) {
+        double longitude = x;
+        double latitude = y;
+        if (!GTIFImageToPCS(gtif.get(), &longitude, &latitude))
+            throw runtime_error{"Error converting pixel coordinates to lat/long."};
+        return Vec2f{static_cast<float>(latitude), static_cast<float>(longitude)};
+    };
+    const auto topLeft = pixToLatLong(0, 0);
+    const auto topRight = pixToLatLong(tifWidth, 0);
+    const auto bottomLeft = pixToLatLong(0, tifHeight);
+    const auto bottomRight = pixToLatLong(tifWidth, tifHeight);
+
+    const auto latLongDist = [&definition](const Vec2f& a, const Vec2f& b) {
+        const auto geodesic = [&definition] {
+            auto ret = geod_geodesic{};
+            const auto flattening =
+                (definition.SemiMajor - definition.SemiMinor) / definition.SemiMajor;
+            geod_init(&ret, definition.SemiMajor, flattening);
+            return ret;
+        }();
+        auto dist = 0.0;
+        geod_inverse(&geodesic, a.x(), a.y(), b.x(), b.y(), &dist, nullptr, nullptr);
+        return static_cast<float>(dist);
+    };
+
     const auto width = tifWidth;
-    const auto widthM = 21072.0f;
+    const auto widthM = latLongDist(topLeft, topRight);
     const auto height = tifHeight;
-    const auto heightM = 20486.0f;
+    const auto heightM = latLongDist(topLeft, bottomLeft);
     const auto scale = 1 / 10000.0f;
     [this, device, &heights, width, height] {
         CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width),
@@ -86,15 +131,15 @@ void HeightField::AddVertices(ID3D11Device* device,
         return gridHeight * scale;
     };
 
-    const auto gridStep = (widthM * scale) / width;
+    const auto gridStep = Vec2f{(widthM * scale) / width, (heightM * scale) / height};
 
     auto getNormal = [gridStep, getElevation](int x, int y) {
         auto yl = getElevation(x - 1, y);
         auto yr = getElevation(x + 1, y);
         auto yd = getElevation(x, y - 1);
         auto yu = getElevation(x, y + 1);
-        return normalize(Vec3f{2.0f * gridStep * (yl - yr), 4.0f * gridStep * gridStep,
-                               2.0f * gridStep * (yd - yu)});
+        return normalize(Vec3f{2.0f * gridStep.y() * (yl - yr), 4.0f * gridStep.x() * gridStep.y(),
+                               2.0f * gridStep.x() * (yd - yu)});
     };
 
     [this, device, width, height, getNormal] {
@@ -170,9 +215,8 @@ void HeightField::AddVertices(ID3D11Device* device,
                     Vertex v;
                     const auto localX = min(x + blockX, width);
                     const auto localY = min(y + blockY, height);
-                    v.pos = Vec2f{localX * gridStep, localY * gridStep};
-                    v.uv = Vec2f{(localX + 0.5f) * uvStepX,
-                                 (localY + 0.5f) * uvStepY};
+                    v.pos = Vec2f{localX * gridStep.x(), localY * gridStep.y()};
+                    v.uv = Vec2f{(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY};
                     vertices.push_back(v);
                 }
             }
@@ -182,7 +226,7 @@ void HeightField::AddVertices(ID3D11Device* device,
         }
     }
 
-    shapesTex = texture2DManager.get(R"(data\shapes2.dds)");
+    shapesTex = texture2DManager.get(R"(data\fullarea.dds)");
 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "terrainvs.hlsl";

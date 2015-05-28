@@ -54,7 +54,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;NOMINMAX;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVRKernel\Src;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVRKernel\Src;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;$(SolutionDir)proj-4.9.1\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -81,7 +81,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;NOMINMAX;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVRKernel\Src;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVRKernel\Src;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;$(SolutionDir)proj-4.9.1\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
