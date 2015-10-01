@@ -183,9 +183,9 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
     RenderTargetSize = vp.GetSize();
 
     [this] {
-        IDXGIFactoryPtr DXGIFactory;
+        IDXGIFactory1Ptr DXGIFactory;
         ThrowOnFailure(
-            CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&DXGIFactory)));
+            CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&DXGIFactory)));
 
         IDXGIAdapterPtr Adapter;
         ThrowOnFailure(DXGIFactory->EnumAdapters(0, &Adapter));

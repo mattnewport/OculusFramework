@@ -15,7 +15,7 @@
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
 
-_COM_SMARTPTR_TYPEDEF(IDXGIFactory, __uuidof(IDXGIFactory));
+_COM_SMARTPTR_TYPEDEF(IDXGIFactory1, __uuidof(IDXGIFactory));
 _COM_SMARTPTR_TYPEDEF(IDXGIAdapter, __uuidof(IDXGIAdapter));
 _COM_SMARTPTR_TYPEDEF(IDXGIDevice1, __uuidof(IDXGIDevice1));
 _COM_SMARTPTR_TYPEDEF(IDXGISwapChain, __uuidof(IDXGISwapChain));

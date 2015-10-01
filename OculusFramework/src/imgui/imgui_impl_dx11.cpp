@@ -4,6 +4,8 @@
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
 
+#include "..\d3dhelper.h"
+
 // DirectX
 #include <d3d11.h>
 #include <d3dcompiler.h>
@@ -236,7 +238,7 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
     // Create the vertex shader
     {
         static const char* vertexShader = 
-            "cbuffer vertexBuffer : register(c0) \
+            "cbuffer vertexBuffer : register(b0) \
             {\
             float4x4 ProjectionMatrix; \
             };\
@@ -263,10 +265,16 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
             return output;\
             }";
 
-        D3DCompile(vertexShader, strlen(vertexShader), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &g_pVertexShaderBlob, NULL);
-        if (g_pVertexShaderBlob == NULL) // NB: Pass ID3D10Blob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
+        ID3DBlobPtr errorBlob;
+        D3DCompile(vertexShader, strlen(vertexShader), NULL, NULL, NULL, "main", "vs_5_0", 0, 0,
+                   &g_pVertexShaderBlob, &errorBlob);
+        if (g_pVertexShaderBlob == NULL) {
+            OutputDebugStringA(static_cast<const char*>(errorBlob->GetBufferPointer()));
             return false;
-        if (g_pd3dDevice->CreateVertexShader((DWORD*)g_pVertexShaderBlob->GetBufferPointer(), g_pVertexShaderBlob->GetBufferSize(), NULL, &g_pVertexShader) != S_OK)
+        }
+        if (g_pd3dDevice->CreateVertexShader((DWORD*)g_pVertexShaderBlob->GetBufferPointer(),
+                                             g_pVertexShaderBlob->GetBufferSize(), NULL,
+                                             &g_pVertexShader) != S_OK)
             return false;
 
         // Create the input layout
