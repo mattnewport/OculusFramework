@@ -15,8 +15,6 @@ extern LRESULT ImGui_ImplDX11_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
 
 using namespace std;
 
-using namespace OVR;
-
 DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size)
     : Size(size) {
     D3D11_BUFFER_DESC desc{};
@@ -39,8 +37,8 @@ void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
 }
 
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
-                         Sizei size, int mipLevels, bool aa)
-    : name(name_), Size(size) {
+                         ovrSizei size, int mipLevels, bool aa)
+    : name(name_), Size{ size } {
     CD3D11_TEXTURE2D_DESC dsDesc(
         depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h, 1,
         mipLevels);
@@ -90,14 +88,14 @@ void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
 }
 
-void DirectX11::setViewport(const OVR::Recti& vp) {
+void DirectX11::setViewport(const ovrRecti& vp) {
     D3D11_VIEWPORT D3Dvp;
-    D3Dvp.Width = (float)vp.w;
-    D3Dvp.Height = (float)vp.h;
+    D3Dvp.Width = (float)vp.Size.w;
+    D3Dvp.Height = (float)vp.Size.h;
     D3Dvp.MinDepth = 0;
     D3Dvp.MaxDepth = 1;
-    D3Dvp.TopLeftX = (float)vp.x;
-    D3Dvp.TopLeftY = (float)vp.y;
+    D3Dvp.TopLeftX = (float)vp.Pos.x;
+    D3Dvp.TopLeftY = (float)vp.Pos.y;
     Context->RSSetViewports(1, &D3Dvp);
 }
 
@@ -163,7 +161,7 @@ LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProc(arg_hwnd, msg, wp, lp);
 }
 
-bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
+bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pLuid) {
     Window = [hinst, vp, this] {
         const auto className = L"OVRAppWindow";
         WNDCLASSW wc{};
@@ -172,24 +170,31 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
         RegisterClassW(&wc);
 
         const DWORD wsStyle = WS_POPUP | WS_OVERLAPPEDWINDOW;
-        RECT winSize = {0, 0, vp.w, vp.h};
+        RECT winSize = {0, 0, vp.Size.w, vp.Size.h};
         AdjustWindowRect(&winSize, wsStyle, false);
-        return CreateWindowW(className, L"OculusRoomTiny", wsStyle | WS_VISIBLE, vp.x, vp.y,
+        return CreateWindowW(className, L"OculusRoomTiny", wsStyle | WS_VISIBLE, vp.Pos.x, vp.Pos.y,
                              winSize.right - winSize.left, winSize.bottom - winSize.top, nullptr,
                              nullptr, hinst, this);
     }();
     if (!Window) return false;
 
-    RenderTargetSize = vp.GetSize();
+    RenderTargetSize = vp.Size;
 
-    [this] {
-        IDXGIFactory1Ptr DXGIFactory;
+    [this, pLuid] {
+        IDXGIFactoryPtr DXGIFactory;
         ThrowOnFailure(
-            CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&DXGIFactory)));
+            CreateDXGIFactory1(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&DXGIFactory)));
 
         IDXGIAdapterPtr Adapter;
-        ThrowOnFailure(DXGIFactory->EnumAdapters(0, &Adapter));
+        for (UINT iAdapter = 0;
+             DXGIFactory->EnumAdapters(iAdapter, &Adapter) != DXGI_ERROR_NOT_FOUND; ++iAdapter) {
+            DXGI_ADAPTER_DESC adapterDesc{};
+            Adapter->GetDesc(&adapterDesc);
+            if ((pLuid == nullptr) || memcmp(&adapterDesc.AdapterLuid, pLuid, sizeof(LUID)) == 0)
+                break;
+        }
 
+        const auto driverType = Adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
         const UINT creationFlags = [] {
 #ifdef _DEBUG
             return D3D11_CREATE_DEVICE_DEBUG;
@@ -197,23 +202,23 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
             return 0u;
 #endif
         }();
+        ThrowOnFailure(D3D11CreateDevice(Adapter, driverType, 0, creationFlags, nullptr, 0,
+                                         D3D11_SDK_VERSION, &Device, nullptr, &Context));
 
         DXGI_SWAP_CHAIN_DESC scDesc{};
         scDesc.BufferDesc.Width = RenderTargetSize.w;
         scDesc.BufferDesc.Height = RenderTargetSize.h;
-        scDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         scDesc.SampleDesc.Count = 1;
         scDesc.SampleDesc.Quality = 0;
         scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         scDesc.BufferCount = 2;
         scDesc.OutputWindow = Window;
         scDesc.Windowed = TRUE;
+        scDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
         scDesc.Flags = 0;
 
-        ThrowOnFailure(D3D11CreateDeviceAndSwapChain(
-            Adapter, Adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE, nullptr,
-            creationFlags, nullptr, 0, D3D11_SDK_VERSION, &scDesc, &SwapChain, &Device, nullptr,
-            &Context));
+        ThrowOnFailure(DXGIFactory->CreateSwapChain(Device, &scDesc, &SwapChain));
 
         SetDebugObjectName(Device, "Direct3D11::Device");
         SetDebugObjectName(Context, "Direct3D11::Context");
@@ -231,6 +236,15 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, Recti vp) {
     ThrowOnFailure(Device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
     SetDebugObjectName(BackBufferRT, "Direct3D11::BackBufferRT");
 
+    [this] {
+        IDXGIDevice1Ptr DXGIDevice1;
+        if (FAILED(Device->QueryInterface(__uuidof(IDXGIDevice1),
+                                          reinterpret_cast<void**>(&DXGIDevice1))) ||
+            !DXGIDevice1)
+            return;
+        DXGIDevice1->SetMaximumFrameLatency(1);
+    }();
+
     return true;
 }
 
@@ -238,15 +252,6 @@ bool DirectX11::IsAnyKeyPressed() const {
     for (unsigned i = 0; i < (sizeof(Key) / sizeof(Key[0])); i++)
         if (Key[i]) return true;
     return false;
-}
-
-void DirectX11::SetMaxFrameLatency(int value) {
-    IDXGIDevice1Ptr DXGIDevice1;
-    if (FAILED(Device->QueryInterface(__uuidof(IDXGIDevice1),
-                                      reinterpret_cast<void**>(&DXGIDevice1))) ||
-        !DXGIDevice1)
-        return;
-    DXGIDevice1->SetMaximumFrameLatency(value);
 }
 
 void DirectX11::HandleMessages() {

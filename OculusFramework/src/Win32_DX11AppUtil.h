@@ -27,13 +27,10 @@ limitations under the License.
 #include <unordered_map>
 #include <vector>
 
+#include <OVR_CAPI.h>
+
 #include "d3dresourcemanagers.h"
 #include "pipelinestateobjectmanager.h"
-
-#pragma warning(push)
-#pragma warning(disable : 4244 4127)
-#include "OVR_Kernel.h"
-#pragma warning(pop)
 
 struct DataBuffer {
     ID3D11BufferPtr D3DBuffer;
@@ -49,12 +46,12 @@ struct ImageBuffer {
     ID3D11ShaderResourceViewPtr TexSv;
     ID3D11RenderTargetViewPtr TexRtv;
     ID3D11DepthStencilViewPtr TexDsv;
-    OVR::Sizei Size = OVR::Sizei{};
+    ovrSizei Size = ovrSizei{};
     const char* name = nullptr;
 
     ImageBuffer() = default;
     ImageBuffer(const char* name, ID3D11Device* device, bool rendertarget, bool depth,
-                OVR::Sizei size, int mipLevels = 1, bool aa = false);
+                ovrSizei size, int mipLevels = 1, bool aa = false);
 };
 
 struct DirectX11 {
@@ -62,7 +59,7 @@ struct DirectX11 {
     bool Key[256];
     bool keyPressed[256];
     bool imguiActive = false;
-    OVR::Sizei RenderTargetSize;
+    ovrSizei RenderTargetSize;
     ID3D11DevicePtr Device;
     ID3D11DeviceContextPtr Context;
     IDXGISwapChainPtr SwapChain;
@@ -76,11 +73,10 @@ struct DirectX11 {
 
     DirectX11();
     ~DirectX11();
-    bool InitWindowAndDevice(HINSTANCE hinst, OVR::Recti vp);
+    bool InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pLuid);
     void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv);
-    void setViewport(const OVR::Recti& vp);
+    void setViewport(const ovrRecti& vp);
     bool IsAnyKeyPressed() const;
-    void SetMaxFrameLatency(int value);
     void HandleMessages();
     void OutputFrameTime(double currentTime);
     void ReleaseWindow(HINSTANCE hinst);

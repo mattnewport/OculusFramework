@@ -15,7 +15,7 @@
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
 
-_COM_SMARTPTR_TYPEDEF(IDXGIFactory1, __uuidof(IDXGIFactory));
+_COM_SMARTPTR_TYPEDEF(IDXGIFactory, __uuidof(IDXGIFactory));
 _COM_SMARTPTR_TYPEDEF(IDXGIAdapter, __uuidof(IDXGIAdapter));
 _COM_SMARTPTR_TYPEDEF(IDXGIDevice1, __uuidof(IDXGIDevice1));
 _COM_SMARTPTR_TYPEDEF(IDXGISwapChain, __uuidof(IDXGISwapChain));
@@ -44,9 +44,9 @@ void ThrowOnFailure(HRESULT hr);
 
 template <typename T>
 inline void SetDebugObjectName(_In_ const T& resource, _In_z_ const char* name, size_t nameLen) {
+#if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
     ID3D11DeviceChildPtr deviceChild;
     resource->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(&deviceChild));
-#if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
     if (deviceChild) deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, nameLen, name);
 #else
     UNREFERENCED_PARAMETER(resource);

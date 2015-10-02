@@ -28,7 +28,6 @@ limitations under the License.
 #include "Win32_DX11AppUtil.h"  // Include Non-SDK supporting utilities
 #pragma warning(push)
 #pragma warning(disable : 4244 4127)
-#include "OVR.h"  // Include the OculusVR SDK
 #define OVR_D3D_VERSION 11
 #include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
 #pragma warning(pop)
@@ -58,8 +57,6 @@ using namespace mathlib;
 using namespace libovrwrapper;
 
 using namespace std;
-
-using namespace OVR;
 
 unordered_map<string, string> parseArgs(const char* args) {
     unordered_map<string, string> argMap;
@@ -92,8 +89,8 @@ void ExampleFeatures1(const DirectX11& DX11, IHmd& hmd, const float* pSpeed,
         useHmdToEyeViewOffset[1].x = 0;  //  received from the loaded profile.
     }
 
-    OVR_UNUSED(pSpeed);
-    OVR_UNUSED(pTimesToRenderScene);
+    (void)(pSpeed);
+    (void)(pTimesToRenderScene);
 }
 
 void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
@@ -119,7 +116,7 @@ void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
     if ((DX11.Key['N']) && ((appClock % (BLANK_FREQUENCY * 2)) == (eye * BLANK_FREQUENCY)))
         *pUpdateEyeImage = false;
 
-    OVR_UNUSED3(pUseYaw, pUseEyePose, pUseBuffer);
+    (void)(pUseYaw, pUseEyePose, pUseBuffer);
 }
 
 struct ToneMapper {
@@ -138,12 +135,12 @@ struct ToneMapper {
         }();
 
         [this] {
-            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_B8G8R8A8_TYPELESS, width, height, 1, 1,
+            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height, 1, 1,
                                        D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
             SetDebugObjectName(renderTargetTex, "ToneMapper::renderTargetTex");
             CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D,
-                                                  DXGI_FORMAT_B8G8R8A8_UNORM};
+                                                  DXGI_FORMAT_R8G8B8A8_UNORM};
             ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex, &rtDesc,
                                                                     &renderTargetView));
             SetDebugObjectName(renderTargetView, "ToneMapper::renderTargetView");
@@ -242,7 +239,6 @@ void showGui(Scene& scene) {
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     auto argMap = parseArgs(args);
 
-    unique_ptr<Ovr> ovr;
     unique_ptr<IHmd> hmd;
 
     if (argMap[string{"oculus"}] == "off") {
@@ -251,15 +247,14 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     } else {
         // Initializes LibOVR, and the Rift
         // Note: this must happen before initializing D3D
-        ovr = make_unique<Ovr>();
-        hmd = make_unique<Hmd>(ovr->CreateHmd());
+        hmd = make_unique<Hmd>();
     }
 
     DirectX11 DX11{};
 
     // Setup Window and Graphics - use window frame if relying on Oculus driver
-    Recti windowRect = Recti(hmd->getWindowsPos(), hmd->getResolution());
-    if (!DX11.InitWindowAndDevice(hinst, windowRect)) return 0;
+    ovrRecti windowRect{ hmd->getWindowsPos(), hmd->getResolution() };
+    if (!DX11.InitWindowAndDevice(hinst, windowRect, hmd->getAdapterLuid())) return 0;
 
     [&hmd, &DX11] {
         const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get());
@@ -268,12 +263,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         }
     }();
 
-    ImGui_ImplDX11_Init(DX11.Window, DX11.Device, DX11.Context);
-    ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
-
-    hmd->setCap(ovrHmdCap_LowPersistence);
-    hmd->setCap(ovrHmdCap_DynamicPrediction);
-
     // Start the sensor which informs of the Rift's pose and motion
     hmd->configureTracking(ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection |
                            ovrTrackingCap_Position);
@@ -281,22 +270,25 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     // Make the eye render buffers (caution if actual size < requested due to HW limits).
     const auto idealSizeL = hmd->getFovTextureSize(ovrEyeType(ovrEye_Left));
     const auto idealSizeR = hmd->getFovTextureSize(ovrEyeType(ovrEye_Right));
-    const auto eyeBufferpadding =
-        16;  // leave a gap between the rendered areas as suggested by Oculus
+
+    // leave a gap between the rendered areas as suggested by Oculus
+    const auto eyeBufferpadding = 16; 
     auto eyeBufferSize =
-        OVR::Sizei{idealSizeL.w + idealSizeR.w + eyeBufferpadding, max(idealSizeL.h, idealSizeR.h)};
+        ovrSizei{idealSizeL.w + idealSizeR.w + eyeBufferpadding, max(idealSizeL.h, idealSizeR.h)};
+
+    // Setup VR swap texture set
+    OculusTexture* eyeResolveTexture = hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device);
+
+    // Setup individual eye render targets
     auto EyeRenderTexture =
         ImageBuffer{"EyeRenderTexture", DX11.Device, true, false, eyeBufferSize, 1, true};
     auto EyeDepthBuffer =
         ImageBuffer{"EyeDepthBuffer", DX11.Device, true, true, eyeBufferSize, 1, true};
     ovrRecti EyeRenderViewport[2];  // Useful to remember when varying resolution
-    EyeRenderViewport[ovrEye_Left].Pos = Vector2i{0, 0};
+    EyeRenderViewport[ovrEye_Left].Pos = ovrVector2i{0, 0};
     EyeRenderViewport[ovrEye_Left].Size = idealSizeL;
-    EyeRenderViewport[ovrEye_Right].Pos = Vector2i{idealSizeL.w + eyeBufferpadding, 0};
+    EyeRenderViewport[ovrEye_Right].Pos = ovrVector2i{idealSizeL.w + eyeBufferpadding, 0};
     EyeRenderViewport[ovrEye_Right].Size = idealSizeR;
-
-    // Setup VR components
-    OculusTexture* eyeResolveTexture = hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device);
 
     // ToneMapper
     ToneMapper toneMapper{DX11, eyeBufferSize.w, eyeBufferSize.h};
@@ -305,13 +297,16 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     // Create a mirror texture to see on the monitor.
     D3D11_TEXTURE2D_DESC td = {};
     td.ArraySize = 1;
-    td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    td.Width = windowRect.w;
-    td.Height = windowRect.h;
+    td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    td.Width = windowRect.Size.w;
+    td.Height = windowRect.Size.h;
     td.Usage = D3D11_USAGE_DEFAULT;
     td.SampleDesc.Count = 1;
     td.MipLevels = 1;
     ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(DX11.Device, td);
+
+    ImGui_ImplDX11_Init(DX11.Window, DX11.Device, DX11.Context);
+    ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
 
     // Create a render target for IMGUI
     ID3D11Texture2DPtr imguiRenderTargetTex;
@@ -328,7 +323,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         td.Height = imguiRTVHeight;
         td.MipLevels = 1;
         td.ArraySize = 1;
-        td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         td.SampleDesc.Count = 1;
         td.SampleDesc.Quality = 0;
         td.Usage = D3D11_USAGE_DEFAULT;
@@ -454,11 +449,11 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                           rollPitchYaw;
 
                 Mat4f view = Mat4fLookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
-                Matrix4f projTemp =
+                ovrMatrix4f projTemp =
                     ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
-                projTemp.Transpose();
-                Mat4f proj;
-                memcpy(&proj, &projTemp, sizeof(proj));
+                Mat4f projT;
+                memcpy(&projT, &projTemp, sizeof(projT));
+                Mat4f proj{projT.column(0), projT.column(1), projT.column(2), projT.column(3)};
 
                 // Render the scene
                 for (int t = 0; t < timesToRenderScene; t++)
@@ -545,7 +540,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     hmd->destroyMirrorTextureD3D11(mirrorTexture);
     hmd->destroySwapTextureSetD3D11(eyeResolveTexture);
     hmd.reset();
-    ovr.reset();
 
     DX11.ReleaseWindow(hinst);
 

@@ -18,7 +18,7 @@ struct Texture {
     std::string name;
 
     Texture(const char* name, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
-            OVR::Sizei size, int mipLevels = 1, unsigned char* data = NULL);
+            ovrSizei size, int mipLevels = 1, unsigned char* data = NULL);
 };
 
 struct ShaderFill {

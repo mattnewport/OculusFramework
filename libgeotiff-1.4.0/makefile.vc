@@ -35,7 +35,7 @@ LIBS    = geotiff.lib $(TIFF_LIB) $(PROJ_LIB)
 DLLNAME = geotiff.dll
 
 # Set optimization or debug flags here.
-CFLAGS  = $(INCL) /MD /Ox /nologo
+CFLAGS  = $(INCL) /MT /Ox /nologo
 #CFLAGS  = $(INCL) /MD /Zi /nologo
 
 #

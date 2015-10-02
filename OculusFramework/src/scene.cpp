@@ -15,8 +15,6 @@
 
 using namespace std;
 
-using namespace OVR;
-
 using namespace mathlib;
 
 void Model::AllocateBuffers(ID3D11Device* device) {
@@ -33,19 +31,19 @@ void Model::AllocateBuffers(ID3D11Device* device) {
 }
 
 void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c) {
-    Vector3f Vert[][2] = {
-        Vector3f(x1, y2, z1), Vector3f(z1, x1), Vector3f(x2, y2, z1), Vector3f(z1, x2),
-        Vector3f(x2, y2, z2), Vector3f(z2, x2), Vector3f(x1, y2, z2), Vector3f(z2, x1),
-        Vector3f(x1, y1, z1), Vector3f(z1, x1), Vector3f(x2, y1, z1), Vector3f(z1, x2),
-        Vector3f(x2, y1, z2), Vector3f(z2, x2), Vector3f(x1, y1, z2), Vector3f(z2, x1),
-        Vector3f(x1, y1, z2), Vector3f(z2, y1), Vector3f(x1, y1, z1), Vector3f(z1, y1),
-        Vector3f(x1, y2, z1), Vector3f(z1, y2), Vector3f(x1, y2, z2), Vector3f(z2, y2),
-        Vector3f(x2, y1, z2), Vector3f(z2, y1), Vector3f(x2, y1, z1), Vector3f(z1, y1),
-        Vector3f(x2, y2, z1), Vector3f(z1, y2), Vector3f(x2, y2, z2), Vector3f(z2, y2),
-        Vector3f(x1, y1, z1), Vector3f(x1, y1), Vector3f(x2, y1, z1), Vector3f(x2, y1),
-        Vector3f(x2, y2, z1), Vector3f(x2, y2), Vector3f(x1, y2, z1), Vector3f(x1, y2),
-        Vector3f(x1, y1, z2), Vector3f(x1, y1), Vector3f(x2, y1, z2), Vector3f(x2, y1),
-        Vector3f(x2, y2, z2), Vector3f(x2, y2), Vector3f(x1, y2, z2), Vector3f(x1, y2),
+    mathlib::Vec3f Vert[][2] = {
+        mathlib::Vec3f{x1, y2, z1}, mathlib::Vec3f{z1, x1, 0.0f}, mathlib::Vec3f{x2, y2, z1}, mathlib::Vec3f{z1, x2, 0.0f},
+        mathlib::Vec3f{x2, y2, z2}, mathlib::Vec3f{z2, x2, 0.0f}, mathlib::Vec3f{x1, y2, z2}, mathlib::Vec3f{z2, x1, 0.0f},
+        mathlib::Vec3f{x1, y1, z1}, mathlib::Vec3f{z1, x1, 0.0f}, mathlib::Vec3f{x2, y1, z1}, mathlib::Vec3f{z1, x2, 0.0f},
+        mathlib::Vec3f{x2, y1, z2}, mathlib::Vec3f{z2, x2, 0.0f}, mathlib::Vec3f{x1, y1, z2}, mathlib::Vec3f{z2, x1, 0.0f},
+        mathlib::Vec3f{x1, y1, z2}, mathlib::Vec3f{z2, y1, 0.0f}, mathlib::Vec3f{x1, y1, z1}, mathlib::Vec3f{z1, y1, 0.0f},
+        mathlib::Vec3f{x1, y2, z1}, mathlib::Vec3f{z1, y2, 0.0f}, mathlib::Vec3f{x1, y2, z2}, mathlib::Vec3f{z2, y2, 0.0f},
+        mathlib::Vec3f{x2, y1, z2}, mathlib::Vec3f{z2, y1, 0.0f}, mathlib::Vec3f{x2, y1, z1}, mathlib::Vec3f{z1, y1, 0.0f},
+        mathlib::Vec3f{x2, y2, z1}, mathlib::Vec3f{z1, y2, 0.0f}, mathlib::Vec3f{x2, y2, z2}, mathlib::Vec3f{z2, y2, 0.0f},
+        mathlib::Vec3f{x1, y1, z1}, mathlib::Vec3f{x1, y1, 0.0f}, mathlib::Vec3f{x2, y1, z1}, mathlib::Vec3f{x2, y1, 0.0f},
+        mathlib::Vec3f{x2, y2, z1}, mathlib::Vec3f{x2, y2, 0.0f}, mathlib::Vec3f{x1, y2, z1}, mathlib::Vec3f{x1, y2, 0.0f},
+        mathlib::Vec3f{x1, y1, z2}, mathlib::Vec3f{x1, y1, 0.0f}, mathlib::Vec3f{x2, y1, z2}, mathlib::Vec3f{x2, y1, 0.0f},
+        mathlib::Vec3f{x2, y2, z2}, mathlib::Vec3f{x2, y2, 0.0f}, mathlib::Vec3f{x1, y2, z2}, mathlib::Vec3f{x1, y2, 0.0f},
     };
 
     uint32_t CubeIndices[] = {0,  1,  3,  3,  1,  2,  5,  4,  6,  6,  4,  7,
@@ -56,8 +54,8 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 
     for (int v = 0; v < 24; v++) {
         Vertex vvv;
-        vvv.pos = mathlib::Vec3f{Vert[v][0].x, Vert[v][0].y, Vert[v][0].z};
-        vvv.uv = mathlib::Vec2f{Vert[v][1].x, Vert[v][1].y};
+        vvv.pos = mathlib::Vec3f{Vert[v][0]};
+        vvv.uv = mathlib::Vec2f{Vert[v][1].x(), Vert[v][1].y()};
         float dist1 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-2.0f, 4.0f, -2.0f});
         float dist2 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{3.0f, 4.0f, -3.0f});
         float dist3 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-4.0f, 3.0f, 25.0f});
@@ -73,7 +71,7 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 }
 
 Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
-                 Sizei size, int mipLevels, unsigned char* data)
+                 ovrSizei size, int mipLevels, unsigned char* data)
     : name(name_) {
     CD3D11_TEXTURE2D_DESC dsDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h, 1, mipLevels);
 
@@ -154,7 +152,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
                         Model::Color(128, 128, 128, 255);  // blank
             }
         std::unique_ptr<Texture> t = std::make_unique<Texture>(
-            "generated_texture", device, deviceContext, Sizei(texWidthHeight, texWidthHeight), 8,
+            "generated_texture", device, deviceContext, ovrSizei{ texWidthHeight, texWidthHeight }, 8,
             (unsigned char*)tex_pixels[k]);
         generated_texture[k] = std::make_unique<ShaderFill>(std::move(t));
     }

@@ -47,8 +47,6 @@ bool DummyHmd::testCap(ovrHmdCaps cap) const { return false; }
 
 void DummyHmd::setCap(ovrHmdCaps cap) {}
 
-bool DummyHmd::getCap(ovrHmdCaps cap) const { return false; }
-
 void DummyHmd::configureTracking(unsigned int supportedTrackingCaps,
                                  unsigned int requiredTrackingCaps) {}
 
@@ -115,7 +113,7 @@ void DummyHmd::setDirectX11(DirectX11& directX11_) {
     }
 }
 
-OculusTexture* DummyHmd::createSwapTextureSetD3D11(OVR::Sizei size, ID3D11Device* device) {
+OculusTexture* DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) {
     return new OculusTexture{nullptr, size, device};
 }
 
@@ -155,27 +153,6 @@ void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
 
 IHmd::~IHmd() {}
 
-Ovr::Ovr() {
-    if (!OVR_SUCCESS(ovr_Initialize(nullptr))) throwOvrError("ovr_Initialize() returned false!");
-}
-
-Ovr::~Ovr() { ovr_Shutdown(); }
-
-Hmd Ovr::CreateHmd(int index) {
-    ovrHmd hmd{};
-    if (!OVR_SUCCESS(ovrHmd_Create(index, &hmd))) {
-        MessageBoxA(NULL, "Oculus Rift not detected.\nAttempting to create debug HMD.", "", MB_OK);
-
-        // If we didn't detect an Hmd, create a simulated one for debugging.
-        if (!OVR_SUCCESS(ovrHmd_CreateDebug(ovrHmd_DK2, &hmd)))
-            throwOvrError("Failed to create HMD!");
-    }
-
-    if (hmd->ProductName[0] == '\0')
-        MessageBoxA(NULL, "Rift detected, display not enabled.", "", MB_OK);
-    return Hmd{hmd};
-}
-
 void throwOvrError(const char* msg, ovrHmd hmd) {
     ovrErrorInfo errorInfo{};
     ovr_GetLastErrorInfo(&errorInfo);
@@ -183,6 +160,18 @@ void throwOvrError(const char* msg, ovrHmd hmd) {
     OutputDebugStringA(errorInfo.ErrorString);
 #endif
     throw std::runtime_error(std::string{msg} + errorInfo.ErrorString);
+}
+
+Hmd::~Hmd() {
+    if (hmd_) ovr_Destroy(hmd_);
+}
+
+Hmd::Hmd() {
+    if (!OVR_SUCCESS(ovr_Initialize(nullptr))) throwOvrError("ovr_Initialize() returned false!");
+    if (!OVR_SUCCESS(ovr_Create(&hmd_, &luid_))) {
+        MessageBoxA(NULL, "Oculus Rift not detected.\n", "", MB_OK);
+        throwOvrError("Failed to create HMD!");
+    }
 }
 
 }  // namespace libovrwrapper
