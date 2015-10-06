@@ -221,8 +221,8 @@ void HeightField::AddVertices(ID3D11Device* device,
     PipelineStateObjectDesc desc;
     desc.vertexShader = "terrainvs.hlsl";
     desc.pixelShader = "terrainps.hlsl";
-    desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION"),
-                              MAKE_INPUT_ELEMENT_DESC(Vertex, uv, "TEXCOORD")};
+    desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, position),
+                              MAKE_INPUT_ELEMENT_DESC(Vertex, texcoord)};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
     [this, device] {
@@ -246,23 +246,19 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         dx11.Context->Unmap(objectConstantBuffer, 0);
     }();
 
-    ID3D11Buffer* vsConstantBuffers[] = {objectConstantBuffer};
-    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers),
-                                  vsConstantBuffers);
+    VSSetConstantBuffers(context, objectConstantBufferOffset,
+                         {objectConstantBuffer.GetInterfacePtr()});
 
-    ID3D11ShaderResourceView* vsSrvs[] = {heightsSRV};
-    context->VSSetShaderResources(0, size(vsSrvs), vsSrvs);
+    VSSetShaderResources(context, 0, {heightsSRV.GetInterfacePtr()});
 
     context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-    ID3D11ShaderResourceView* srvs[] = {shapesTex.get(), normalsSRV};
-    context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
+    PSSetShaderResources(context, materialSRVOffset,
+                         {shapesTex.get(), normalsSRV.GetInterfacePtr()});
 
     for (const auto& vertexBuffer : VertexBuffers) {
-        ID3D11Buffer* vertexBuffers[] = {vertexBuffer->D3DBuffer};
-        const UINT strides[] = {sizeof(Vertex)};
-        const UINT offsets[] = {0};
-        context->IASetVertexBuffers(0, size(vertexBuffers), vertexBuffers, strides, offsets);
+        IASetVertexBuffers(context, 0, {vertexBuffer->D3DBuffer.GetInterfacePtr()},
+                           {UINT(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
     }
 }

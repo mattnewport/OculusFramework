@@ -469,10 +469,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
             // IMGUI update/rendering
             if (DX11.imguiActive) {
-                ID3D11RenderTargetView* rtvs[] = {imguiRTV};
                 float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
                 DX11.Context->ClearRenderTargetView(imguiRTV, clearColor);
-                DX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
+                OMSetRenderTargets(DX11.Context, {imguiRTV.GetInterfacePtr()});
                 DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
                 ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
                     static_cast<float>(imguiRTVHeight)};
@@ -484,11 +483,12 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 showGui(roomScene);
                 //ImGui::ShowTestWindow();
                 ImGui::Render();
-                ID3D11SamplerState* samplers[] = {roomScene.linearSampler, roomScene.standardTextureSampler};
-                DX11.Context->PSSetSamplers(0, size(samplers), samplers);
-                imguiQuadRenderer.render(toneMapper.renderTargetView, {imguiRenderTargetSRV, nullptr},
-                    0, 0, imguiRTVWidth,
-                    imguiRTVHeight);
+                PSSetSamplers(DX11.Context, 0,
+                              {roomScene.linearSampler.GetInterfacePtr(),
+                               roomScene.standardTextureSampler.GetInterfacePtr()});
+                imguiQuadRenderer.render(toneMapper.renderTargetView,
+                                         {imguiRenderTargetSRV, nullptr}, 0, 0, imguiRTVWidth,
+                                         imguiRTVHeight);
                 imguiQuadRenderer.render(toneMapper.renderTargetView, {imguiRenderTargetSRV, nullptr},
                     EyeRenderViewport[ovrEye_Right].Pos.x,
                     EyeRenderViewport[ovrEye_Right].Pos.y,

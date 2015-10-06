@@ -299,12 +299,8 @@ void Scene::showGui() {
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
                    DataBuffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer) {
-    UINT offset = 0;
-    ID3D11Buffer* vertexBuffers[] = {vertices->D3DBuffer};
-    context->IASetVertexBuffers(0, size(vertexBuffers), vertexBuffers, &stride, &offset);
-
-    ID3D11Buffer* vsConstantBuffers[] = {&objectConstantBuffer};
-    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
+    IASetVertexBuffers(context, 0, {vertices->D3DBuffer.GetInterfacePtr()}, {stride});
+    VSSetConstantBuffers(context, objectConstantBufferOffset, {&objectConstantBuffer});
 
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
@@ -312,11 +308,10 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     if (fill && fill->OneTexture) {
-        ID3D11ShaderResourceView* srvs[] = {fill->OneTexture->TexSv};
-        context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
+        PSSetShaderResources(context, materialSRVOffset,
+                             {fill->OneTexture->TexSv.GetInterfacePtr()});
     } else {
-        ID3D11ShaderResourceView* srvs[] = {nullptr};
-        context->PSSetShaderResources(materialSRVOffset, size(srvs), srvs);
+        PSSetShaderResources(context, materialSRVOffset, {nullptr});
     }
     context->DrawIndexed(count, 0, 0);
 }
@@ -325,8 +320,8 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
                    const mathlib::Mat4f& proj) {
     dx11.applyState(*dx11.Context, *pipelineStateObject.get());
 
-    ID3D11SamplerState* samplers[] = {linearSampler, standardTextureSampler};
-    dx11.Context->PSSetSamplers(0, size(samplers), samplers);
+    PSSetSamplers(dx11.Context, 0,
+                  {linearSampler.GetInterfacePtr(), standardTextureSampler.GetInterfacePtr()});
 
     Camera camera;
     camera.proj = proj;
@@ -347,14 +342,12 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         dx11.Context->Unmap(lightingConstantBuffer, 0);
     }();
 
-    ID3D11Buffer* vsConstantBuffers[] = {cameraConstantBuffer};
-    dx11.Context->VSSetConstantBuffers(0, size(vsConstantBuffers), vsConstantBuffers);
+    VSSetConstantBuffers(dx11.Context, 0, {cameraConstantBuffer.GetInterfacePtr()});
 
-    ID3D11Buffer* psConstantBuffers[] = {lightingConstantBuffer};
-    dx11.Context->PSSetConstantBuffers(2, size(psConstantBuffers), psConstantBuffers);
+    PSSetConstantBuffers(dx11.Context, 2, {lightingConstantBuffer.GetInterfacePtr()});
 
-    ID3D11ShaderResourceView* srvs[] = {pmremEnvMapSRV, irradEnvMapSRV};
-    dx11.Context->PSSetShaderResources(0, size(srvs), srvs);
+    PSSetShaderResources(dx11.Context, 0,
+                         {pmremEnvMapSRV.GetInterfacePtr(), irradEnvMapSRV.GetInterfacePtr()});
 
     for (auto& model : Models) {
         Object object;

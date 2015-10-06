@@ -145,15 +145,12 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         dx11.Context->Unmap(objectConstantBuffer, 0);
     }();
 
-    ID3D11Buffer* vsConstantBuffers[] = {objectConstantBuffer};
-    context->VSSetConstantBuffers(objectConstantBufferOffset, size(vsConstantBuffers), vsConstantBuffers);
+    VSSetConstantBuffers(context, objectConstantBufferOffset,
+                         {objectConstantBuffer.GetInterfacePtr()});
 
     context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
 
-    ID3D11Buffer* vertexBuffers[] = {vb};
-    const UINT strides[] = {sizeof(Vertex)};
-    const UINT offsets[] = {0};
-    context->IASetVertexBuffers(0, 1, vertexBuffers, strides, offsets);
+    IASetVertexBuffers(context, 0, {vb.GetInterfacePtr()}, {UINT(sizeof(Vertex))});
 
     context->DrawIndexed(indexCount, 0, 0);
 }

@@ -83,20 +83,14 @@ DirectX11::~DirectX11() {
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
                                         ID3D11DepthStencilView* dsv) {
     float black[] = {0, 0, 0, 1};
-    Context->OMSetRenderTargets(1, &rendertarget, dsv);
+    OMSetRenderTargets(Context, {rendertarget}, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
 }
 
 void DirectX11::setViewport(const ovrRecti& vp) {
-    D3D11_VIEWPORT D3Dvp;
-    D3Dvp.Width = (float)vp.Size.w;
-    D3Dvp.Height = (float)vp.Size.h;
-    D3Dvp.MinDepth = 0;
-    D3Dvp.MaxDepth = 1;
-    D3Dvp.TopLeftX = (float)vp.Pos.x;
-    D3Dvp.TopLeftY = (float)vp.Pos.y;
-    Context->RSSetViewports(1, &D3Dvp);
+    RSSetViewports(Context, {{float(vp.Pos.x), float(vp.Pos.y), float(vp.Size.w), float(vp.Size.h),
+                              0.0f, 1.0f}});
 }
 
 LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -285,18 +279,10 @@ void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& ps
 
 void QuadRenderer::render(ID3D11RenderTargetView & rtv, std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y, int width, int height) {
     directX11.applyState(*directX11.Context, *pipelineStateObject.get());
-    ID3D11RenderTargetView* rtvs[] = {&rtv};
-    directX11.Context->OMSetRenderTargets(1, rtvs, nullptr);
-    D3D11_VIEWPORT vp;
-    vp.TopLeftX = static_cast<float>(x);
-    vp.TopLeftY = static_cast<float>(y);
-    vp.Width = static_cast<float>(width);
-    vp.Height = static_cast<float>(height);
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    directX11.Context->RSSetViewports(1, &vp);
-    directX11.Context->PSSetShaderResources(0, sourceTexSRVs.size(), sourceTexSRVs.begin());
+    OMSetRenderTargets(directX11.Context, {&rtv});
+    RSSetViewports(directX11.Context,
+                   {{float(x), float(y), float(width), float(height), 0.0f, 1.0f}});
+    PSSetShaderResources(directX11.Context, 0, sourceTexSRVs);
     directX11.Context->Draw(3, 0);
-    ID3D11ShaderResourceView* clearSrvs[] = {nullptr, nullptr};
-    directX11.Context->PSSetShaderResources(0, 1, clearSrvs);
+    PSSetShaderResources(directX11.Context, 0, {nullptr, nullptr});
 }

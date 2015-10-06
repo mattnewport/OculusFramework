@@ -4,10 +4,9 @@
 #include "vector.h"
 
 #include <cstddef>
-#include <cstring>
-#include <stdexcept>
+#include <initializer_list>
+#include <iterator>
 #include <utility>
-#include <vector>
 
 #include <comdef.h>
 #include <comip.h>
@@ -88,10 +87,11 @@ inline DXGI_FORMAT getDXGIFormat<mathlib::Vec3f>() {
 // Helpers to build input layouts
 
 inline auto makeInputElementDescHelper(
-    DXGI_FORMAT dxgiFormat, unsigned alignedByteOffset, const char* semanticName,
-    unsigned semanticIndex = 0, unsigned inputSlot = 0,
+    DXGI_FORMAT dxgiFormat, unsigned alignedByteOffset, const char* memberName,
+    const char* semanticName = nullptr, unsigned semanticIndex = 0, unsigned inputSlot = 0,
     D3D11_INPUT_CLASSIFICATION inputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
     unsigned instanceDataStepRate = 0) {
+    semanticName = semanticName ? semanticName : memberName;
     return D3D11_INPUT_ELEMENT_DESC{semanticName,        semanticIndex,     dxgiFormat,
                                     inputSlot,           alignedByteOffset, inputSlotClass,
                                     instanceDataStepRate};
@@ -99,7 +99,7 @@ inline auto makeInputElementDescHelper(
 
 #define MAKE_INPUT_ELEMENT_DESC(type, member, ...)                                              \
     makeInputElementDescHelper(getDXGIFormat<decltype(type::member)>(), offsetof(type, member), \
-                               __VA_ARGS__)
+                               #member, __VA_ARGS__)
 
 // Helper operators
 
@@ -147,6 +147,62 @@ struct hash<CD3D11_DEPTH_STENCIL_DESC> {
     }
 };
 
+}
+
+// Helpers for calling ID3D11DeviceContext Set functions with containers (auto deduce size)
+template <typename Buffers = std::initializer_list<ID3D11Buffer*>,
+          typename Strides = std::initializer_list<UINT>,
+          typename Offsets = std::initializer_list<UINT>>
+void IASetVertexBuffers(ID3D11DeviceContext* context, unsigned startSlot, const Buffers& buffers,
+                        const Strides& strides, const Offsets& offsets) {
+    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::begin(buffers),
+                                std::begin(strides), std::begin(offsets));
+};
+
+template <typename Buffers = std::initializer_list<ID3D11Buffer*>,
+          typename Strides = std::initializer_list<UINT>>
+void IASetVertexBuffers(ID3D11DeviceContext* context, unsigned startSlot, const Buffers& buffers,
+                        const Strides& strides) {
+    UINT offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT] = {};
+    IASetVertexBuffers(context, startSlot, buffers, strides, offsets);
+};
+
+template <typename Buffers = std::initializer_list<ID3D11Buffer*>>
+void PSSetConstantBuffers(ID3D11DeviceContext* context, unsigned startSlot,
+    const Buffers& buffers) {
+    context->PSSetConstantBuffers(startSlot, std::size(buffers), std::begin(buffers));
+}
+
+template <typename Buffers = std::initializer_list<ID3D11Buffer*>>
+void VSSetConstantBuffers(ID3D11DeviceContext* context, unsigned startSlot,
+                          const Buffers& buffers) {
+    context->VSSetConstantBuffers(startSlot, std::size(buffers), std::begin(buffers));
+}
+
+template <typename Srvs = std::initializer_list<ID3D11ShaderResourceView*>>
+void PSSetShaderResources(ID3D11DeviceContext* context, unsigned startSlot, const Srvs& srvs) {
+    context->PSSetShaderResources(UINT(startSlot), std::size(srvs), std::begin(srvs));
+}
+
+template <typename Srvs = std::initializer_list<ID3D11ShaderResourceView*>>
+void VSSetShaderResources(ID3D11DeviceContext* context, unsigned startSlot, const Srvs& srvs) {
+    context->VSSetShaderResources(UINT(startSlot), std::size(srvs), std::begin(srvs));
+}
+
+template<typename Samplers = std::initializer_list<ID3D11SamplerState*>>
+void PSSetSamplers(ID3D11DeviceContext* context, unsigned startSlot, const Samplers& samplers) {
+    context->PSSetSamplers(UINT(startSlot), std::size(samplers), std::begin(samplers));
+}
+
+template <typename Rtvs = std::initializer_list<ID3D11RenderTargetView*>>
+void OMSetRenderTargets(ID3D11DeviceContext* context, const Rtvs& rtvs,
+                        ID3D11DepthStencilView* dsv = nullptr) {
+    context->OMSetRenderTargets(std::size(rtvs), std::begin(rtvs), dsv);
+}
+
+template<typename Vps = std::initializer_list<D3D11_VIEWPORT>>
+void RSSetViewports(ID3D11DeviceContext* context, const Vps& vps) {
+    context->RSSetViewports(std::size(vps), std::begin(vps));
 }
 
 // Misc helpers

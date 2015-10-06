@@ -15,8 +15,8 @@ struct HeightField {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        mathlib::Vec2f pos;
-        mathlib::Vec2f uv;
+        mathlib::Vec2f position;
+        mathlib::Vec2f texcoord;
     };
 
     mathlib::Vec3f Pos;
