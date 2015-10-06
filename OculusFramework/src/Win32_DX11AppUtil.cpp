@@ -238,9 +238,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pL
 
     [this] {
         IDXGIDevice1Ptr DXGIDevice1;
-        if (FAILED(Device->QueryInterface(__uuidof(IDXGIDevice1),
-                                          reinterpret_cast<void**>(&DXGIDevice1))) ||
-            !DXGIDevice1)
+        if (FAILED(Device.QueryInterface(DXGIDevice1.GetIID(), &DXGIDevice1)) || !DXGIDevice1)
             return;
         DXGIDevice1->SetMaximumFrameLatency(1);
     }();

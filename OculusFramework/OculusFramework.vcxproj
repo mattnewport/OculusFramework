@@ -61,6 +61,7 @@
       <PrecompiledHeaderFile>auto_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>auto_pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

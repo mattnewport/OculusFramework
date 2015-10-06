@@ -6,6 +6,7 @@
 
 #include "imgui/imgui.h"
 
+#include "mathfuncs.h"
 #include "vector.h"
 
 #include "cpl_serv.h"
@@ -69,6 +70,14 @@ void HeightField::AddVertices(ID3D11Device* device,
         }
     }();
 
+    [this, device, &heights, tifWidth, tifHeight] {
+        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(tifWidth),
+                                   static_cast<UINT>(tifHeight), 1u, 1u};
+        D3D11_SUBRESOURCE_DATA data{heights.data(), tifWidth * sizeof(heights[0]), 0};
+        ThrowOnFailure(device->CreateTexture2D(&desc, &data, &heightsTex));
+        ThrowOnFailure(device->CreateShaderResourceView(heightsTex, nullptr, &heightsSRV));
+    }();
+
     SetCSVFilenameHook(CSVFileOverride);
 
     auto gtif =
@@ -94,7 +103,6 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto topLeft = pixToLatLong(0, 0);
     const auto topRight = pixToLatLong(tifWidth, 0);
     const auto bottomLeft = pixToLatLong(0, tifHeight);
-    const auto bottomRight = pixToLatLong(tifWidth, tifHeight);
 
     const auto latLongDist = [&definition](const Vec2f& a, const Vec2f& b) {
         const auto geodesic = [&definition] {
@@ -113,44 +121,28 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto widthM = latLongDist(topLeft, topRight);
     const auto height = tifHeight;
     const auto heightM = latLongDist(topLeft, bottomLeft);
-    [this, device, &heights, width, height] {
-        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(width),
-                                   static_cast<UINT>(height), 1u, 1u};
-        D3D11_SUBRESOURCE_DATA data{heights.data(), width * sizeof(heights[0]), 0};
-        ThrowOnFailure(device->CreateTexture2D(&desc, &data, &heightsTex));
-        ThrowOnFailure(device->CreateShaderResourceView(heightsTex, nullptr, &heightsSRV));
-    }();
+    const auto gridStepX = widthM / width;
+    const auto gridStepY = heightM / height;
 
-    auto getHeight = [&heights, width, height](int x, int y) {
-        x = min(max(0, x), width - 1);
-        y = min(max(0, y), height - 1);
-        return heights[y * width + x];
-    };
+    [this, device, width, height, &heights, gridStepX, gridStepY] {
+        auto getHeight = [heights = heights.data(), width, height](int x, int y) {
+            x = clamp(x, 0, width - 1);
+            y = clamp(y, 0, height - 1);
+            return heights[y * width + x];
+        };
 
-    auto getElevation = [getHeight, width, height](int x, int y) {
-        const auto gridHeight = getHeight(x, y);
-        return gridHeight;
-    };
-
-    const auto gridStep = Vec2f{widthM / width, heightM / height};
-
-    auto getNormal = [gridStep, getElevation](int x, int y) {
-        auto yl = getElevation(x - 1, y);
-        auto yr = getElevation(x + 1, y);
-        auto yd = getElevation(x, y - 1);
-        auto yu = getElevation(x, y + 1);
-        return normalize(Vec3f{2.0f * gridStep.y() * (yl - yr), 4.0f * gridStep.x() * gridStep.y(),
-                               2.0f * gridStep.x() * (yd - yu)});
-    };
-
-    [this, device, width, height, getNormal] {
-        vector<Vec2f> normals;
-        normals.reserve(width * height);
+        vector<Vec2f> normals(width * height);
         for (auto y = 0; y < height; ++y) {
             for (auto x = 0; x < width; ++x) {
-                auto normal = getNormal(x, y);
+                const auto yl = getHeight(x - 1, y);
+                const auto yr = getHeight(x + 1, y);
+                const auto yd = getHeight(x, y - 1);
+                const auto yu = getHeight(x, y + 1);
+                const auto normal = normalize(Vec3f{2.0f * gridStepY * (yl - yr),
+                                                    4.0f * gridStepX * gridStepY,
+                                                    2.0f * gridStepX * (yd - yu)});
                 assert(normal.y() > 0.0f);
-                normals.emplace_back(normal.x(), normal.z());
+                normals[y * width + x] = {normal.x(), normal.z()};
             }
         }
         CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width),
@@ -194,31 +186,28 @@ void HeightField::AddVertices(ID3D11Device* device,
     for (auto d = 0; d < quadCount; ++d) {
         int x, y;
         d2xy(blockSize, d, &x, &y);
-        const auto baseIdx = static_cast<uint16_t>(y * (blockSize + 1) + x);
-        Indices.push_back(baseIdx);
-        Indices.push_back(baseIdx + 1);
-        Indices.push_back(baseIdx + (blockSize + 1));
-        Indices.push_back(baseIdx + 1);
-        Indices.push_back(baseIdx + (blockSize + 1) + 1);
-        Indices.push_back(baseIdx + (blockSize + 1));
+        const auto tl = uint16_t(y * (blockSize + 1) + x);
+        const auto tr = uint16_t(tl + 1);
+        const auto bl = uint16_t(tl + (blockSize + 1));
+        const auto br = uint16_t(tr + (blockSize + 1));
+        Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
     }
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
                                                Indices.size() * sizeof(Indices[0]));
 
     const auto uvStepX = 1.0f / width;
     const auto uvStepY = 1.0f / height;
+    auto vertices = vector<Vertex>(square(blockSize + 1));
     for (auto y = 0; y < height; y += blockSize) {
         for (auto x = 0; x < width; x += blockSize) {
-            auto vertices = vector<Vertex>{};
-            vertices.reserve((blockSize + 1) * (blockSize + 1));
+            auto destVertex = 0;
             for (auto blockY = 0; blockY <= blockSize; ++blockY) {
                 for (auto blockX = 0; blockX <= blockSize; ++blockX) {
-                    Vertex v;
                     const auto localX = min(x + blockX, width);
                     const auto localY = min(y + blockY, height);
-                    v.pos = Vec2f{localX * gridStep.x(), localY * gridStep.y()};
-                    v.uv = Vec2f{(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY};
-                    vertices.push_back(v);
+                    vertices[destVertex++] = {
+                        {localX * gridStepX, localY * gridStepY},
+                        {(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY}};
                 }
             }
             VertexBuffers.push_back(
