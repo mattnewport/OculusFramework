@@ -26,19 +26,19 @@ DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* bu
     sr.pSysMem = buffer;
     sr.SysMemPitch = sr.SysMemSlicePitch = 0;
     ThrowOnFailure(device->CreateBuffer(&desc, buffer ? &sr : nullptr, &D3DBuffer));
-    SetDebugObjectName(D3DBuffer, "DataBuffer::D3DBuffer");
+    SetDebugObjectName(D3DBuffer.Get(), "DataBuffer::D3DBuffer");
 }
 
 void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size) {
     D3D11_MAPPED_SUBRESOURCE map;
-    deviceContext->Map(D3DBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+    deviceContext->Map(D3DBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
     memcpy((void*)map.pData, buffer, size);
-    deviceContext->Unmap(D3DBuffer, 0);
+    deviceContext->Unmap(D3DBuffer.Get(), 0);
 }
 
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
                          ovrSizei size, int mipLevels, bool aa)
-    : name(name_), Size{ size } {
+    : name(name_), Size{size} {
     CD3D11_TEXTURE2D_DESC dsDesc(
         depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h, 1,
         mipLevels);
@@ -52,20 +52,20 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
     }
 
     device->CreateTexture2D(&dsDesc, nullptr, &Tex);
-    SetDebugObjectName(Tex, string("ImageBuffer::Tex - ") + name);
+    SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
     if (!depth) {
-        device->CreateShaderResourceView(Tex, nullptr, &TexSv);
-        SetDebugObjectName(TexSv, string("ImageBuffer::TexSv - ") + name);
+        device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
+        SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
     }
 
     if (rendertarget) {
         if (depth) {
-            device->CreateDepthStencilView(Tex, nullptr, &TexDsv);
-            SetDebugObjectName(TexDsv, string("ImageBuffer::TexDsv - ") + name);
+            device->CreateDepthStencilView(Tex.Get(), nullptr, &TexDsv);
+            SetDebugObjectName(TexDsv.Get(), string("ImageBuffer::TexDsv - ") + name);
         } else {
-            device->CreateRenderTargetView(Tex, nullptr, &TexRtv);
-            SetDebugObjectName(TexRtv, string("ImageBuffer::TexRtv - ") + name);
+            device->CreateRenderTargetView(Tex.Get(), nullptr, &TexRtv);
+            SetDebugObjectName(TexRtv.Get(), string("ImageBuffer::TexRtv - ") + name);
         }
     }
 }
@@ -83,7 +83,7 @@ DirectX11::~DirectX11() {
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
                                         ID3D11DepthStencilView* dsv) {
     float black[] = {0, 0, 0, 1};
-    OMSetRenderTargets(Context, {rendertarget}, dsv);
+    OMSetRenderTargets(Context.Get(), {rendertarget}, dsv);
     Context->ClearRenderTargetView(rendertarget, black);
     Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
 }
@@ -177,7 +177,8 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pL
     [this, pLuid] {
         IDXGIFactoryPtr DXGIFactory;
         ThrowOnFailure(
-            CreateDXGIFactory1(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&DXGIFactory)));
+            CreateDXGIFactory1(__uuidof(IDXGIFactory),
+                               reinterpret_cast<void**>(DXGIFactory.ReleaseAndGetAddressOf())));
 
         IDXGIAdapterPtr Adapter;
         for (UINT iAdapter = 0;
@@ -196,7 +197,7 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pL
             return 0u;
 #endif
         }();
-        ThrowOnFailure(D3D11CreateDevice(Adapter, driverType, 0, creationFlags, nullptr, 0,
+        ThrowOnFailure(D3D11CreateDevice(Adapter.Get(), driverType, 0, creationFlags, nullptr, 0,
                                          D3D11_SDK_VERSION, &Device, nullptr, &Context));
 
         DXGI_SWAP_CHAIN_DESC scDesc{};
@@ -212,27 +213,28 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pL
         scDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
         scDesc.Flags = 0;
 
-        ThrowOnFailure(DXGIFactory->CreateSwapChain(Device, &scDesc, &SwapChain));
+        ThrowOnFailure(DXGIFactory->CreateSwapChain(Device.Get(), &scDesc, &SwapChain));
 
-        SetDebugObjectName(Device, "Direct3D11::Device");
-        SetDebugObjectName(Context, "Direct3D11::Context");
-        SetDebugObjectName(SwapChain, "Direct3D11::SwapChain");
+        SetDebugObjectName(Device.Get(), "Direct3D11::Device");
+        SetDebugObjectName(Context.Get(), "Direct3D11::Context");
+        SetDebugObjectName(SwapChain.Get(), "Direct3D11::SwapChain");
     }();
 
-    stateManagers = make_unique<StateManagers>(Device);
+    stateManagers = make_unique<StateManagers>(Device.Get());
     pipelineStateObjectManager = make_unique<PipelineStateObjectManager>(*stateManagers);
-    texture2DManager.setDevice(Device);
+    texture2DManager.setDevice(Device.Get());
 
     ThrowOnFailure(
-        SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&BackBuffer)));
-    SetDebugObjectName(BackBuffer, "Direct3D11::BackBuffer");
+        SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+                             reinterpret_cast<void**>(BackBuffer.ReleaseAndGetAddressOf())));
+    SetDebugObjectName(BackBuffer.Get(), "Direct3D11::BackBuffer");
 
-    ThrowOnFailure(Device->CreateRenderTargetView(BackBuffer, nullptr, &BackBufferRT));
-    SetDebugObjectName(BackBufferRT, "Direct3D11::BackBufferRT");
+    ThrowOnFailure(Device->CreateRenderTargetView(BackBuffer.Get(), nullptr, &BackBufferRT));
+    SetDebugObjectName(BackBufferRT.Get(), "Direct3D11::BackBufferRT");
 
     [this] {
         IDXGIDevice1Ptr DXGIDevice1;
-        if (FAILED(Device.QueryInterface(DXGIDevice1.GetIID(), &DXGIDevice1)) || !DXGIDevice1)
+        if (FAILED(Device.As<IDXGIDevice1>(&DXGIDevice1)) || !DXGIDevice1)
             return;
         DXGIDevice1->SetMaximumFrameLatency(1);
     }();
@@ -268,8 +270,8 @@ void DirectX11::ReleaseWindow(HINSTANCE hinst) {
 }
 
 void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& pso) {
-    context.VSSetShader(pso.vertexShader.get()->D3DVert, nullptr, 0);
-    context.PSSetShader(pso.pixelShader.get()->D3DPix, nullptr, 0);
+    context.VSSetShader(pso.vertexShader.get()->D3DVert.Get(), nullptr, 0);
+    context.PSSetShader(pso.pixelShader.get()->D3DPix.Get(), nullptr, 0);
     context.OMSetBlendState(pso.blendState.get(), nullptr, 0xffffffff);
     context.RSSetState(pso.rasterizerState.get());
     context.OMSetDepthStencilState(pso.depthStencilState.get(), 0);
@@ -278,7 +280,7 @@ void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& ps
 }
 
 void QuadRenderer::render(ID3D11RenderTargetView & rtv, std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y, int width, int height) {
-    directX11.applyState(*directX11.Context, *pipelineStateObject.get());
+    directX11.applyState(*directX11.Context.Get(), *pipelineStateObject.get());
     OMSetRenderTargets(directX11.Context, {&rtv});
     RSSetViewports(directX11.Context,
                    {{float(x), float(y), float(width), float(height), 0.0f, 1.0f}});

@@ -76,15 +76,15 @@ Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* d
     CD3D11_TEXTURE2D_DESC dsDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h, 1, mipLevels);
 
     device->CreateTexture2D(&dsDesc, nullptr, &Tex);
-    SetDebugObjectName(Tex, string("ImageBuffer::Tex - ") + name);
+    SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
-    device->CreateShaderResourceView(Tex, nullptr, &TexSv);
-    SetDebugObjectName(TexSv, string("ImageBuffer::TexSv - ") + name);
+    device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
+    SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
 
     if (data)  // Note data is trashed, as is width and height
     {
         for (int level = 0; level < mipLevels; level++) {
-            deviceContext->UpdateSubresource(Tex, level, NULL, data, size.w * 4, size.h * 4);
+            deviceContext->UpdateSubresource(Tex.Get(), level, NULL, data, size.w * 4, size.h * 4);
             for (int j = 0; j < (size.h & ~1); j += 2) {
                 const uint8_t* psrc = data + (size.w * j * 4);
                 uint8_t* pdest = data + ((size.w >> 1) * (j >> 1) * 4);
@@ -256,14 +256,14 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
             D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
         ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer));
-        SetDebugObjectName(cameraConstantBuffer, "Scene::cameraConstantBuffer");
+        SetDebugObjectName(cameraConstantBuffer.Get(), "Scene::cameraConstantBuffer");
     }();
 
     [this, device] {
         const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Lighting)), D3D11_BIND_CONSTANT_BUFFER,
             D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
         ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &lightingConstantBuffer));
-        SetDebugObjectName(lightingConstantBuffer, "Scene::lightingConstantBuffer");
+        SetDebugObjectName(lightingConstantBuffer.Get(), "Scene::lightingConstantBuffer");
     }();
 
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_pmrem.dds)", &pmremEnvMapTex, &pmremEnvMapSRV));
@@ -299,17 +299,17 @@ void Scene::showGui() {
 
 void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
                    DataBuffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer) {
-    IASetVertexBuffers(context, 0, {vertices->D3DBuffer.GetInterfacePtr()}, {stride});
+    IASetVertexBuffers(context, 0, {vertices->D3DBuffer.Get()}, {stride});
     VSSetConstantBuffers(context, objectConstantBufferOffset, {&objectConstantBuffer});
 
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
-    context->IASetIndexBuffer(indices->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(indices->D3DBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     if (fill && fill->OneTexture) {
         PSSetShaderResources(context, materialSRVOffset,
-                             {fill->OneTexture->TexSv.GetInterfacePtr()});
+                             {fill->OneTexture->TexSv.Get()});
     } else {
         PSSetShaderResources(context, materialSRVOffset, {nullptr});
     }
@@ -318,10 +318,10 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* v
 
 void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                    const mathlib::Mat4f& proj) {
-    dx11.applyState(*dx11.Context, *pipelineStateObject.get());
+    dx11.applyState(*dx11.Context.Get(), *pipelineStateObject.get());
 
     PSSetSamplers(dx11.Context, 0,
-                  {linearSampler.GetInterfacePtr(), standardTextureSampler.GetInterfacePtr()});
+                  {linearSampler.Get(), standardTextureSampler.Get()});
 
     Camera camera;
     camera.proj = proj;
@@ -330,24 +330,26 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
 
     [this, &camera, &dx11] {
         D3D11_MAPPED_SUBRESOURCE mappedResource{};
-        dx11.Context->Map(cameraConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        dx11.Context->Map(cameraConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
+                          &mappedResource);
         memcpy(mappedResource.pData, &camera, sizeof(camera));
-        dx11.Context->Unmap(cameraConstantBuffer, 0);
+        dx11.Context->Unmap(cameraConstantBuffer.Get(), 0);
     }();
 
     [this, &dx11] {
         D3D11_MAPPED_SUBRESOURCE mappedResource{};
-        dx11.Context->Map(lightingConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        dx11.Context->Map(lightingConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
+                          &mappedResource);
         memcpy(mappedResource.pData, &lighting, sizeof(lighting));
-        dx11.Context->Unmap(lightingConstantBuffer, 0);
+        dx11.Context->Unmap(lightingConstantBuffer.Get(), 0);
     }();
 
-    VSSetConstantBuffers(dx11.Context, 0, {cameraConstantBuffer.GetInterfacePtr()});
+    VSSetConstantBuffers(dx11.Context, 0, {cameraConstantBuffer.Get()});
 
-    PSSetConstantBuffers(dx11.Context, 2, {lightingConstantBuffer.GetInterfacePtr()});
+    PSSetConstantBuffers(dx11.Context, 2, {lightingConstantBuffer.Get()});
 
     PSSetShaderResources(dx11.Context, 0,
-                         {pmremEnvMapSRV.GetInterfacePtr(), irradEnvMapSRV.GetInterfacePtr()});
+                         {pmremEnvMapSRV.Get(), irradEnvMapSRV.Get()});
 
     for (auto& model : Models) {
         Object object;
@@ -355,15 +357,17 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
 
         [this, &object, &dx11, &model] {
             D3D11_MAPPED_SUBRESOURCE mappedResource{};
-            dx11.Context->Map(model->objectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+            dx11.Context->Map(model->objectConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
+                              &mappedResource);
             memcpy(mappedResource.pData, &object, sizeof(object));
-            dx11.Context->Unmap(model->objectConstantBuffer, 0);
+            dx11.Context->Unmap(model->objectConstantBuffer.Get(), 0);
         }();
 
-        Render(dx11.Context, model->Fill.get(), model->VertexBuffer.get(), model->IndexBuffer.get(),
-               sizeof(Model::Vertex), model->Indices.size(), model->objectConstantBuffer);
+        Render(dx11.Context.Get(), model->Fill.get(), model->VertexBuffer.get(),
+               model->IndexBuffer.get(), sizeof(Model::Vertex), model->Indices.size(),
+               *model->objectConstantBuffer.Get());
     }
 
-    heightField->Render(dx11, dx11.Context);
-    sphere->Render(dx11, dx11.Context);
+    heightField->Render(dx11, dx11.Context.Get());
+    sphere->Render(dx11, dx11.Context.Get());
 }

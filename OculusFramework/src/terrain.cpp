@@ -75,7 +75,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                                    static_cast<UINT>(tifHeight), 1u, 1u};
         D3D11_SUBRESOURCE_DATA data{heights.data(), tifWidth * sizeof(heights[0]), 0};
         ThrowOnFailure(device->CreateTexture2D(&desc, &data, &heightsTex));
-        ThrowOnFailure(device->CreateShaderResourceView(heightsTex, nullptr, &heightsSRV));
+        ThrowOnFailure(device->CreateShaderResourceView(heightsTex.Get(), nullptr, &heightsSRV));
     }();
 
     SetCSVFilenameHook(CSVFileOverride);
@@ -149,7 +149,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                                    static_cast<UINT>(height), 1u, 1u};
         D3D11_SUBRESOURCE_DATA data{normals.data(), width * sizeof(normals[0])};
         ThrowOnFailure(device->CreateTexture2D(&desc, &data, &normalsTex));
-        ThrowOnFailure(device->CreateShaderResourceView(normalsTex, nullptr, &normalsSRV));
+        ThrowOnFailure(device->CreateShaderResourceView(normalsTex.Get(), nullptr, &normalsSRV));
     }();
 
     const auto blockPower = 6;
@@ -241,23 +241,23 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
 
     [this, &object, &dx11] {
         D3D11_MAPPED_SUBRESOURCE mappedResource{};
-        dx11.Context->Map(objectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        dx11.Context->Map(objectConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
         memcpy(mappedResource.pData, &object, sizeof(object));
-        dx11.Context->Unmap(objectConstantBuffer, 0);
+        dx11.Context->Unmap(objectConstantBuffer.Get(), 0);
     }();
 
     VSSetConstantBuffers(context, objectConstantBufferOffset,
-                         {objectConstantBuffer.GetInterfacePtr()});
+                         {objectConstantBuffer.Get()});
 
-    VSSetShaderResources(context, 0, {heightsSRV.GetInterfacePtr()});
+    VSSetShaderResources(context, 0, {heightsSRV.Get()});
 
-    context->IASetIndexBuffer(IndexBuffer->D3DBuffer, DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(IndexBuffer->D3DBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     PSSetShaderResources(context, materialSRVOffset,
-                         {shapesTex.get(), normalsSRV.GetInterfacePtr()});
+                         {shapesTex.get(), normalsSRV.Get()});
 
     for (const auto& vertexBuffer : VertexBuffers) {
-        IASetVertexBuffers(context, 0, {vertexBuffer->D3DBuffer.GetInterfacePtr()},
+        IASetVertexBuffers(context, 0, {vertexBuffer->D3DBuffer.Get()},
                            {UINT(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
     }

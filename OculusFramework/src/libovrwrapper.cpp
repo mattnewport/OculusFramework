@@ -125,7 +125,7 @@ ovrTexture* DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
     device->CreateTexture2D(&newDesc, nullptr, &tex->D3D11.pTexture);
     device->CreateRenderTargetView(tex->D3D11.pTexture, nullptr,
                                    &renderHelper.get()->mirrorTextureRT);
-    SetDebugObjectName(renderHelper.get()->mirrorTextureRT, __FUNCTION__);
+    SetDebugObjectName(renderHelper.get()->mirrorTextureRT.Get(), __FUNCTION__);
     return &tex->Texture;
 }
 
@@ -147,7 +147,9 @@ void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
         auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
         const auto& leftVp = dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport;
         const auto& rightVp = dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport;
-        quadRenderer.render(mirrorTextureRT, {d3dEyeTexture[ovrEye_Left].D3D11.pSRView}, leftVp.Pos.x, leftVp.Pos.y, leftVp.Size.w + rightVp.Size.w, max(leftVp.Size.h, rightVp.Size.h));
+        quadRenderer.render(*mirrorTextureRT.Get(), {d3dEyeTexture[ovrEye_Left].D3D11.pSRView},
+                            leftVp.Pos.x, leftVp.Pos.y, leftVp.Size.w + rightVp.Size.w,
+                            max(leftVp.Size.h, rightVp.Size.h));
     }();
 }
 

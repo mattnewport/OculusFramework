@@ -79,7 +79,7 @@ struct InputLayoutKey {
     InputLayoutKey(const InputElementDescs& inputElementDescs, const std::string& shaderFilename,
         VertexShaderManager& vertexShaderManager)
         : InputLayoutKey{ inputElementDescs,
-        vertexShaderManager.get(shaderFilename).get()->inputSignature } {}
+        vertexShaderManager.get(shaderFilename).get()->inputSignature.Get() } {}
     InputElementDescs inputElementDescs;
     ID3DBlobPtr shaderInputSignature;
     size_t hashVal;

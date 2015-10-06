@@ -128,22 +128,22 @@ struct ToneMapper {
         [this] {
             CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, 1, 1};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &sourceTex));
-            SetDebugObjectName(sourceTex, "ToneMapper::sourceTex");
+            SetDebugObjectName(sourceTex.Get(), "ToneMapper::sourceTex");
             ThrowOnFailure(
-                directX11.Device->CreateShaderResourceView(sourceTex, nullptr, &sourceTexSRV));
-            SetDebugObjectName(sourceTexSRV, "ToneMapper::sourceTexSRV");
+                directX11.Device->CreateShaderResourceView(sourceTex.Get(), nullptr, &sourceTexSRV));
+            SetDebugObjectName(sourceTexSRV.Get(), "ToneMapper::sourceTexSRV");
         }();
 
         [this] {
             CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height, 1, 1,
                                        D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
-            SetDebugObjectName(renderTargetTex, "ToneMapper::renderTargetTex");
+            SetDebugObjectName(renderTargetTex.Get(), "ToneMapper::renderTargetTex");
             CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D,
                                                   DXGI_FORMAT_R8G8B8A8_UNORM};
-            ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex, &rtDesc,
+            ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex.Get(), &rtDesc,
                                                                     &renderTargetView));
-            SetDebugObjectName(renderTargetView, "ToneMapper::renderTargetView");
+            SetDebugObjectName(renderTargetView.Get(), "ToneMapper::renderTargetView");
         }();
     }
 
@@ -161,7 +161,8 @@ struct ToneMapper {
 };
 
 void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
-    quadRenderer.render(renderTargetView, {sourceTexSRV, avgLogLuminance}, 0, 0, width, height);
+    quadRenderer.render(*renderTargetView.Get(), {sourceTexSRV.Get(), avgLogLuminance}, 0, 0, width,
+                        height);
 }
 
 struct LuminanceRangeFinder {
@@ -179,13 +180,13 @@ struct LuminanceRangeFinder {
                                            D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
                 ID3D11Texture2DPtr tex;
                 ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &tex));
-                SetDebugObjectName(tex, "LuminanceRangeFinder::tex");
+                SetDebugObjectName(tex.Get(), "LuminanceRangeFinder::tex");
                 ID3D11ShaderResourceViewPtr srv;
-                ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex, nullptr, &srv));
-                SetDebugObjectName(srv, "LuminanceRangeFinder::srv");
+                ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex.Get(), nullptr, &srv));
+                SetDebugObjectName(srv.Get(), "LuminanceRangeFinder::srv");
                 ID3D11RenderTargetViewPtr rtv;
-                ThrowOnFailure(directX11.Device->CreateRenderTargetView(tex, nullptr, &rtv));
-                SetDebugObjectName(rtv, "LuminanceRangeFinder::rtv");
+                ThrowOnFailure(directX11.Device->CreateRenderTargetView(tex.Get(), nullptr, &rtv));
+                SetDebugObjectName(rtv.Get(), "LuminanceRangeFinder::rtv");
                 return make_tuple(tex, srv, rtv);
             };
             for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
@@ -214,11 +215,13 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
     for (auto i = 0u; i < textureChain.size() - 1; ++i) {
         QuadRenderer& qr = i == 0 ? logLumRenderer : logAverageRenderer;
         auto& target = textureChain[i];
-        qr.render(get<2>(target), {sourceSRV}, 0, 0, 1024 >> i, 1024 >> i);
-        sourceSRV = get<1>(target);
+        qr.render(*get<2>(target).Get(), {sourceSRV}, 0, 0, 1024 >> i, 1024 >> i);
+        sourceSRV = get<1>(target).Get();
     }
-    luminanceBlender.render(get<2>(textureChain.back()), {get<1>(textureChain[textureChain.size() - 2]),
-        get<1>(previousFrame)}, 0, 0, 1, 1);
+    luminanceBlender.render(
+        *get<2>(textureChain.back()).Get(),
+        {get<1>(textureChain[textureChain.size() - 2]).Get(), get<1>(previousFrame).Get()}, 0, 0, 1,
+        1);
     swap(previousFrame, textureChain.back());
 }
 
@@ -277,13 +280,14 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         ovrSizei{idealSizeL.w + idealSizeR.w + eyeBufferpadding, max(idealSizeL.h, idealSizeR.h)};
 
     // Setup VR swap texture set
-    OculusTexture* eyeResolveTexture = hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device);
+    OculusTexture* eyeResolveTexture =
+        hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device.Get());
 
     // Setup individual eye render targets
     auto EyeRenderTexture =
-        ImageBuffer{"EyeRenderTexture", DX11.Device, true, false, eyeBufferSize, 1, true};
+        ImageBuffer{"EyeRenderTexture", DX11.Device.Get(), true, false, eyeBufferSize, 1, true};
     auto EyeDepthBuffer =
-        ImageBuffer{"EyeDepthBuffer", DX11.Device, true, true, eyeBufferSize, 1, true};
+        ImageBuffer{"EyeDepthBuffer", DX11.Device.Get(), true, true, eyeBufferSize, 1, true};
     ovrRecti EyeRenderViewport[2];  // Useful to remember when varying resolution
     EyeRenderViewport[ovrEye_Left].Pos = ovrVector2i{0, 0};
     EyeRenderViewport[ovrEye_Left].Size = idealSizeL;
@@ -303,9 +307,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     td.Usage = D3D11_USAGE_DEFAULT;
     td.SampleDesc.Count = 1;
     td.MipLevels = 1;
-    ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(DX11.Device, td);
+    ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(DX11.Device.Get(), td);
 
-    ImGui_ImplDX11_Init(DX11.Window, DX11.Device, DX11.Context);
+    ImGui_ImplDX11_Init(DX11.Window, DX11.Device.Get(), DX11.Context.Get());
     ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
 
     // Create a render target for IMGUI
@@ -331,10 +335,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         td.CPUAccessFlags = 0;
         td.MiscFlags = 0;
         ThrowOnFailure(DX11.Device->CreateTexture2D(&td, nullptr, &imguiRenderTargetTex));
-        ThrowOnFailure(DX11.Device->CreateShaderResourceView(imguiRenderTargetTex, nullptr,
+        ThrowOnFailure(DX11.Device->CreateShaderResourceView(imguiRenderTargetTex.Get(), nullptr,
                                                              &imguiRenderTargetSRV));
         ThrowOnFailure(
-            DX11.Device->CreateRenderTargetView(imguiRenderTargetTex, nullptr, &imguiRTV));
+            DX11.Device->CreateRenderTargetView(imguiRenderTargetTex.Get(), nullptr, &imguiRTV));
     }();
     QuadRenderer imguiQuadRenderer{DX11, "imguips.hlsl", true};
 
@@ -342,7 +346,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     {
         // Create the room model
-        Scene roomScene(DX11.Device, DX11.Context, *DX11.pipelineStateObjectManager,
+        Scene roomScene(DX11.Device.Get(), DX11.Context.Get(), *DX11.pipelineStateObjectManager,
                         DX11.texture2DManager);
 
         float Yaw(3.141592f);  // Horizontal rotation of the player
@@ -423,7 +427,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             ovrPosef EyeRenderPose[2];  // Useful to remember where the rendered eye originated
             float YawAtRender[2];       // Useful to remember where the rendered eye originated
 
-            DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv, EyeDepthBuffer.TexDsv);
+            DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv.Get(), EyeDepthBuffer.TexDsv.Get());
 
             // Render the two undistorted eye views into their render buffers.
             for (int eye = 0; eye < 2; eye++) {
@@ -462,16 +466,17 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                                      view, proj);
             }
 
-            DX11.Context->ResolveSubresource(toneMapper.sourceTex, 0, EyeRenderTexture.Tex, 0,
+            DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0,
+                                             EyeRenderTexture.Tex.Get(), 0,
                                              DXGI_FORMAT_R16G16B16A16_FLOAT);
-            luminanceRangeFinder.render(toneMapper.sourceTexSRV);
-            toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()));
+            luminanceRangeFinder.render(toneMapper.sourceTexSRV.Get());
+            toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()).Get());
 
             // IMGUI update/rendering
             if (DX11.imguiActive) {
                 float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
-                DX11.Context->ClearRenderTargetView(imguiRTV, clearColor);
-                OMSetRenderTargets(DX11.Context, {imguiRTV.GetInterfacePtr()});
+                DX11.Context->ClearRenderTargetView(imguiRTV.Get(), clearColor);
+                OMSetRenderTargets(DX11.Context, {imguiRTV.Get()});
                 DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
                 ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
                     static_cast<float>(imguiRTVHeight)};
@@ -483,15 +488,14 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 showGui(roomScene);
                 //ImGui::ShowTestWindow();
                 ImGui::Render();
-                PSSetSamplers(DX11.Context, 0,
-                              {roomScene.linearSampler.GetInterfacePtr(),
-                               roomScene.standardTextureSampler.GetInterfacePtr()});
-                imguiQuadRenderer.render(toneMapper.renderTargetView,
-                                         {imguiRenderTargetSRV, nullptr}, 0, 0, imguiRTVWidth,
+                PSSetSamplers(DX11.Context, 0, {roomScene.linearSampler.Get(),
+                                                roomScene.standardTextureSampler.Get()});
+                imguiQuadRenderer.render(*toneMapper.renderTargetView.Get(),
+                                         {imguiRenderTargetSRV.Get(), nullptr}, 0, 0, imguiRTVWidth,
                                          imguiRTVHeight);
-                imguiQuadRenderer.render(toneMapper.renderTargetView, {imguiRenderTargetSRV, nullptr},
-                    EyeRenderViewport[ovrEye_Right].Pos.x,
-                    EyeRenderViewport[ovrEye_Right].Pos.y,
+                imguiQuadRenderer.render(
+                    *toneMapper.renderTargetView.Get(), {imguiRenderTargetSRV.Get(), nullptr},
+                    EyeRenderViewport[ovrEye_Right].Pos.x, EyeRenderViewport[ovrEye_Right].Pos.y,
                     imguiRTVWidth, imguiRTVHeight);
 
                 if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
@@ -511,7 +515,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                     eyeResolveTexture->TextureSet
                         ->Textures[eyeResolveTexture->TextureSet->CurrentIndex])
                     .D3D11.pTexture,
-                toneMapper.renderTargetTex);
+                toneMapper.renderTargetTex.Get());
 
             // Initialize our single full screen Fov layer.
             ovrLayerEyeFov ld;
@@ -530,7 +534,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
             // Copy mirror texture to back buffer
             ovrD3D11Texture* tex = (ovrD3D11Texture*)mirrorTexture;
-            DX11.Context->CopyResource(DX11.BackBuffer, tex->D3D11.pTexture);
+            DX11.Context->CopyResource(DX11.BackBuffer.Get(), tex->D3D11.pTexture);
             DX11.SwapChain->Present(0, 0);
         }
     }

@@ -13,7 +13,7 @@ using namespace std;
 VertexShader::VertexShader(ID3D11Device* device, ID3DBlob* s, const char* name)
     : byteCode{s}, numUniformInfo(0) {
     device->CreateVertexShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DVert);
-    SetDebugObjectName(D3DVert, name);
+    SetDebugObjectName(D3DVert.Get(), name);
 
     D3DGetBlobPart(s->GetBufferPointer(), s->GetBufferSize(), D3D_BLOB_INPUT_SIGNATURE_BLOB, 0,
                    &inputSignature);
@@ -49,7 +49,7 @@ void VertexShader::SetUniform(const char* name, int n, const float* v) {
 
 PixelShader::PixelShader(ID3D11Device* device, ID3DBlob* s, const char* name) : numUniformInfo(0) {
     device->CreatePixelShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DPix);
-    SetDebugObjectName(D3DPix, name);
+    SetDebugObjectName(D3DPix.Get(), name);
 
     ID3D11ShaderReflectionPtr ref;
     D3DReflect(s->GetBufferPointer(), s->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&ref);
@@ -124,7 +124,7 @@ ShaderType* loadShader(ID3D11Device& device, const std::string& filename, const 
     if (SUCCEEDED(D3DCompile(buf.str().c_str(), buf.str().size(), filename.c_str(), nullptr,
                              &shaderIncludeHandler, "main", target, 0, 0, &compiledShader,
                              &errorMessages))) {
-        return new ShaderType{&device, compiledShader, filename.c_str()};
+        return new ShaderType{&device, compiledShader.Get(), filename.c_str()};
     } else {
         OutputDebugStringA(static_cast<const char*>(errorMessages->GetBufferPointer()));
         return nullptr;
@@ -132,11 +132,11 @@ ShaderType* loadShader(ID3D11Device& device, const std::string& filename, const 
 }
 
 VertexShaderManager::ResourceType* VertexShaderManager::createResource(const KeyType& key) {
-    return loadShader<VertexShader>(device, key, "vs_5_0");
+    return loadShader<VertexShader>(*device.Get(), key, "vs_5_0");
 }
 
 PixelShaderManager::ResourceType* PixelShaderManager::createResource(const KeyType& key) {
-    return loadShader<PixelShader>(device, key, "ps_5_0");
+    return loadShader<PixelShader>(*device.Get(), key, "ps_5_0");
 }
 
 InputLayoutManager::ResourceType* InputLayoutManager::createResource(const KeyType& key) {

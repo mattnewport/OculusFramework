@@ -4,6 +4,9 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <comdef.h>
+#include <comip.h>
+
 using namespace std;
 
 void ThrowOnFailure(HRESULT hr) {

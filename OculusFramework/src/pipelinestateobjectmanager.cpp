@@ -14,7 +14,7 @@ PipelineStateObjectManager::ResourceType* PipelineStateObjectManager::createReso
     pso->rasterizerState = stateManagers.rasterizerStateManager.get(key.rasterizerState);
     pso->depthStencilState = stateManagers.depthStencilStateManager.get(key.depthStencilState);
     pso->inputLayout = stateManagers.inputLayoutManager.get(
-        InputLayoutKey{ key.inputElementDescs, pso->vertexShader.get()->inputSignature });
+        InputLayoutKey{ key.inputElementDescs, pso->vertexShader.get()->inputSignature.Get() });
     pso->primitiveTopology = key.primitiveTopology;
     return pso;
 }

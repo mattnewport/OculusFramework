@@ -140,17 +140,17 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
 
     [this, &object, &dx11] {
         D3D11_MAPPED_SUBRESOURCE mappedResource{};
-        dx11.Context->Map(objectConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        dx11.Context->Map(objectConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
         memcpy(mappedResource.pData, &object, sizeof(object));
-        dx11.Context->Unmap(objectConstantBuffer, 0);
+        dx11.Context->Unmap(objectConstantBuffer.Get(), 0);
     }();
 
     VSSetConstantBuffers(context, objectConstantBufferOffset,
-                         {objectConstantBuffer.GetInterfacePtr()});
+                         {objectConstantBuffer.Get()});
 
-    context->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R16_UINT, 0);
 
-    IASetVertexBuffers(context, 0, {vb.GetInterfacePtr()}, {UINT(sizeof(Vertex))});
+    IASetVertexBuffers(context, 0, {vb.Get()}, {UINT(sizeof(Vertex))});
 
     context->DrawIndexed(indexCount, 0, 0);
 }
