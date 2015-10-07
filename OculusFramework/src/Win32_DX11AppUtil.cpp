@@ -64,7 +64,7 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
             device->CreateDepthStencilView(Tex.Get(), nullptr, &TexDsv);
             SetDebugObjectName(TexDsv.Get(), string("ImageBuffer::TexDsv - ") + name);
         } else {
-            device->CreateRenderTargetView(Tex.Get(), nullptr, &TexRtv);
+            TexRtv = CreateRenderTargetView(device, Tex.Get());
             SetDebugObjectName(TexRtv.Get(), string("ImageBuffer::TexRtv - ") + name);
         }
     }
@@ -175,68 +175,50 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pL
     RenderTargetSize = vp.Size;
 
     [this, pLuid] {
-        IDXGIFactoryPtr DXGIFactory;
-        ThrowOnFailure(
-            CreateDXGIFactory1(__uuidof(IDXGIFactory),
-                               reinterpret_cast<void**>(DXGIFactory.ReleaseAndGetAddressOf())));
-
-        IDXGIAdapterPtr Adapter;
-        for (UINT iAdapter = 0;
-             DXGIFactory->EnumAdapters(iAdapter, &Adapter) != DXGI_ERROR_NOT_FOUND; ++iAdapter) {
-            DXGI_ADAPTER_DESC adapterDesc{};
-            Adapter->GetDesc(&adapterDesc);
-            if ((pLuid == nullptr) || memcmp(&adapterDesc.AdapterLuid, pLuid, sizeof(LUID)) == 0)
-                break;
-        }
-
-        const auto driverType = Adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
-        const UINT creationFlags = [] {
-#ifdef _DEBUG
-            return D3D11_CREATE_DEVICE_DEBUG;
-#else
-            return 0u;
-#endif
+        auto DXGIFactory = CreateDXGIFactory1();
+        auto Adapter = [&DXGIFactory, pLuid] {
+            if (!pLuid) return IDXGIAdapter1Ptr{};
+            auto adapterEnumerator = EnumIDXGIAdapters{ DXGIFactory };
+            auto findIt = std::find_if(std::begin(adapterEnumerator), std::end(adapterEnumerator), [pLuid](const auto& x) {
+                return GetDesc1(x.Get()).AdapterLuid == *pLuid;
+            });
+            return findIt == std::end(adapterEnumerator) ? IDXGIAdapter1Ptr{} : *findIt;
         }();
-        ThrowOnFailure(D3D11CreateDevice(Adapter.Get(), driverType, 0, creationFlags, nullptr, 0,
-                                         D3D11_SDK_VERSION, &Device, nullptr, &Context));
 
-        DXGI_SWAP_CHAIN_DESC scDesc{};
-        scDesc.BufferDesc.Width = RenderTargetSize.w;
-        scDesc.BufferDesc.Height = RenderTargetSize.h;
-        scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-        scDesc.SampleDesc.Count = 1;
-        scDesc.SampleDesc.Quality = 0;
-        scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        scDesc.BufferCount = 2;
-        scDesc.OutputWindow = Window;
-        scDesc.Windowed = TRUE;
-        scDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
-        scDesc.Flags = 0;
+        std::tie(SwapChain, Device, Context) =
+            D3D11CreateDeviceAndSwapChain(Adapter.Get(), {
+                                                             {UINT(RenderTargetSize.w),
+                                                              UINT(RenderTargetSize.h),
+                                                              {},  // Refresh rate
+                                                              DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
+                                                             {1u, 0u},  // SampleDesc Count, Quality
+                                                             DXGI_USAGE_RENDER_TARGET_OUTPUT,
+                                                             2u,  // BufferCount
+                                                             Window,
+                                                             TRUE,  // Windowed
+                                                             DXGI_SWAP_EFFECT_SEQUENTIAL,
+                                                             0u  // Flags
+                                                         });
 
-        ThrowOnFailure(DXGIFactory->CreateSwapChain(Device.Get(), &scDesc, &SwapChain));
-
-        SetDebugObjectName(Device.Get(), "Direct3D11::Device");
-        SetDebugObjectName(Context.Get(), "Direct3D11::Context");
-        SetDebugObjectName(SwapChain.Get(), "Direct3D11::SwapChain");
+        SetDebugObjectName(Device.Get(), "DirectX11::Device");
+        SetDebugObjectName(Context.Get(), "DirectX11::Context");
+        SetDebugObjectName(SwapChain.Get(), "DirectX11::SwapChain");
     }();
 
     stateManagers = make_unique<StateManagers>(Device.Get());
     pipelineStateObjectManager = make_unique<PipelineStateObjectManager>(*stateManagers);
     texture2DManager.setDevice(Device.Get());
 
-    ThrowOnFailure(
-        SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
-                             reinterpret_cast<void**>(BackBuffer.ReleaseAndGetAddressOf())));
-    SetDebugObjectName(BackBuffer.Get(), "Direct3D11::BackBuffer");
+    BackBuffer = GetBuffer(SwapChain.Get(), 0);
+    SetDebugObjectName(BackBuffer.Get(), "DirectX11::BackBuffer");
 
-    ThrowOnFailure(Device->CreateRenderTargetView(BackBuffer.Get(), nullptr, &BackBufferRT));
-    SetDebugObjectName(BackBufferRT.Get(), "Direct3D11::BackBufferRT");
+    BackBufferRT = CreateRenderTargetView(Device.Get(), BackBuffer.Get());
+    SetDebugObjectName(BackBufferRT.Get(), "DirectX11::BackBufferRT");
 
     [this] {
         IDXGIDevice1Ptr DXGIDevice1;
-        if (FAILED(Device.As<IDXGIDevice1>(&DXGIDevice1)) || !DXGIDevice1)
-            return;
-        DXGIDevice1->SetMaximumFrameLatency(1);
+        if (SUCCEEDED(Device.As<IDXGIDevice1>(&DXGIDevice1)))
+            DXGIDevice1->SetMaximumFrameLatency(1);
     }();
 
     return true;

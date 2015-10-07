@@ -139,10 +139,10 @@ struct ToneMapper {
                                        D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
             ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
             SetDebugObjectName(renderTargetTex.Get(), "ToneMapper::renderTargetTex");
-            CD3D11_RENDER_TARGET_VIEW_DESC rtDesc{D3D11_RTV_DIMENSION_TEXTURE2D,
-                                                  DXGI_FORMAT_R8G8B8A8_UNORM};
-            ThrowOnFailure(directX11.Device->CreateRenderTargetView(renderTargetTex.Get(), &rtDesc,
-                                                                    &renderTargetView));
+            renderTargetView =
+                CreateRenderTargetView(directX11.Device.Get(), renderTargetTex.Get(),
+                                       CD3D11_RENDER_TARGET_VIEW_DESC{D3D11_RTV_DIMENSION_TEXTURE2D,
+                                                                      DXGI_FORMAT_R8G8B8A8_UNORM});
             SetDebugObjectName(renderTargetView.Get(), "ToneMapper::renderTargetView");
         }();
     }
@@ -184,8 +184,7 @@ struct LuminanceRangeFinder {
                 ID3D11ShaderResourceViewPtr srv;
                 ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex.Get(), nullptr, &srv));
                 SetDebugObjectName(srv.Get(), "LuminanceRangeFinder::srv");
-                ID3D11RenderTargetViewPtr rtv;
-                ThrowOnFailure(directX11.Device->CreateRenderTargetView(tex.Get(), nullptr, &rtv));
+                auto rtv = CreateRenderTargetView(directX11.Device.Get(), tex.Get());
                 SetDebugObjectName(rtv.Get(), "LuminanceRangeFinder::rtv");
                 return make_tuple(tex, srv, rtv);
             };
@@ -337,8 +336,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         ThrowOnFailure(DX11.Device->CreateTexture2D(&td, nullptr, &imguiRenderTargetTex));
         ThrowOnFailure(DX11.Device->CreateShaderResourceView(imguiRenderTargetTex.Get(), nullptr,
                                                              &imguiRenderTargetSRV));
-        ThrowOnFailure(
-            DX11.Device->CreateRenderTargetView(imguiRenderTargetTex.Get(), nullptr, &imguiRTV));
+        imguiRTV = CreateRenderTargetView(DX11.Device.Get(), imguiRenderTargetTex.Get());
     }();
     QuadRenderer imguiQuadRenderer{DX11, "imguips.hlsl", true};
 

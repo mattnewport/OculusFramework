@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
+#include <tuple>
 
 #include <comdef.h>
 #include <comip.h>
@@ -181,10 +182,34 @@ bool operator==(const CD3D11_DEPTH_STENCIL_DESC& a, const CD3D11_DEPTH_STENCIL_D
            a.FrontFace == b.FrontFace && a.BackFace == b.BackFace;
 }
 
+bool operator==(const LUID& a, const LUID& b) {
+    return tie(a.HighPart, a.LowPart) == tie(b.HighPart, b.LowPart);
+}
+
 size_t hashHelper(const CD3D11_DEPTH_STENCIL_DESC& x) {
     return hashWithSeed(
         reinterpret_cast<const char*>(&x.FrontFace), sizeof(x.FrontFace) + sizeof(x.BackFace),
         hashWithSeed(
             reinterpret_cast<const char*>(&x),
             offsetof(CD3D11_DEPTH_STENCIL_DESC, StencilWriteMask) + sizeof(x.StencilWriteMask), 0));
+}
+
+// Helpers for calling various DXGI and D3D Create functions
+IDXGIFactory1Ptr CreateDXGIFactory1() {
+    IDXGIFactory1Ptr res;
+    ThrowOnFailure(CreateDXGIFactory1(__uuidof(IDXGIFactory1),
+        reinterpret_cast<void**>(res.ReleaseAndGetAddressOf())));
+    return res;
+}
+
+bool EnumIDXGIAdapters::Iterator::operator==(const EnumIDXGIAdapters::Iterator& x) const {
+    return tie(dxgiFactory_, adapter_, iAdapter_) == tie(x.dxgiFactory_, x.adapter_, x.iAdapter_);
+}
+
+void EnumIDXGIAdapters::Iterator::enumCurrentAdapter() {
+    if (dxgiFactory_->EnumAdapters1(iAdapter_, &adapter_) == DXGI_ERROR_NOT_FOUND) {
+        dxgiFactory_.Reset();
+        adapter_.Reset();
+        iAdapter_ = UINT(-1);
+    }
 }

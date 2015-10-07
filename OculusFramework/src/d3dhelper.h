@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
+#include <memory>
 #include <utility>
 
 #include <wrl/client.h>
@@ -31,19 +32,28 @@ using ID3D11ShaderResourceViewPtr = Microsoft::WRL::ComPtr<ID3D11ShaderResourceV
 using ID3D11Texture2DPtr = Microsoft::WRL::ComPtr<ID3D11Texture2D>;
 using ID3D11VertexShaderPtr = Microsoft::WRL::ComPtr<ID3D11VertexShader>;
 using ID3DBlobPtr = Microsoft::WRL::ComPtr<ID3DBlob>;
-using IDXGIAdapterPtr = Microsoft::WRL::ComPtr<IDXGIAdapter>;
+using IDXGIAdapter1Ptr = Microsoft::WRL::ComPtr<IDXGIAdapter1>;
 using IDXGIDevice1Ptr = Microsoft::WRL::ComPtr<IDXGIDevice1>;
-using IDXGIFactoryPtr = Microsoft::WRL::ComPtr<IDXGIFactory>;
+using IDXGIFactory1Ptr = Microsoft::WRL::ComPtr<IDXGIFactory1>;
 using IDXGISwapChainPtr = Microsoft::WRL::ComPtr<IDXGISwapChain>;
 
 void ThrowOnFailure(HRESULT hr);
+
+constexpr auto IsDebugBuild() {
+#ifdef _DEBUG
+    return true;
+#else
+    return false;
+#endif
+}
 
 // Helper sets a D3D resource name string (used by PIX and debug layer leak reporting).
 
 inline void SetDebugObjectName(IUnknown* resource, const char* name, size_t nameLen) {
 #if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
     ID3D11DeviceChildPtr deviceChild;
-    resource->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(deviceChild.ReleaseAndGetAddressOf()));
+    resource->QueryInterface(__uuidof(ID3D11DeviceChild),
+                             reinterpret_cast<void**>(deviceChild.ReleaseAndGetAddressOf()));
     if (deviceChild) deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, nameLen, name);
 #else
     UNREFERENCED_PARAMETER(resource);
@@ -107,6 +117,8 @@ bool operator==(const CD3D11_RASTERIZER_DESC& a, const CD3D11_RASTERIZER_DESC& b
 bool operator==(const D3D11_DEPTH_STENCILOP_DESC& a, const D3D11_DEPTH_STENCILOP_DESC& b);
 bool operator==(const CD3D11_DEPTH_STENCIL_DESC& a, const CD3D11_DEPTH_STENCIL_DESC& b);
 
+bool operator==(const LUID& a, const LUID& b);
+
 // Helper hashing
 
 size_t hashHelper(const D3D11_INPUT_ELEMENT_DESC& x);
@@ -144,6 +156,90 @@ struct hash<CD3D11_DEPTH_STENCIL_DESC> {
     }
 };
 
+}
+
+// Helpers for calling various DXGI and D3D Create and Initialization functions
+IDXGIFactory1Ptr CreateDXGIFactory1();
+
+class EnumIDXGIAdapters {
+public:
+    class Iterator
+        : public std::iterator<std::forward_iterator_tag, IDXGIAdapter1Ptr> {
+    public:
+        Iterator() = default;
+        Iterator(IDXGIFactory1Ptr dxgiFactory)
+            : dxgiFactory_{dxgiFactory}, iAdapter_{0} {
+            enumCurrentAdapter();
+        }
+
+        bool operator==(const Iterator& x) const;
+        bool operator!=(const Iterator& x) const { return !(*this == x); }
+        Iterator& operator++() {
+            ++iAdapter_;
+            enumCurrentAdapter();
+            return *this;
+        }
+        Iterator operator++(int) {
+            Iterator res{*this};
+            ++(*this);
+            return res;
+        }
+        const IDXGIAdapter1Ptr& operator*() const { return adapter_; }
+        const IDXGIAdapter1Ptr* operator->() const { return std::addressof(adapter_); }
+
+    private:
+        void enumCurrentAdapter();
+
+        IDXGIFactory1Ptr dxgiFactory_;
+        IDXGIAdapter1Ptr adapter_;
+        UINT iAdapter_ = UINT(-1);
+    };
+
+    EnumIDXGIAdapters(IDXGIFactory1Ptr dxgiFactory) : dxgiFactory_{dxgiFactory} {}
+    auto begin() const { return Iterator{dxgiFactory_}; }
+    auto end() const { return Iterator{}; }
+
+private:
+    IDXGIFactory1Ptr dxgiFactory_;
+};
+
+inline auto GetDesc1(IDXGIAdapter1* a) {
+    auto res = DXGI_ADAPTER_DESC1{};
+    ThrowOnFailure(a->GetDesc1(&res));
+    return res;
+}
+
+inline auto D3D11CreateDevice(IDXGIAdapter* adapter) {
+    std::pair<ID3D11DevicePtr, ID3D11DeviceContextPtr> res;
+    const auto driverType = adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
+    ThrowOnFailure(D3D11CreateDevice(adapter, driverType, nullptr,
+                                     IsDebugBuild() ? D3D11_CREATE_DEVICE_DEBUG : 0u, nullptr, 0,
+                                     D3D11_SDK_VERSION, &res.first, nullptr, &res.second));
+    return res;
+}
+
+inline auto D3D11CreateDeviceAndSwapChain(IDXGIAdapter* adapter,
+                                          const DXGI_SWAP_CHAIN_DESC& scDesc) {
+    std::tuple<IDXGISwapChainPtr, ID3D11DevicePtr, ID3D11DeviceContextPtr> res;
+    const auto driverType = adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
+    ThrowOnFailure(D3D11CreateDeviceAndSwapChain(
+        adapter, driverType, nullptr, IsDebugBuild() ? D3D11_CREATE_DEVICE_DEBUG : 0u, nullptr, 0,
+        D3D11_SDK_VERSION, &scDesc, &std::get<0>(res), &std::get<1>(res), nullptr,
+        &std::get<2>(res)));
+    return res;
+}
+
+inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource) {
+    ID3D11RenderTargetViewPtr res;
+    ThrowOnFailure(device->CreateRenderTargetView(resource, nullptr, &res));
+    return res;
+}
+
+inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource,
+                                   const D3D11_RENDER_TARGET_VIEW_DESC& desc) {
+    ID3D11RenderTargetViewPtr res;
+    ThrowOnFailure(device->CreateRenderTargetView(resource, &desc, &res));
+    return res;
 }
 
 // Helpers for calling ID3D11DeviceContext Set functions with containers (auto deduce size)
@@ -201,6 +297,13 @@ void RSSetViewports(const Context& context, const Vps& vps) {
 }
 
 // Misc helpers
+
+inline auto GetBuffer(IDXGISwapChain* swapChain, unsigned buffer) {
+    ID3D11Texture2DPtr res;
+    swapChain->GetBuffer(buffer, __uuidof(ID3D11Texture2D),
+                         reinterpret_cast<void**>(res.ReleaseAndGetAddressOf()));
+    return res;
+}
 
 inline auto roundUpConstantBufferSize(size_t size) { return (1 + (size / 16)) * 16; };
 
