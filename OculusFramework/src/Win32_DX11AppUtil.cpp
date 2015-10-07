@@ -30,10 +30,8 @@ DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* bu
 }
 
 void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size) {
-    D3D11_MAPPED_SUBRESOURCE map;
-    deviceContext->Map(D3DBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-    memcpy((void*)map.pData, buffer, size);
-    deviceContext->Unmap(D3DBuffer.Get(), 0);
+    auto mapHandle = MapHandle{ deviceContext, D3DBuffer.Get() };
+    memcpy(mapHandle.mappedSubresource().pData, buffer, size);
 }
 
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,

@@ -324,11 +324,8 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
     }();
 
     [this, &dx11] {
-        D3D11_MAPPED_SUBRESOURCE mappedResource{};
-        dx11.Context->Map(lightingConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
-                          &mappedResource);
-        memcpy(mappedResource.pData, &lighting, sizeof(lighting));
-        dx11.Context->Unmap(lightingConstantBuffer.Get(), 0);
+        auto mapHandle = MapHandle{dx11.Context.Get(), lightingConstantBuffer.Get()};
+        memcpy(mapHandle.mappedSubresource().pData, &lighting, sizeof(lighting));
     }();
 
     VSSetConstantBuffers(dx11.Context, 0, {cameraConstantBuffer.Get()});
@@ -343,11 +340,8 @@ void Scene::Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Ma
         object.world = model->GetMatrix();
 
         [this, &object, &dx11, &model] {
-            D3D11_MAPPED_SUBRESOURCE mappedResource{};
-            dx11.Context->Map(model->objectConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
-                              &mappedResource);
-            memcpy(mappedResource.pData, &object, sizeof(object));
-            dx11.Context->Unmap(model->objectConstantBuffer.Get(), 0);
+            auto mapHandle = MapHandle{dx11.Context.Get(), model->objectConstantBuffer.Get()};
+            memcpy(mapHandle.mappedSubresource().pData, &object, sizeof(object));
         }();
 
         Render(dx11.Context.Get(), model->Fill.get(), model->VertexBuffer.get(),

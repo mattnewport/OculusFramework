@@ -294,6 +294,29 @@ inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
     return res;
 }
 
+// Helpers for mapping a buffer
+struct MapHandle {
+    MapHandle(ID3D11DeviceContext* context, ID3D11Resource* resource, UINT subResource = 0,
+              D3D11_MAP mapType = D3D11_MAP_WRITE_DISCARD, UINT mapFlags = 0)
+        : context_{context}, resource_{resource}, subResource_{subResource} {
+        ThrowOnFailure(context_->Map(resource_.Get(), subResource, mapType, mapFlags, &data_));
+    }
+    MapHandle(const MapHandle&) = delete;
+    MapHandle(MapHandle&& x) = default;
+    ~MapHandle() {
+        if (context_) context_->Unmap(resource_.Get(), subResource_);
+    }
+    MapHandle& operator=(const MapHandle&) = delete;
+    MapHandle& operator=(MapHandle&& x) = default;
+    const auto& mappedSubresource() { return data_; }
+
+private:
+    ID3D11DeviceContextPtr context_;
+    ID3D11ResourcePtr resource_;
+    UINT subResource_ = 0;
+    D3D11_MAPPED_SUBRESOURCE data_ = {};
+};
+
 // Helpers for calling ID3D11DeviceContext Set functions with containers (auto deduce size)
 template <typename Context, typename Buffers = std::initializer_list<ID3D11Buffer*>,
           typename Strides = std::initializer_list<UINT>,

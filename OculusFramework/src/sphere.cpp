@@ -128,10 +128,8 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     object.world = GetMatrix();
 
     [this, &object, &dx11] {
-        D3D11_MAPPED_SUBRESOURCE mappedResource{};
-        dx11.Context->Map(objectConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-        memcpy(mappedResource.pData, &object, sizeof(object));
-        dx11.Context->Unmap(objectConstantBuffer.Get(), 0);
+        auto mapHandle = MapHandle{dx11.Context.Get(), objectConstantBuffer.Get()};
+        memcpy(mapHandle.mappedSubresource().pData, &object, sizeof(object));
     }();
 
     VSSetConstantBuffers(context, objectConstantBufferOffset,
