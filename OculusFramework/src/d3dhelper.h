@@ -108,6 +108,32 @@ inline auto makeInputElementDescHelper(
     makeInputElementDescHelper(getDXGIFormat<decltype(type::member)>(), offsetof(type, member), \
                                #member, __VA_ARGS__)
 
+// Fluent interface helpers for setting up various DESC structs
+
+struct Texture2DDesc : public CD3D11_TEXTURE2D_DESC {
+    using CD3D11_TEXTURE2D_DESC::CD3D11_TEXTURE2D_DESC;
+    auto& width(UINT x) { Width = x; return *this; }
+    auto& height(UINT x) { Height = x; return *this; }
+    auto& mipLevels(UINT x) { MipLevels = x; return *this; }
+    auto& arraySize(UINT x) { ArraySize = x; return *this; }
+    auto& format(DXGI_FORMAT x) { Format = x; return *this; }
+    auto& sampleDesc(DXGI_SAMPLE_DESC x) { SampleDesc = x; return *this; }
+    auto& usage(D3D11_USAGE x) { Usage = x; return *this; }
+    auto& bindFlags(UINT x) { BindFlags = x; return *this; }
+    auto& cpuAccessFlags(UINT x) { CPUAccessFlags = x; return *this; }
+    auto& miscFlags(UINT x) { MiscFlags = x; return *this; }
+};
+
+struct BufferDesc : public CD3D11_BUFFER_DESC {
+    using CD3D11_BUFFER_DESC::CD3D11_BUFFER_DESC;
+    auto& byteWidth(UINT x) { ByteWidth = x; return *this; }
+    auto& usage(D3D11_USAGE x) { Usage = x; return *this; }
+    auto& bindFlags(UINT x) { BindFlags = x; return *this; }
+    auto& cpuAccessFlags(UINT x) { CPUAccessFlags = x; return *this; }
+    auto& miscFlags(UINT x) { MiscFlags = x; return *this; }
+    auto& structureByteStride(UINT x) { StructureByteStride = x; return *this; }
+};
+
 // Helper operators
 
 bool operator==(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y);
@@ -239,6 +265,32 @@ inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resourc
                                    const D3D11_RENDER_TARGET_VIEW_DESC& desc) {
     ID3D11RenderTargetViewPtr res;
     ThrowOnFailure(device->CreateRenderTargetView(resource, &desc, &res));
+    return res;
+}
+
+inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
+    ID3D11Texture2DPtr res;
+    ThrowOnFailure(device->CreateTexture2D(&desc, nullptr, &res));
+    return res;
+}
+
+inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc,
+                            const D3D11_SUBRESOURCE_DATA& data) {
+    ID3D11Texture2DPtr res;
+    ThrowOnFailure(device->CreateTexture2D(&desc, &data, &res));
+    return res;
+}
+
+inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc) {
+    ID3D11BufferPtr res;
+    ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &res));
+    return res;
+}
+
+inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
+                         const D3D11_SUBRESOURCE_DATA& data) {
+    ID3D11BufferPtr res;
+    ThrowOnFailure(device->CreateBuffer(&desc, &data, &res));
     return res;
 }
 

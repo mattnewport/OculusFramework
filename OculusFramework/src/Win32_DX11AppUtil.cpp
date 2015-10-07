@@ -39,9 +39,10 @@ void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer,
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
                          ovrSizei size, int mipLevels, bool aa)
     : name(name_), Size{size} {
-    CD3D11_TEXTURE2D_DESC dsDesc(
-        depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h, 1,
-        mipLevels);
+    auto dsDesc =
+        Texture2DDesc(depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R16G16B16A16_FLOAT,
+                      size.w, size.h)
+            .mipLevels(mipLevels);
 
     if (rendertarget) {
         if (aa) dsDesc.SampleDesc.Count = 4;
@@ -51,7 +52,7 @@ ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertar
             dsDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
     }
 
-    device->CreateTexture2D(&dsDesc, nullptr, &Tex);
+    Tex = CreateTexture2D(device, dsDesc);
     SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
     if (!depth) {

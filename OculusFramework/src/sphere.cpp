@@ -102,22 +102,13 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     indexCount = indices.size();
 
     // Generate buffers
-    vb = [&device, &verts] {
-        auto buf = ID3D11BufferPtr{};
-        auto desc = CD3D11_BUFFER_DESC{verts.size() * sizeof(verts[0]), D3D11_BIND_VERTEX_BUFFER};
-        auto initialData = D3D11_SUBRESOURCE_DATA{verts.data()};
-        ThrowOnFailure(device.CreateBuffer(&desc, &initialData, &buf));
-        return buf;
-    }();
+    vb =
+        CreateBuffer(&device, BufferDesc{verts.size() * sizeof(verts[0]), D3D11_BIND_VERTEX_BUFFER},
+                     D3D11_SUBRESOURCE_DATA{verts.data()});
 
-    ib = [&device, &indices] {
-        auto buf = ID3D11BufferPtr{};
-        auto desc =
-            CD3D11_BUFFER_DESC{indices.size() * sizeof(indices[0]), D3D11_BIND_INDEX_BUFFER};
-        auto initialData = D3D11_SUBRESOURCE_DATA{indices.data()};
-        ThrowOnFailure(device.CreateBuffer(&desc, &initialData, &buf));
-        return buf;
-    }();
+    ib = CreateBuffer(&device,
+                      BufferDesc{indices.size() * sizeof(indices[0]), D3D11_BIND_INDEX_BUFFER},
+                      D3D11_SUBRESOURCE_DATA{indices.data()});
 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "spherevs.hlsl";
@@ -125,11 +116,9 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, pos, "POSITION")};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
-    [this, &device] {
-        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
-            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
-        device.CreateBuffer(&desc, nullptr, &objectConstantBuffer);
-    }();
+    objectConstantBuffer = CreateBuffer(
+        &device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
+                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 }
 
 void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context) {

@@ -26,28 +26,19 @@ struct OculusTexture {
     ID3D11RenderTargetView* TexRtv[3];
 
     OculusTexture(ovrHmd hmd, ovrSizei size, ID3D11Device* device) : dummyTexture{} {
-        D3D11_TEXTURE2D_DESC dsDesc;
-        dsDesc.Width = size.w;
-        dsDesc.Height = size.h;
-        dsDesc.MipLevels = 1;
-        dsDesc.ArraySize = 1;
-        dsDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-        dsDesc.SampleDesc.Count = 1;  // No multi-sampling allowed
-        dsDesc.SampleDesc.Quality = 0;
-        dsDesc.Usage = D3D11_USAGE_DEFAULT;
-        dsDesc.CPUAccessFlags = 0;
-        dsDesc.MiscFlags = 0;
-        dsDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        const auto texDesc = Texture2DDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h)
+                                 .mipLevels(1)
+                                 .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 
         if (!hmd) {
             TextureSet = new ovrSwapTextureSet{};
             TextureSet->Textures = &dummyTexture.Texture;
             TextureSet->TextureCount = 1;
             TextureSet->CurrentIndex = 0;
-            device->CreateTexture2D(&dsDesc, nullptr, &dummyTexture.D3D11.pTexture);
+            device->CreateTexture2D(&texDesc, nullptr, &dummyTexture.D3D11.pTexture);
             device->CreateShaderResourceView(dummyTexture.D3D11.pTexture, nullptr, &dummyTexture.D3D11.pSRView);
         } else {
-            if (!OVR_SUCCESS(ovr_CreateSwapTextureSetD3D11(hmd, device, &dsDesc, 0, &TextureSet)))
+            if (!OVR_SUCCESS(ovr_CreateSwapTextureSetD3D11(hmd, device, &texDesc, 0, &TextureSet)))
                 throwOvrError("ovrHmd_CreateSwapTextureSetD3D11() failed!", hmd);
         }
     }

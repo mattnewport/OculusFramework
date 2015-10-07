@@ -23,27 +23,21 @@ void Model::AllocateBuffers(ID3D11Device* device) {
     IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, &Indices[0],
                                                Indices.size() * sizeof(uint16_t));
 
-    [this, device] {
-        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
-            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
-        device->CreateBuffer(&desc, nullptr, &objectConstantBuffer);
-    }();
+    objectConstantBuffer = CreateBuffer(
+        device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
+                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 }
 
 void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c) {
     mathlib::Vec3f Vert[][2] = {
-        mathlib::Vec3f{x1, y2, z1}, mathlib::Vec3f{z1, x1, 0.0f}, mathlib::Vec3f{x2, y2, z1}, mathlib::Vec3f{z1, x2, 0.0f},
-        mathlib::Vec3f{x2, y2, z2}, mathlib::Vec3f{z2, x2, 0.0f}, mathlib::Vec3f{x1, y2, z2}, mathlib::Vec3f{z2, x1, 0.0f},
-        mathlib::Vec3f{x1, y1, z1}, mathlib::Vec3f{z1, x1, 0.0f}, mathlib::Vec3f{x2, y1, z1}, mathlib::Vec3f{z1, x2, 0.0f},
-        mathlib::Vec3f{x2, y1, z2}, mathlib::Vec3f{z2, x2, 0.0f}, mathlib::Vec3f{x1, y1, z2}, mathlib::Vec3f{z2, x1, 0.0f},
-        mathlib::Vec3f{x1, y1, z2}, mathlib::Vec3f{z2, y1, 0.0f}, mathlib::Vec3f{x1, y1, z1}, mathlib::Vec3f{z1, y1, 0.0f},
-        mathlib::Vec3f{x1, y2, z1}, mathlib::Vec3f{z1, y2, 0.0f}, mathlib::Vec3f{x1, y2, z2}, mathlib::Vec3f{z2, y2, 0.0f},
-        mathlib::Vec3f{x2, y1, z2}, mathlib::Vec3f{z2, y1, 0.0f}, mathlib::Vec3f{x2, y1, z1}, mathlib::Vec3f{z1, y1, 0.0f},
-        mathlib::Vec3f{x2, y2, z1}, mathlib::Vec3f{z1, y2, 0.0f}, mathlib::Vec3f{x2, y2, z2}, mathlib::Vec3f{z2, y2, 0.0f},
-        mathlib::Vec3f{x1, y1, z1}, mathlib::Vec3f{x1, y1, 0.0f}, mathlib::Vec3f{x2, y1, z1}, mathlib::Vec3f{x2, y1, 0.0f},
-        mathlib::Vec3f{x2, y2, z1}, mathlib::Vec3f{x2, y2, 0.0f}, mathlib::Vec3f{x1, y2, z1}, mathlib::Vec3f{x1, y2, 0.0f},
-        mathlib::Vec3f{x1, y1, z2}, mathlib::Vec3f{x1, y1, 0.0f}, mathlib::Vec3f{x2, y1, z2}, mathlib::Vec3f{x2, y1, 0.0f},
-        mathlib::Vec3f{x2, y2, z2}, mathlib::Vec3f{x2, y2, 0.0f}, mathlib::Vec3f{x1, y2, z2}, mathlib::Vec3f{x1, y2, 0.0f},
+        {{x1, y2, z1}, {z1, x1}}, {{x2, y2, z1}, {z1, x2}}, {{x2, y2, z2}, {z2, x2}},
+        {{x1, y2, z2}, {z2, x1}}, {{x1, y1, z1}, {z1, x1}}, {{x2, y1, z1}, {z1, x2}},
+        {{x2, y1, z2}, {z2, x2}}, {{x1, y1, z2}, {z2, x1}}, {{x1, y1, z2}, {z2, y1}},
+        {{x1, y1, z1}, {z1, y1}}, {{x1, y2, z1}, {z1, y2}}, {{x1, y2, z2}, {z2, y2}},
+        {{x2, y1, z2}, {z2, y1}}, {{x2, y1, z1}, {z1, y1}}, {{x2, y2, z1}, {z1, y2}},
+        {{x2, y2, z2}, {z2, y2}}, {{x1, y1, z1}, {x1, y1}}, {{x2, y1, z1}, {x2, y1}},
+        {{x2, y2, z1}, {x2, y2}}, {{x1, y2, z1}, {x1, y2}}, {{x1, y1, z2}, {x1, y1}},
+        {{x2, y1, z2}, {x2, y1}}, {{x2, y2, z2}, {x2, y2}}, {{x1, y2, z2}, {x1, y2}},
     };
 
     uint32_t CubeIndices[] = {0,  1,  3,  3,  1,  2,  5,  4,  6,  6,  4,  7,
@@ -52,10 +46,8 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 
     for (auto idx : CubeIndices) AddIndex(static_cast<uint16_t>(idx + Vertices.size()));
 
-    for (int v = 0; v < 24; v++) {
-        Vertex vvv;
-        vvv.pos = mathlib::Vec3f{Vert[v][0]};
-        vvv.uv = mathlib::Vec2f{Vert[v][1].x(), Vert[v][1].y()};
+    for (const auto& v : Vert) {
+        Vertex vvv{v[0], {}, mathlib::Vec2f{v[1].x(), v[1].y()}};
         float dist1 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-2.0f, 4.0f, -2.0f});
         float dist2 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{3.0f, 4.0f, -3.0f});
         float dist3 = mathlib::magnitude(vvv.pos - mathlib::Vec3f{-4.0f, 3.0f, 25.0f});
@@ -73,9 +65,8 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
                  ovrSizei size, int mipLevels, unsigned char* data)
     : name(name_) {
-    CD3D11_TEXTURE2D_DESC dsDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h, 1, mipLevels);
-
-    device->CreateTexture2D(&dsDesc, nullptr, &Tex);
+    Tex = CreateTexture2D(device, Texture2DDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h)
+                                      .mipLevels(mipLevels));
     SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
     device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
@@ -252,19 +243,15 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     };
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
-    [this, device] {
-        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
-            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
-        ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &cameraConstantBuffer));
-        SetDebugObjectName(cameraConstantBuffer.Get(), "Scene::cameraConstantBuffer");
-    }();
+    cameraConstantBuffer = CreateBuffer(
+        device, BufferDesc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
+                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
+    SetDebugObjectName(cameraConstantBuffer.Get(), "Scene::cameraConstantBuffer");
 
-    [this, device] {
-        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Lighting)), D3D11_BIND_CONSTANT_BUFFER,
-            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE};
-        ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &lightingConstantBuffer));
-        SetDebugObjectName(lightingConstantBuffer.Get(), "Scene::lightingConstantBuffer");
-    }();
+    lightingConstantBuffer = CreateBuffer(
+        device, BufferDesc{roundUpConstantBufferSize(sizeof(Lighting)), D3D11_BIND_CONSTANT_BUFFER,
+                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
+    SetDebugObjectName(lightingConstantBuffer.Get(), "Scene::lightingConstantBuffer");
 
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_pmrem.dds)", &pmremEnvMapTex, &pmremEnvMapSRV));
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_irrad.dds)", &irradEnvMapTex, &irradEnvMapSRV));

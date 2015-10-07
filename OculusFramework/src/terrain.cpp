@@ -71,10 +71,11 @@ void HeightField::AddVertices(ID3D11Device* device,
     }();
 
     [this, device, &heights, tifWidth, tifHeight] {
-        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(tifWidth),
-                                   static_cast<UINT>(tifHeight), 1u, 1u};
-        D3D11_SUBRESOURCE_DATA data{heights.data(), tifWidth * sizeof(heights[0]), 0};
-        ThrowOnFailure(device->CreateTexture2D(&desc, &data, &heightsTex));
+        heightsTex =
+            CreateTexture2D(device, Texture2DDesc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(tifWidth),
+                                                  static_cast<UINT>(tifHeight)}
+                                        .mipLevels(1),
+                            {heights.data(), tifWidth * sizeof(heights[0])});
         ThrowOnFailure(device->CreateShaderResourceView(heightsTex.Get(), nullptr, &heightsSRV));
     }();
 
@@ -145,10 +146,11 @@ void HeightField::AddVertices(ID3D11Device* device,
                 normals[y * width + x] = {normal.x(), normal.z()};
             }
         }
-        CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width),
-                                   static_cast<UINT>(height), 1u, 1u};
-        D3D11_SUBRESOURCE_DATA data{normals.data(), width * sizeof(normals[0])};
-        ThrowOnFailure(device->CreateTexture2D(&desc, &data, &normalsTex));
+        normalsTex = CreateTexture2D(
+            device, Texture2DDesc{DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width),
+                                  static_cast<UINT>(height)}
+                        .mipLevels(1),
+            {normals.data(), width * sizeof(normals[0])});
         ThrowOnFailure(device->CreateShaderResourceView(normalsTex.Get(), nullptr, &normalsSRV));
     }();
 
@@ -225,12 +227,9 @@ void HeightField::AddVertices(ID3D11Device* device,
                               MAKE_INPUT_ELEMENT_DESC(Vertex, texcoord)};
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
-    [this, device] {
-        const CD3D11_BUFFER_DESC desc{roundUpConstantBufferSize(sizeof(Object)),
-                                      D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC,
-                                      D3D11_CPU_ACCESS_WRITE};
-        device->CreateBuffer(&desc, nullptr, &objectConstantBuffer);
-    }();
+    objectConstantBuffer = CreateBuffer(
+        device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
+                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {

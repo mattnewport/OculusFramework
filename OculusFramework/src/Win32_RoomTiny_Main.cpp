@@ -126,8 +126,9 @@ struct ToneMapper {
           height{static_cast<unsigned>(height_)},
           quadRenderer{directX11_, "tonemapps.hlsl"} {
         [this] {
-            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, 1, 1};
-            ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &sourceTex));
+            sourceTex = CreateTexture2D(
+                directX11.Device.Get(),
+                Texture2DDesc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height}.mipLevels(1));
             SetDebugObjectName(sourceTex.Get(), "ToneMapper::sourceTex");
             ThrowOnFailure(
                 directX11.Device->CreateShaderResourceView(sourceTex.Get(), nullptr, &sourceTexSRV));
@@ -135,9 +136,10 @@ struct ToneMapper {
         }();
 
         [this] {
-            CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height, 1, 1,
-                                       D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
-            ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &renderTargetTex));
+            const auto desc =
+                Texture2DDesc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height}.mipLevels(1).bindFlags(
+                    D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+            renderTargetTex = CreateTexture2D(directX11.Device.Get(), desc);
             SetDebugObjectName(renderTargetTex.Get(), "ToneMapper::renderTargetTex");
             renderTargetView =
                 CreateRenderTargetView(directX11.Device.Get(), renderTargetTex.Get(),
@@ -175,11 +177,11 @@ struct LuminanceRangeFinder {
           luminanceBlender{directX11_, "loglumblendps.hlsl"} {
         [this] {
             auto makeLumTex = [this](unsigned texWidth, unsigned texHeight) {
-                CD3D11_TEXTURE2D_DESC desc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight), 1,
-                                           1,
-                                           D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET};
-                ID3D11Texture2DPtr tex;
-                ThrowOnFailure(directX11.Device->CreateTexture2D(&desc, nullptr, &tex));
+                auto tex = CreateTexture2D(
+                    directX11.Device.Get(),
+                    Texture2DDesc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight)}
+                        .mipLevels(1)
+                        .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
                 SetDebugObjectName(tex.Get(), "LuminanceRangeFinder::tex");
                 ID3D11ShaderResourceViewPtr srv;
                 ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex.Get(), nullptr, &srv));
@@ -298,15 +300,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     LuminanceRangeFinder luminanceRangeFinder{DX11, eyeBufferSize.w, eyeBufferSize.h};
 
     // Create a mirror texture to see on the monitor.
-    D3D11_TEXTURE2D_DESC td = {};
-    td.ArraySize = 1;
-    td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    td.Width = windowRect.Size.w;
-    td.Height = windowRect.Size.h;
-    td.Usage = D3D11_USAGE_DEFAULT;
-    td.SampleDesc.Count = 1;
-    td.MipLevels = 1;
-    ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(DX11.Device.Get(), td);
+    ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(
+        DX11.Device.Get(),
+        Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(windowRect.Size.w), UINT(windowRect.Size.h)}
+            .mipLevels(1));
 
     ImGui_ImplDX11_Init(DX11.Window, DX11.Device.Get(), DX11.Context.Get());
     ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
@@ -321,19 +318,11 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         max(EyeRenderViewport[ovrEye_Left].Size.h, EyeRenderViewport[ovrEye_Right].Size.h);
     [&DX11, &EyeRenderViewport, &imguiRenderTargetTex, &imguiRenderTargetSRV, &imguiRTV,
      imguiRTVWidth, imguiRTVHeight] {
-        D3D11_TEXTURE2D_DESC td{};
-        td.Width = imguiRTVWidth;
-        td.Height = imguiRTVHeight;
-        td.MipLevels = 1;
-        td.ArraySize = 1;
-        td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        td.SampleDesc.Count = 1;
-        td.SampleDesc.Quality = 0;
-        td.Usage = D3D11_USAGE_DEFAULT;
-        td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-        td.CPUAccessFlags = 0;
-        td.MiscFlags = 0;
-        ThrowOnFailure(DX11.Device->CreateTexture2D(&td, nullptr, &imguiRenderTargetTex));
+        imguiRenderTargetTex = CreateTexture2D(
+            DX11.Device.Get(),
+            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(imguiRTVWidth), UINT(imguiRTVHeight)}
+                .mipLevels(1)
+                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
         ThrowOnFailure(DX11.Device->CreateShaderResourceView(imguiRenderTargetTex.Get(), nullptr,
                                                              &imguiRenderTargetSRV));
         imguiRTV = CreateRenderTargetView(DX11.Device.Get(), imguiRenderTargetTex.Get());
