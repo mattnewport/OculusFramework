@@ -15,39 +15,34 @@ extern LRESULT ImGui_ImplDX11_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
 
 using namespace std;
 
-ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
-                         ovrSizei size, int mipLevels, bool aa)
-    : name(name_), Size{size} {
-    auto dsDesc =
-        Texture2DDesc(depth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_R16G16B16A16_FLOAT,
-                      size.w, size.h)
-            .mipLevels(mipLevels);
-
-    if (rendertarget) {
-        if (aa) dsDesc.SampleDesc.Count = 4;
-        if (depth)
-            dsDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-        else
-            dsDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-    }
+ImageBuffer::ImageBuffer(const char* name, ID3D11Device* device, ovrSizei size)
+    : Size{size} {
+    auto dsDesc = Texture2DDesc(DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h)
+                      .mipLevels(1)
+                      .sampleDesc({4, 0})
+                      .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 
     Tex = CreateTexture2D(device, dsDesc);
     SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
-    if (!depth) {
-        device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
-        SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
-    }
+    device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
+    SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
+    TexRtv = CreateRenderTargetView(device, Tex.Get());
+    SetDebugObjectName(TexRtv.Get(), string("ImageBuffer::TexRtv - ") + name);
+}
 
-    if (rendertarget) {
-        if (depth) {
-            device->CreateDepthStencilView(Tex.Get(), nullptr, &TexDsv);
-            SetDebugObjectName(TexDsv.Get(), string("ImageBuffer::TexDsv - ") + name);
-        } else {
-            TexRtv = CreateRenderTargetView(device, Tex.Get());
-            SetDebugObjectName(TexRtv.Get(), string("ImageBuffer::TexRtv - ") + name);
-        }
-    }
+DepthBuffer::DepthBuffer(const char* name, ID3D11Device* device, ovrSizei size) {
+    auto dsDesc =
+        Texture2DDesc(DXGI_FORMAT_D24_UNORM_S8_UINT, size.w, size.h)
+        .mipLevels(1)
+        .sampleDesc({ 4, 0 })
+        .bindFlags(D3D11_BIND_DEPTH_STENCIL);
+
+    ID3D11Texture2DPtr Tex = CreateTexture2D(device, dsDesc);
+    SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
+
+    device->CreateDepthStencilView(Tex.Get(), nullptr, &TexDsv);
+    SetDebugObjectName(TexDsv.Get(), string("ImageBuffer::TexDsv - ") + name);
 }
 
 DirectX11::DirectX11() {

@@ -282,9 +282,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     // Setup individual eye render targets
     auto EyeRenderTexture =
-        ImageBuffer{"EyeRenderTexture", DX11.Device.Get(), true, false, eyeBufferSize, 1, true};
+        ImageBuffer{"EyeRenderTexture", DX11.Device.Get(), eyeBufferSize};
     auto EyeDepthBuffer =
-        ImageBuffer{"EyeDepthBuffer", DX11.Device.Get(), true, true, eyeBufferSize, 1, true};
+        DepthBuffer{"EyeDepthBuffer", DX11.Device.Get(), eyeBufferSize};
     ovrRecti EyeRenderViewport[2];  // Useful to remember when varying resolution
     EyeRenderViewport[ovrEye_Left].Pos = ovrVector2i{0, 0};
     EyeRenderViewport[ovrEye_Left].Size = idealSizeL;

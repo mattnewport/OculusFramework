@@ -36,13 +36,15 @@ struct ImageBuffer {
     ID3D11Texture2DPtr Tex;
     ID3D11ShaderResourceViewPtr TexSv;
     ID3D11RenderTargetViewPtr TexRtv;
-    ID3D11DepthStencilViewPtr TexDsv;
     ovrSizei Size = ovrSizei{};
-    const char* name = nullptr;
 
-    ImageBuffer() = default;
-    ImageBuffer(const char* name, ID3D11Device* device, bool rendertarget, bool depth,
-                ovrSizei size, int mipLevels = 1, bool aa = false);
+    ImageBuffer(const char* name, ID3D11Device* device, ovrSizei size);
+};
+
+struct DepthBuffer {
+    ID3D11DepthStencilViewPtr TexDsv;
+
+    DepthBuffer(const char* name, ID3D11Device* device, ovrSizei size);
 };
 
 struct DirectX11 {
