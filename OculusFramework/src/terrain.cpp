@@ -10,14 +10,11 @@
 #include "vector.h"
 
 #include "cpl_serv.h"
+#include "geo_normalize.h"
 #include "geodesic.h"
 #include "geotiff.h"
-#include "geo_normalize.h"
 #include "geovalues.h"
 #include "xtiffio.h"
-
-#include <array>
-#include <fstream>
 
 #include "hlslmacros.h"
 #include "../commonstructs.hlsli"
@@ -194,8 +191,9 @@ void HeightField::AddVertices(ID3D11Device* device,
         const auto br = uint16_t(tr + (blockSize + 1));
         Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
     }
-    IndexBuffer = std::make_unique<DataBuffer>(device, D3D11_BIND_INDEX_BUFFER, Indices.data(),
-                                               Indices.size() * sizeof(Indices[0]));
+    IndexBuffer = CreateBuffer(
+        device, BufferDesc{Indices.size() * sizeof(Indices[0]), D3D11_BIND_INDEX_BUFFER},
+        {Indices.data()});
 
     const auto uvStepX = 1.0f / width;
     const auto uvStepY = 1.0f / height;
@@ -212,9 +210,9 @@ void HeightField::AddVertices(ID3D11Device* device,
                         {(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY}};
                 }
             }
-            VertexBuffers.push_back(
-                std::make_unique<DataBuffer>(device, D3D11_BIND_VERTEX_BUFFER, vertices.data(),
-                                             vertices.size() * sizeof(vertices[0])));
+            VertexBuffers.push_back(CreateBuffer(
+                device, BufferDesc{vertices.size() * sizeof(vertices[0]), D3D11_BIND_VERTEX_BUFFER},
+                {vertices.data()}));
         }
     }
 
@@ -244,19 +242,12 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         memcpy(mapHandle.mappedSubresource().pData, &object, sizeof(object));
     }();
 
-    VSSetConstantBuffers(context, objectConstantBufferOffset,
-                         {objectConstantBuffer.Get()});
-
+    VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
-
-    context->IASetIndexBuffer(IndexBuffer->D3DBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-
-    PSSetShaderResources(context, materialSRVOffset,
-                         {shapesTex.get(), normalsSRV.Get()});
-
+    context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
-        IASetVertexBuffers(context, 0, {vertexBuffer->D3DBuffer.Get()},
-                           {UINT(sizeof(Vertex))});
+        IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {UINT(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
     }
 }

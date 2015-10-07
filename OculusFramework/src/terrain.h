@@ -26,8 +26,8 @@ struct HeightField {
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
     std::vector<uint16_t> Indices;
-    std::vector<std::unique_ptr<DataBuffer>> VertexBuffers;
-    std::unique_ptr<DataBuffer> IndexBuffer;
+    std::vector<ID3D11BufferPtr> VertexBuffers;
+    ID3D11BufferPtr IndexBuffer;
     Texture2DManager::ResourceHandle shapesTex;
     ID3D11BufferPtr objectConstantBuffer;
     ID3D11Texture2DPtr heightsTex;

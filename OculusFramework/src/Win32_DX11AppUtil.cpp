@@ -15,25 +15,6 @@ extern LRESULT ImGui_ImplDX11_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
 
 using namespace std;
 
-DataBuffer::DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size)
-    : Size(size) {
-    D3D11_BUFFER_DESC desc{};
-    desc.Usage = D3D11_USAGE_DYNAMIC;
-    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    desc.BindFlags = use;
-    desc.ByteWidth = (unsigned)size;
-    D3D11_SUBRESOURCE_DATA sr;
-    sr.pSysMem = buffer;
-    sr.SysMemPitch = sr.SysMemSlicePitch = 0;
-    ThrowOnFailure(device->CreateBuffer(&desc, buffer ? &sr : nullptr, &D3DBuffer));
-    SetDebugObjectName(D3DBuffer.Get(), "DataBuffer::D3DBuffer");
-}
-
-void DataBuffer::Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size) {
-    auto mapHandle = MapHandle{ deviceContext, D3DBuffer.Get() };
-    memcpy(mapHandle.mappedSubresource().pData, buffer, size);
-}
-
 ImageBuffer::ImageBuffer(const char* name_, ID3D11Device* device, bool rendertarget, bool depth,
                          ovrSizei size, int mipLevels, bool aa)
     : name(name_), Size{size} {
@@ -235,14 +216,6 @@ void DirectX11::HandleMessages() {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-}
-
-void DirectX11::OutputFrameTime(double currentTime) {
-    static double lastTime = 0;
-    char tempString[100];
-    sprintf_s(tempString, "Frame time = %0.2f ms\n", (currentTime - lastTime) * 1000.0f);
-    OutputDebugStringA(tempString);
-    lastTime = currentTime;
 }
 
 void DirectX11::ReleaseWindow(HINSTANCE hinst) {

@@ -35,9 +35,9 @@ struct Model {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex {
-        mathlib::Vec3f pos;
-        Color c;
-        mathlib::Vec2f uv;
+        mathlib::Vec3f position;
+        Color color;
+        mathlib::Vec2f texcoord;
     };
 
     mathlib::Vec3f Pos;
@@ -47,8 +47,8 @@ struct Model {
     std::vector<Vertex> Vertices;
     std::vector<uint16_t> Indices;
     std::unique_ptr<ShaderFill> Fill;
-    std::unique_ptr<DataBuffer> VertexBuffer;
-    std::unique_ptr<DataBuffer> IndexBuffer;
+    ID3D11BufferPtr VertexBuffer;
+    ID3D11BufferPtr IndexBuffer;
     ID3D11BufferPtr objectConstantBuffer;
 
     Model(mathlib::Vec3f pos_, std::unique_ptr<ShaderFill>&& arg_Fill)
@@ -80,12 +80,11 @@ struct Scene {
 
     void Render(DirectX11& dx11, const mathlib::Vec3f& eye, const mathlib::Mat4f& view,
                 const mathlib::Mat4f& proj);
-    void Render(ID3D11DeviceContext* context, ShaderFill* fill, DataBuffer* vertices,
-                DataBuffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer);
+    void Render(ID3D11DeviceContext* context, ShaderFill* fill, ID3D11Buffer* vertices,
+                ID3D11Buffer* indices, UINT stride, int count, ID3D11Buffer& objectConstantBuffer);
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
-    std::unique_ptr<DataBuffer> UniformBufferGen;
     ID3D11BufferPtr cameraConstantBuffer;
     ID3D11ResourcePtr pmremEnvMapTex;
     ID3D11ShaderResourceViewPtr pmremEnvMapSRV;

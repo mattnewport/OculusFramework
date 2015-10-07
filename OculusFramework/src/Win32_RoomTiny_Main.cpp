@@ -45,27 +45,28 @@ limitations under the License.
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <iterator>
 #include <regex>
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <utility>
 
 #include <Xinput.h>
 
 using namespace mathlib;
-
 using namespace libovrwrapper;
-
 using namespace std;
 
-unordered_map<string, string> parseArgs(const char* args) {
-    unordered_map<string, string> argMap;
+auto parseArgs(const char* args) {
+    using ArgMap = unordered_map<string, string>;
+    auto argMap = ArgMap{};
     regex re{R"(-((\?)|(\w+))(\s+(\w+))?)"};
-    for_each(cregex_iterator{args, args + strlen(args), re}, cregex_iterator{},
-             [&](const cmatch m) {
-                 argMap[string{m[1].first, m[1].second}] = string{m[5].first, m[5].second};
-             });
-    if (argMap.find(string{"?"}) != end(argMap)) {
+    transform(cregex_iterator{args, args + strlen(args), re}, cregex_iterator{},
+              inserter(argMap, begin(argMap)), [](const auto& m) {
+                  return ArgMap::value_type{{m[1].first, m[1].second}, {m[5].first, m[5].second}};
+              });
+    if (argMap.find("?") != end(argMap)) {
         // Print command line args
     }
     return argMap;
@@ -124,29 +125,25 @@ struct ToneMapper {
         : directX11{directX11_},
           width{static_cast<unsigned>(width_)},
           height{static_cast<unsigned>(height_)},
-          quadRenderer{directX11_, "tonemapps.hlsl"} {
-        [this] {
-            sourceTex = CreateTexture2D(
-                directX11.Device.Get(),
-                Texture2DDesc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height}.mipLevels(1));
-            SetDebugObjectName(sourceTex.Get(), "ToneMapper::sourceTex");
-            ThrowOnFailure(
-                directX11.Device->CreateShaderResourceView(sourceTex.Get(), nullptr, &sourceTexSRV));
-            SetDebugObjectName(sourceTexSRV.Get(), "ToneMapper::sourceTexSRV");
-        }();
+          quadRenderer{directX11_, "tonemapps.hlsl"},
+          sourceTex{CreateTexture2D(
+              directX11.Device.Get(),
+              Texture2DDesc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height}.mipLevels(1))},
+          renderTargetTex{CreateTexture2D(
+              directX11.Device.Get(),
+              Texture2DDesc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height}.mipLevels(1).bindFlags(
+                  D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET))} {
+        SetDebugObjectName(sourceTex.Get(), "ToneMapper::sourceTex");
+        ThrowOnFailure(
+            directX11.Device->CreateShaderResourceView(sourceTex.Get(), nullptr, &sourceTexSRV));
+        SetDebugObjectName(sourceTexSRV.Get(), "ToneMapper::sourceTexSRV");
 
-        [this] {
-            const auto desc =
-                Texture2DDesc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height}.mipLevels(1).bindFlags(
-                    D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
-            renderTargetTex = CreateTexture2D(directX11.Device.Get(), desc);
-            SetDebugObjectName(renderTargetTex.Get(), "ToneMapper::renderTargetTex");
-            renderTargetView =
-                CreateRenderTargetView(directX11.Device.Get(), renderTargetTex.Get(),
-                                       CD3D11_RENDER_TARGET_VIEW_DESC{D3D11_RTV_DIMENSION_TEXTURE2D,
-                                                                      DXGI_FORMAT_R8G8B8A8_UNORM});
-            SetDebugObjectName(renderTargetView.Get(), "ToneMapper::renderTargetView");
-        }();
+        SetDebugObjectName(renderTargetTex.Get(), "ToneMapper::renderTargetTex");
+        renderTargetView =
+            CreateRenderTargetView(directX11.Device.Get(), renderTargetTex.Get(),
+                                   CD3D11_RENDER_TARGET_VIEW_DESC{D3D11_RTV_DIMENSION_TEXTURE2D,
+                                                                  DXGI_FORMAT_R8G8B8A8_UNORM});
+        SetDebugObjectName(renderTargetView.Get(), "ToneMapper::renderTargetView");
     }
 
     void render(ID3D11ShaderResourceView* avgLogLuminance);
@@ -204,9 +201,8 @@ struct LuminanceRangeFinder {
     unsigned width = 0;
     unsigned height = 0;
 
-    vector<tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr>>
-        textureChain;
     tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr> previousFrame;
+    vector<decltype(previousFrame)> textureChain;
     QuadRenderer logLumRenderer;
     QuadRenderer logAverageRenderer;
     QuadRenderer luminanceBlender;
@@ -233,7 +229,7 @@ void showGui(Scene& scene) {
         return;
     }
 
-    ImGui::PushItemWidth(-140);                                 // Right align, keep 140 pixels for labels
+    ImGui::PushItemWidth(-140);  // Right align, keep 140 pixels for labels
 
     scene.showGui();
 

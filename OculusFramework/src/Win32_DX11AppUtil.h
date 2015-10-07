@@ -32,15 +32,6 @@ limitations under the License.
 #include "d3dresourcemanagers.h"
 #include "pipelinestateobjectmanager.h"
 
-struct DataBuffer {
-    ID3D11BufferPtr D3DBuffer;
-    size_t Size;
-
-    DataBuffer(ID3D11Device* device, D3D11_BIND_FLAG use, const void* buffer, size_t size);
-
-    void Refresh(ID3D11DeviceContext* deviceContext, const void* buffer, size_t size);
-};
-
 struct ImageBuffer {
     ID3D11Texture2DPtr Tex;
     ID3D11ShaderResourceViewPtr TexSv;
@@ -78,17 +69,15 @@ struct DirectX11 {
     void setViewport(const ovrRecti& vp);
     bool IsAnyKeyPressed() const;
     void HandleMessages();
-    void OutputFrameTime(double currentTime);
     void ReleaseWindow(HINSTANCE hinst);
 
     void applyState(ID3D11DeviceContext& context, PipelineStateObject& pso);
 };
 
 struct QuadRenderer {
-    QuadRenderer(DirectX11& directX11_, const char* pixelShader,
-                 const bool alphaBlendEnable = false)
+    QuadRenderer(DirectX11& directX11_, const char* pixelShader, const bool alphaBlend = false)
         : directX11{directX11_} {
-        [this, pixelShader, alphaBlendEnable] {
+        [this, pixelShader, alphaBlend] {
             PipelineStateObjectDesc desc;
             desc.vertexShader = "quadvs.hlsl";
             desc.pixelShader = pixelShader;
@@ -97,10 +86,10 @@ struct QuadRenderer {
                 desc.DepthEnable = FALSE;
                 return desc;
             }();
-            desc.blendState = [alphaBlendEnable] {
+            desc.blendState = [alphaBlend] {
                 CD3D11_BLEND_DESC desc{D3D11_DEFAULT};
                 auto& rt0Blend = desc.RenderTarget[0];
-                rt0Blend.BlendEnable = alphaBlendEnable ? TRUE : FALSE;
+                rt0Blend.BlendEnable = alphaBlend ? TRUE : FALSE;
                 rt0Blend.SrcBlend = D3D11_BLEND_ONE;
                 rt0Blend.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
                 rt0Blend.BlendOp = D3D11_BLEND_OP_ADD;
