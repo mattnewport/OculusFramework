@@ -24,6 +24,8 @@
 #include "hlslmacros.h"
 #include "../commonstructs.hlsli"
 
+#include <fstream>
+
 using namespace std;
 
 using namespace mathlib;
@@ -126,6 +128,22 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto heightM = latLongDist(topLeft, bottomLeft);
     const auto gridStepX = widthM / width;
     const auto gridStepY = heightM / height;
+
+    [&heights, tifWidth, tifHeight, widthM, heightM] {
+        auto tempFile = ofstream{
+            R"(E:\Users\Matt\Documents\Visual Studio 14\Projects\array_view_perftest\array_view_perftest\heightfield.dat)",
+            ios::out | ios::binary};
+
+        auto write = [&tempFile](auto x) {
+            tempFile.write(reinterpret_cast<const char*>(&x), sizeof(x));
+        };
+        write(tifWidth);
+        write(tifHeight);
+        write(widthM);
+        write(heightM);
+        tempFile.write(reinterpret_cast<const char*>(heights.data()),
+                       heights.size() * sizeof(heights[0]));
+    }();
 
     [this, device, width, height, &heights, gridStepX, gridStepY] {
         auto heightsView =
