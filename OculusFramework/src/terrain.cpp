@@ -16,6 +16,11 @@
 #include "geovalues.h"
 #include "xtiffio.h"
 
+#pragma warning(push)
+#pragma warning(disable: 4245)
+#include <array_view.h>
+#pragma warning(pop)
+
 #include "hlslmacros.h"
 #include "../commonstructs.hlsli"
 
@@ -123,26 +128,33 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto gridStepY = heightM / height;
 
     [this, device, width, height, &heights, gridStepX, gridStepY] {
-        auto getHeight = [heights = heights.data(), width, height](int x, int y) {
-            x = clamp(x, 0, width - 1);
-            y = clamp(y, 0, height - 1);
-            return heights[y * width + x];
+        auto heightsView =
+            gsl::as_array_view(heights.data(), gsl::dim<>(height), gsl::dim<>(width));
+        auto getHeight = [
+            heightsView,
+            w = heightsView.bounds().index_bounds()[1],
+            h = heightsView.bounds().index_bounds()[0]
+        ](auto idx, int xOff, int yOff) {
+            idx[0] = clamp(int(idx[0]) + yOff, 0, int(h) - 1);
+            idx[1] = clamp(int(idx[1]) + xOff, 0, int(w) - 1);
+            return heightsView[idx];
         };
 
         vector<Vec2f> normals(width * height);
-        for (auto y = 0; y < height; ++y) {
-            for (auto x = 0; x < width; ++x) {
-                const auto yl = getHeight(x - 1, y);
-                const auto yr = getHeight(x + 1, y);
-                const auto yd = getHeight(x, y - 1);
-                const auto yu = getHeight(x, y + 1);
-                const auto normal = normalize(Vec3f{2.0f * gridStepY * (yl - yr),
-                                                    4.0f * gridStepX * gridStepY,
-                                                    2.0f * gridStepX * (yd - yu)});
-                assert(normal.y() > 0.0f);
-                normals[y * width + x] = {normal.x(), normal.z()};
-            }
+        auto normalsView =
+            gsl::as_array_view(normals.data(), gsl::dim<>(height), gsl::dim<>(width));
+        for (auto idx : normalsView.bounds()) {
+            const auto yl = getHeight(idx, -1, 0);
+            const auto yr = getHeight(idx, 1, 0);
+            const auto yd = getHeight(idx, 0, -1);
+            const auto yu = getHeight(idx, 0, 1);
+            const auto normal =
+                normalize(Vec3f{2.0f * gridStepY * (yl - yr), 4.0f * gridStepX * gridStepY,
+                                2.0f * gridStepX * (yd - yu)});
+            assert(normal.y() > 0.0f);
+            normalsView[idx] = {normal.x(), normal.z()};
         }
+
         normalsTex = CreateTexture2D(
             device, Texture2DDesc{DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width),
                                   static_cast<UINT>(height)}

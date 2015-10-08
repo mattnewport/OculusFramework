@@ -228,7 +228,9 @@ void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& ps
     context.IASetPrimitiveTopology(pso.primitiveTopology);
 }
 
-void QuadRenderer::render(ID3D11RenderTargetView & rtv, std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y, int width, int height) {
+void QuadRenderer::render(ID3D11RenderTargetView& rtv,
+                          std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x,
+                          int y, int width, int height) {
     directX11.applyState(*directX11.Context.Get(), *pipelineStateObject.get());
     OMSetRenderTargets(directX11.Context, {&rtv});
     RSSetViewports(directX11.Context,

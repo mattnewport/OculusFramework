@@ -53,7 +53,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;NOMINMAX;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;$(SolutionDir)proj-4.9.1\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)GSL\include;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;$(SolutionDir)proj-4.9.1\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MinimalRebuild>false</MinimalRebuild>
@@ -61,7 +61,8 @@
       <PrecompiledHeaderFile>auto_pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>auto_pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -81,7 +82,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;NOMINMAX;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;$(SolutionDir)proj-4.9.1\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)GSL\include;$(OVR_SDK)\LibOVR\Include;$(SolutionDir)..\MathLib\Mathlib\include;$(SolutionDir)tiff-4.0.3\libtiff;$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)libgeotiff-1.4.0\libxtiff;$(SolutionDir)proj-4.9.1\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
