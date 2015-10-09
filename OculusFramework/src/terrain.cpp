@@ -129,22 +129,6 @@ void HeightField::AddVertices(ID3D11Device* device,
     const auto gridStepX = widthM / width;
     const auto gridStepY = heightM / height;
 
-    [&heights, tifWidth, tifHeight, widthM, heightM] {
-        auto tempFile = ofstream{
-            R"(E:\Users\Matt\Documents\Visual Studio 14\Projects\array_view_perftest\array_view_perftest\heightfield.dat)",
-            ios::out | ios::binary};
-
-        auto write = [&tempFile](auto x) {
-            tempFile.write(reinterpret_cast<const char*>(&x), sizeof(x));
-        };
-        write(tifWidth);
-        write(tifHeight);
-        write(widthM);
-        write(heightM);
-        tempFile.write(reinterpret_cast<const char*>(heights.data()),
-                       heights.size() * sizeof(heights[0]));
-    }();
-
     [this, device, width, height, &heights, gridStepX, gridStepY] {
         auto heightsView =
             gsl::as_array_view(heights.data(), gsl::dim<>(height), gsl::dim<>(width));
@@ -162,14 +146,10 @@ void HeightField::AddVertices(ID3D11Device* device,
         auto normalsView =
             gsl::as_array_view(normals.data(), gsl::dim<>(height), gsl::dim<>(width));
         for (auto idx : normalsView.bounds()) {
-            const auto yl = getHeight(idx, -1, 0);
-            const auto yr = getHeight(idx, 1, 0);
-            const auto yd = getHeight(idx, 0, -1);
-            const auto yu = getHeight(idx, 0, 1);
             const auto normal =
-                normalize(Vec3f{2.0f * gridStepY * (yl - yr), 4.0f * gridStepX * gridStepY,
-                                2.0f * gridStepX * (yd - yu)});
-            assert(normal.y() > 0.0f);
+                normalize(Vec3f{2.0f * gridStepY * (getHeight(idx, -1, 0) - getHeight(idx, 1, 0)),
+                                4.0f * gridStepX * gridStepY,
+                                2.0f * gridStepX * (getHeight(idx, 0, -1) - getHeight(idx, 0, 1))});
             normalsView[idx] = {normal.x(), normal.z()};
         }
 
