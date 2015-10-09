@@ -14,6 +14,11 @@
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
 
+#pragma warning(push)
+#pragma warning(disable: 4245)
+#include <array_view.h>
+#pragma warning(pop)
+
 using ID3D11BufferPtr = Microsoft::WRL::ComPtr<ID3D11Buffer>;
 using ID3D11DebugPtr = Microsoft::WRL::ComPtr<ID3D11Debug>;
 using ID3D11DepthStencilStatePtr = Microsoft::WRL::ComPtr<ID3D11DepthStencilState>;
@@ -318,65 +323,70 @@ private:
 };
 
 // Helpers for calling ID3D11DeviceContext Set functions with containers (auto deduce size)
-template <typename Context, typename Buffers = std::initializer_list<ID3D11Buffer*>,
-          typename Strides = std::initializer_list<UINT>,
-          typename Offsets = std::initializer_list<UINT>>
-void IASetVertexBuffers(const Context& context, unsigned startSlot, const Buffers& buffers,
-                        const Strides& strides, const Offsets& offsets) {
-    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::begin(buffers),
-                                std::begin(strides), std::begin(offsets));
+template <typename Context>
+void IASetVertexBuffers(const Context& context, unsigned startSlot,
+                        gsl::array_view<ID3D11Buffer* const> buffers,
+                        gsl::array_view<const UINT> strides, gsl::array_view<const UINT> offsets) {
+    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), buffers.data(),
+                                strides.data(), offsets.data());
 };
 
-template <typename Context, typename Buffers = std::initializer_list<ID3D11Buffer*>,
-          typename Strides = std::initializer_list<UINT>>
-void IASetVertexBuffers(const Context& context, unsigned startSlot, const Buffers& buffers,
-                        const Strides& strides) {
+template <typename Context>
+void IASetVertexBuffers(const Context& context, unsigned startSlot,
+                        gsl::array_view<ID3D11Buffer* const> buffers,
+                        gsl::array_view<const UINT> strides) {
     UINT offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT] = {};
-    IASetVertexBuffers(context, startSlot, buffers, strides, offsets);
+    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), buffers.data(),
+                                strides.data(), std::begin(offsets));
 };
 
-template <typename Context, typename Buffers = std::initializer_list<ID3D11Buffer*>>
-void PSSetConstantBuffers(const Context& context, unsigned startSlot, const Buffers& buffers) {
-    context->PSSetConstantBuffers(startSlot, std::size(buffers), std::begin(buffers));
+template <typename Context>
+void PSSetConstantBuffers(const Context& context, unsigned startSlot,
+                          gsl::array_view<ID3D11Buffer* const> buffers) {
+    context->PSSetConstantBuffers(startSlot, std::size(buffers), buffers.data());
 }
 
-template <typename Context, typename Buffers = std::initializer_list<ID3D11Buffer*>>
-void VSSetConstantBuffers(const Context& context, unsigned startSlot, const Buffers& buffers) {
-    context->VSSetConstantBuffers(startSlot, std::size(buffers), std::begin(buffers));
+template <typename Context>
+void VSSetConstantBuffers(const Context& context, unsigned startSlot,
+                          gsl::array_view<ID3D11Buffer* const> buffers) {
+    context->VSSetConstantBuffers(startSlot, std::size(buffers), buffers.data());
 }
 
-template <typename Context, typename Srvs = std::initializer_list<ID3D11ShaderResourceView*>>
-void PSSetShaderResources(const Context& context, unsigned startSlot, const Srvs& srvs) {
-    context->PSSetShaderResources(UINT(startSlot), std::size(srvs), std::begin(srvs));
+template <typename Context>
+void PSSetShaderResources(const Context& context, unsigned startSlot,
+                          gsl::array_view<ID3D11ShaderResourceView* const> srvs) {
+    context->PSSetShaderResources(UINT(startSlot), std::size(srvs), srvs.data());
 }
 
-template <typename Context, typename Srvs = std::initializer_list<ID3D11ShaderResourceView*>>
-void VSSetShaderResources(const Context& context, unsigned startSlot, const Srvs& srvs) {
-    context->VSSetShaderResources(UINT(startSlot), std::size(srvs), std::begin(srvs));
+template <typename Context>
+void VSSetShaderResources(const Context& context, unsigned startSlot,
+                          gsl::array_view<ID3D11ShaderResourceView* const> srvs) {
+    context->VSSetShaderResources(UINT(startSlot), std::size(srvs), srvs.data());
 }
 
-template <typename Context, typename Samplers = std::initializer_list<ID3D11SamplerState*>>
-void PSSetSamplers(const Context& context, unsigned startSlot, const Samplers& samplers) {
-    context->PSSetSamplers(UINT(startSlot), std::size(samplers), std::begin(samplers));
+template <typename Context>
+void PSSetSamplers(const Context& context, unsigned startSlot,
+                   gsl::array_view<ID3D11SamplerState* const> samplers) {
+    context->PSSetSamplers(UINT(startSlot), std::size(samplers), samplers.data());
 }
 
-template <typename Context, typename Rtvs = std::initializer_list<ID3D11RenderTargetView*>>
-void OMSetRenderTargets(const Context& context, const Rtvs& rtvs,
+template <typename Context>
+void OMSetRenderTargets(const Context& context, gsl::array_view<ID3D11RenderTargetView* const> rtvs,
                         ID3D11DepthStencilView* dsv = nullptr) {
-    context->OMSetRenderTargets(std::size(rtvs), std::begin(rtvs), dsv);
+    context->OMSetRenderTargets(std::size(rtvs), rtvs.data(), dsv);
 }
 
-template <typename Context, typename Vps = std::initializer_list<D3D11_VIEWPORT>>
-void RSSetViewports(const Context& context, const Vps& vps) {
-    context->RSSetViewports(std::size(vps), std::begin(vps));
+template <typename Context>
+void RSSetViewports(const Context& context, gsl::array_view<const D3D11_VIEWPORT> vps) {
+    context->RSSetViewports(std::size(vps), vps.data());
 }
 
 // Misc helpers
 
 inline auto GetBuffer(IDXGISwapChain* swapChain, unsigned buffer) {
     ID3D11Texture2DPtr res;
-    swapChain->GetBuffer(buffer, __uuidof(ID3D11Texture2D),
-                         reinterpret_cast<void**>(res.ReleaseAndGetAddressOf()));
+    ThrowOnFailure(swapChain->GetBuffer(buffer, __uuidof(ID3D11Texture2D),
+                                        reinterpret_cast<void**>(res.ReleaseAndGetAddressOf())));
     return res;
 }
 

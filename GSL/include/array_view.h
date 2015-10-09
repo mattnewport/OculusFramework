@@ -1731,6 +1731,13 @@ public:
 
 	}
 
+    // MN added
+	// from std::initializer_list
+	constexpr array_view(std::initializer_list<value_type> il) : array_view(std::begin(il), std::size(il))
+	{
+	}
+    // End MN added
+
 	constexpr  array_view(const array_view &) = default;
 
 	// convertible

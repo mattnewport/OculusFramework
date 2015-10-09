@@ -106,7 +106,7 @@ struct QuadRenderer {
     }
 
     void render(ID3D11RenderTargetView& rtv,
-                std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x, int y,
+                gsl::array_view<ID3D11ShaderResourceView* const> sourceTexSRVs, int x, int y,
                 int width, int height);
 
     DirectX11& directX11;

@@ -229,7 +229,7 @@ void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& ps
 }
 
 void QuadRenderer::render(ID3D11RenderTargetView& rtv,
-                          std::initializer_list<ID3D11ShaderResourceView*> sourceTexSRVs, int x,
+                          gsl::array_view<ID3D11ShaderResourceView* const> sourceTexSRVs, int x,
                           int y, int width, int height) {
     directX11.applyState(*directX11.Context.Get(), *pipelineStateObject.get());
     OMSetRenderTargets(directX11.Context, {&rtv});
