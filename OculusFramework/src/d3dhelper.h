@@ -79,33 +79,36 @@ inline void SetDebugObjectName(IUnknown* resource, const std::string& name) {
 // Helpers to convert common types to equivalent DXGI_FORMAT
 
 template <typename T>
-DXGI_FORMAT getDXGIFormat();
+constexpr DXGI_FORMAT getDXGIFormat();
 
 template <>
-inline DXGI_FORMAT getDXGIFormat<float>() {
+constexpr DXGI_FORMAT getDXGIFormat<float>() {
     return DXGI_FORMAT_R32_FLOAT;
 }
 
 template <>
-inline DXGI_FORMAT getDXGIFormat<mathlib::Vec2f>() {
+constexpr DXGI_FORMAT getDXGIFormat<mathlib::Vec2f>() {
     return DXGI_FORMAT_R32G32_FLOAT;
 }
 
 template <>
-inline DXGI_FORMAT getDXGIFormat<mathlib::Vec3f>() {
+constexpr DXGI_FORMAT getDXGIFormat<mathlib::Vec3f>() {
     return DXGI_FORMAT_R32G32B32_FLOAT;
 }
 
 // Helpers to build input layouts
 
-inline auto makeInputElementDescHelper(
+constexpr auto makeInputElementDescHelper(
     DXGI_FORMAT dxgiFormat, unsigned alignedByteOffset, const char* memberName,
     const char* semanticName = nullptr, unsigned semanticIndex = 0, unsigned inputSlot = 0,
     D3D11_INPUT_CLASSIFICATION inputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
     unsigned instanceDataStepRate = 0) {
-    semanticName = semanticName ? semanticName : memberName;
-    return D3D11_INPUT_ELEMENT_DESC{semanticName,        semanticIndex,     dxgiFormat,
-                                    inputSlot,           alignedByteOffset, inputSlotClass,
+    return D3D11_INPUT_ELEMENT_DESC{semanticName ? semanticName : memberName,
+                                    semanticIndex,
+                                    dxgiFormat,
+                                    inputSlot,
+                                    alignedByteOffset,
+                                    inputSlotClass,
                                     instanceDataStepRate};
 }
 
@@ -390,5 +393,5 @@ inline auto GetBuffer(IDXGISwapChain* swapChain, unsigned buffer) {
     return res;
 }
 
-inline auto roundUpConstantBufferSize(size_t size) { return (1 + (size / 16)) * 16; };
+constexpr auto roundUpConstantBufferSize(size_t size) { return (1 + (size / 16)) * 16; };
 
