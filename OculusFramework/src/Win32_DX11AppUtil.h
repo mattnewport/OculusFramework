@@ -48,9 +48,10 @@ struct DepthBuffer {
 };
 
 struct DirectX11 {
+    HINSTANCE hinst = nullptr;
     HWND Window = nullptr;
-    bool Key[256];
-    bool keyPressed[256];
+    bool Key[256] = {};
+    bool keyPressed[256] = {};
     bool imguiActive = false;
     ovrSizei RenderTargetSize;
     ID3D11DevicePtr Device;
@@ -64,16 +65,18 @@ struct DirectX11 {
 
     Texture2DManager texture2DManager;
 
-    DirectX11();
+    DirectX11(HINSTANCE hinst_, ovrRecti vp, const LUID* pLuid) : hinst{hinst_} {
+        if (!InitWindowAndDevice(vp, pLuid))
+            throw std::runtime_error{"Failed to initialize D3D."};
+    }
     ~DirectX11();
-    bool InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pLuid);
     void ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget, ID3D11DepthStencilView* dsv);
     void setViewport(const ovrRecti& vp);
-    bool IsAnyKeyPressed() const;
     void HandleMessages();
-    void ReleaseWindow(HINSTANCE hinst);
 
     void applyState(ID3D11DeviceContext& context, PipelineStateObject& pso);
+private:
+    bool InitWindowAndDevice(ovrRecti vp, const LUID* pLuid);
 };
 
 struct QuadRenderer {

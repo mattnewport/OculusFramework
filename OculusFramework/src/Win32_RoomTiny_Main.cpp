@@ -242,11 +242,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         hmd = make_unique<OvrHmd>();
     }
 
-    DirectX11 DX11{};
-
     // Setup Window and Graphics - use window frame if relying on Oculus driver
-    ovrRecti windowRect{ hmd->getWindowsPos(), hmd->getResolution() };
-    if (!DX11.InitWindowAndDevice(hinst, windowRect, hmd->getAdapterLuid())) return 0;
+    auto windowRect = ovrRecti{hmd->getWindowsPos(), hmd->getResolution()};
+    DirectX11 DX11{hinst, windowRect, hmd->getAdapterLuid()};
 
     // Bit of a hack: if we're using a DummyHmd, set it's DirectX11 pointer
     if (const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get())) dummyHmd->setDirectX11(DX11);
@@ -314,201 +312,194 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
     const auto EyeRenderDesc = hmd->getRenderDesc();
 
-    {
-        // Create the room model
-        Scene roomScene(DX11.Device.Get(), DX11.Context.Get(), *DX11.pipelineStateObjectManager,
-                        DX11.texture2DManager);
+    // Create the room model
+    Scene roomScene(DX11.Device.Get(), DX11.Context.Get(), *DX11.pipelineStateObjectManager,
+                    DX11.texture2DManager);
 
-        float Yaw(3.141592f);  // Horizontal rotation of the player
-        Vec4f pos{0.0f, 1.6f, -5.0f, 1.0f};
+    float Yaw(3.141592f);  // Horizontal rotation of the player
+    Vec4f pos{0.0f, 1.6f, -5.0f, 1.0f};
 
-        // MAIN LOOP
-        // =========
-        while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
-            DX11.HandleMessages();
+    // MAIN LOOP
+    // =========
+    while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
+        DX11.HandleMessages();
 
-            const float speed = 1.0f;    // Can adjust the movement speed.
-            int timesToRenderScene = 1;  // Can adjust the render burden on the app.
-            ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[0].HmdToEyeViewOffset,
-                                                    EyeRenderDesc[1].HmdToEyeViewOffset};
+        const float speed = 1.0f;    // Can adjust the movement speed.
+        int timesToRenderScene = 1;  // Can adjust the render burden on the app.
+        ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[0].HmdToEyeViewOffset,
+                                                EyeRenderDesc[1].HmdToEyeViewOffset};
 
-            // Handle key toggles for re-centering, meshes, FOV, etc.
-            ExampleFeatures1(DX11, *hmd, &speed, &timesToRenderScene, useHmdToEyeViewOffset);
+        // Handle key toggles for re-centering, meshes, FOV, etc.
+        ExampleFeatures1(DX11, *hmd, &speed, &timesToRenderScene, useHmdToEyeViewOffset);
 
-            // Reload shaders
-            if (DX11.Key['H']) {
-                DX11.stateManagers->vertexShaderManager.recreateAll();
-                DX11.stateManagers->pixelShaderManager.recreateAll();
-            }
-
-            // Keyboard inputs to adjust player orientation
-            if (DX11.Key[VK_LEFT]) Yaw += 0.02f;
-            if (DX11.Key[VK_RIGHT]) Yaw -= 0.02f;
-
-            // Keyboard inputs to adjust player position
-            const auto rotationMat = Mat4fRotationY(Yaw);
-            if (DX11.Key['W'] || DX11.Key[VK_UP])
-                pos += Vec4f{0.0f, 0.0f, -speed * 0.05f, 0.0f} * rotationMat;
-            if (DX11.Key['S'] || DX11.Key[VK_DOWN])
-                pos += Vec4f{0.0f, 0.0f, +speed * 0.05f, 0.0f} * rotationMat;
-            if (DX11.Key['D']) pos += Vec4f{+speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
-            if (DX11.Key['A']) pos += Vec4f{-speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
-
-            // gamepad inputs
-            for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
-                XINPUT_STATE state{};
-                auto res = XInputGetState(i, &state);
-                if (SUCCEEDED(res)) {
-                    const auto& gp = state.Gamepad;
-                    auto handleDeadzone = [](float x, float y, float deadzone) {
-                        const auto v = Vec2f{x, y};
-                        const auto mag = magnitude(v);
-                        if (mag > deadzone) {
-                            const auto n = v * 1.0f / mag;
-                            const auto s = saturate(
-                                (magnitude(v) - deadzone) /
-                                (numeric_limits<decltype(XINPUT_GAMEPAD::sThumbLX)>::max() -
-                                 deadzone));
-                            return n * s;
-                        }
-                        return Vec2f{0.0f, 0.0f};
-                    };
-                    const auto ls = handleDeadzone(gp.sThumbLX, gp.sThumbLY,
-                                                   XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-                    const auto rs = handleDeadzone(gp.sThumbRX, gp.sThumbRY,
-                                                   XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-
-                    Yaw += -0.04f * rs.x();
-                    pos += Vec4f{0.05f * ls.x(), 0.0f, 0.0f, 0.0f} * rotationMat;
-                    pos += Vec4f{0.0f, 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
-                }
-            }
-
-            pos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y());
-
-            // Animate the cube
-            roomScene.Models[0]->Pos =
-                mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock)) *
-                speed;
-
-            // Get both eye poses simultaneously, with IPD offset already included.
-            auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
-
-            ovrPosef EyeRenderPose[2];  // Useful to remember where the rendered eye originated
-            float YawAtRender[2];       // Useful to remember where the rendered eye originated
-
-            DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv.Get(), EyeDepthBuffer.TexDsv.Get());
-
-            // Render the two undistorted eye views into their render buffers.
-            for (int eye = 0; eye < 2; eye++) {
-                DX11.setViewport(EyeRenderViewport[eye]);
-                ovrPosef* useEyePose = &EyeRenderPose[eye];
-                float* useYaw = &YawAtRender[eye];
-
-                // Write in values actually used (becomes significant in Example features)
-                *useEyePose = tempEyePoses.first[eye];
-                *useYaw = Yaw;
-
-                // Get view and projection matrices (note near Z to reduce eye strain)
-                auto rollPitchYaw = Mat4fRotationY(Yaw);
-                mathlib::Quatf ori;
-                memcpy(&ori, &useEyePose->Orientation, sizeof(ori));
-                auto fromOri = Mat4FromQuat(ori);
-                Mat4f finalRollPitchYaw = fromOri * rollPitchYaw;
-                Vec4f finalUp = Vec4f{0.0f, 1.0f, 0.0f, 0.0f} * finalRollPitchYaw;
-                Vec4f finalForward = Vec4f{0.0f, 0.0f, -1.0f, 0.0f} * finalRollPitchYaw;
-                Vec4f shiftedEyePos = pos +
-                                      Vec4f{useEyePose->Position.x, useEyePose->Position.y,
-                                            useEyePose->Position.z, 0.0f} *
-                                          rollPitchYaw;
-
-                Mat4f view = Mat4fLookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
-                ovrMatrix4f projTemp =
-                    ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
-                Mat4f projT;
-                memcpy(&projT, &projTemp, sizeof(projT));
-                Mat4f proj{projT.column(0), projT.column(1), projT.column(2), projT.column(3)};
-
-                // Render the scene
-                for (int t = 0; t < timesToRenderScene; t++)
-                    roomScene.Render(DX11,
-                                     Vec3f{shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()},
-                                     view, proj);
-            }
-
-            DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0,
-                                             EyeRenderTexture.Tex.Get(), 0,
-                                             DXGI_FORMAT_R16G16B16A16_FLOAT);
-            luminanceRangeFinder.render(toneMapper.sourceTexSRV.Get());
-            toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()).Get());
-
-            // IMGUI update/rendering
-            if (DX11.imguiActive) {
-                float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
-                DX11.Context->ClearRenderTargetView(imguiRTV.Get(), clearColor);
-                OMSetRenderTargets(DX11.Context, {imguiRTV.Get()});
-                DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
-                ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
-                    static_cast<float>(imguiRTVHeight)};
-                ImGui_ImplDX11_NewFrame(displaySize);
-                ImGui::GetIO().MouseDrawCursor = true;
-                ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
-                    static_cast<float>(imguiRTVHeight / 4)),
-                    ImGuiSetCond_FirstUseEver);
-                showGui(roomScene);
-                //ImGui::ShowTestWindow();
-                ImGui::Render();
-                PSSetSamplers(DX11.Context, 0, {roomScene.linearSampler.Get(),
-                                                roomScene.standardTextureSampler.Get()});
-                imguiQuadRenderer.render(*toneMapper.renderTargetView.Get(),
-                                         {imguiRenderTargetSRV.Get(), nullptr}, 0, 0, imguiRTVWidth,
-                                         imguiRTVHeight);
-                imguiQuadRenderer.render(
-                    *toneMapper.renderTargetView.Get(), {imguiRenderTargetSRV.Get(), nullptr},
-                    EyeRenderViewport[ovrEye_Right].Pos.x, EyeRenderViewport[ovrEye_Right].Pos.y,
-                    imguiRTVWidth, imguiRTVHeight);
-
-                if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
-                    DX11.keyPressed[VK_ESCAPE] = false;
-                    DX11.imguiActive = false;
-                }
-            } else {
-                if (DX11.keyPressed[VK_ESCAPE]) {
-                    DX11.keyPressed[VK_ESCAPE] = false;
-                    DX11.imguiActive = true;
-                }
-            }
-
-            eyeResolveTexture.advanceToNextTexture();
-            DX11.Context->CopyResource(
-                eyeResolveTexture.d3dTexture(),
-                toneMapper.renderTargetTex.Get());
-
-            // Initialize our single full screen Fov layer.
-            ovrLayerEyeFov ld;
-            ld.Header.Type = ovrLayerType_EyeFov;
-            ld.Header.Flags = 0;
-
-            for (int eye = 0; eye < 2; eye++) {
-                ld.ColorTexture[eye] = eyeResolveTexture.swapTextureSet();
-                ld.Viewport[eye] = EyeRenderViewport[eye];
-                ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
-                ld.RenderPose[eye] = EyeRenderPose[eye];
-            }
-
-            ovrLayerHeader* layers = &ld.Header;
-            hmd->submitFrame(0, nullptr, &layers, 1);
-
-            // Copy mirror texture to back buffer
-            DX11.Context->CopyResource(DX11.BackBuffer.Get(), mirrorTexture.d3dTexture());
-            DX11.SwapChain->Present(0, 0);
+        // Reload shaders
+        if (DX11.Key['H']) {
+            DX11.stateManagers->vertexShaderManager.recreateAll();
+            DX11.stateManagers->pixelShaderManager.recreateAll();
         }
+
+        // Keyboard inputs to adjust player orientation
+        if (DX11.Key[VK_LEFT]) Yaw += 0.02f;
+        if (DX11.Key[VK_RIGHT]) Yaw -= 0.02f;
+
+        // Keyboard inputs to adjust player position
+        const auto rotationMat = Mat4fRotationY(Yaw);
+        if (DX11.Key['W'] || DX11.Key[VK_UP])
+            pos += Vec4f{0.0f, 0.0f, -speed * 0.05f, 0.0f} * rotationMat;
+        if (DX11.Key['S'] || DX11.Key[VK_DOWN])
+            pos += Vec4f{0.0f, 0.0f, +speed * 0.05f, 0.0f} * rotationMat;
+        if (DX11.Key['D']) pos += Vec4f{+speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
+        if (DX11.Key['A']) pos += Vec4f{-speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
+
+        // gamepad inputs
+        for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
+            XINPUT_STATE state{};
+            auto res = XInputGetState(i, &state);
+            if (SUCCEEDED(res)) {
+                const auto& gp = state.Gamepad;
+                auto handleDeadzone = [](float x, float y, float deadzone) {
+                    const auto v = Vec2f{x, y};
+                    const auto mag = magnitude(v);
+                    if (mag > deadzone) {
+                        const auto n = v * 1.0f / mag;
+                        const auto s = saturate(
+                            (magnitude(v) - deadzone) /
+                            (numeric_limits<decltype(XINPUT_GAMEPAD::sThumbLX)>::max() - deadzone));
+                        return n * s;
+                    }
+                    return Vec2f{0.0f, 0.0f};
+                };
+                const auto ls =
+                    handleDeadzone(gp.sThumbLX, gp.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+                const auto rs =
+                    handleDeadzone(gp.sThumbRX, gp.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+
+                Yaw += -0.04f * rs.x();
+                pos += Vec4f{0.05f * ls.x(), 0.0f, 0.0f, 0.0f} * rotationMat;
+                pos += Vec4f{0.0f, 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
+            }
+        }
+
+        pos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y());
+
+        // Animate the cube
+        roomScene.Models[0]->Pos =
+            mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock)) *
+            speed;
+
+        // Get both eye poses simultaneously, with IPD offset already included.
+        auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
+
+        ovrPosef EyeRenderPose[2];  // Useful to remember where the rendered eye originated
+        float YawAtRender[2];       // Useful to remember where the rendered eye originated
+
+        DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv.Get(), EyeDepthBuffer.TexDsv.Get());
+
+        // Render the two undistorted eye views into their render buffers.
+        for (int eye = 0; eye < 2; eye++) {
+            DX11.setViewport(EyeRenderViewport[eye]);
+            ovrPosef* useEyePose = &EyeRenderPose[eye];
+            float* useYaw = &YawAtRender[eye];
+
+            // Write in values actually used (becomes significant in Example features)
+            *useEyePose = tempEyePoses.first[eye];
+            *useYaw = Yaw;
+
+            // Get view and projection matrices (note near Z to reduce eye strain)
+            auto rollPitchYaw = Mat4fRotationY(Yaw);
+            mathlib::Quatf ori;
+            memcpy(&ori, &useEyePose->Orientation, sizeof(ori));
+            auto fromOri = Mat4FromQuat(ori);
+            Mat4f finalRollPitchYaw = fromOri * rollPitchYaw;
+            Vec4f finalUp = Vec4f{0.0f, 1.0f, 0.0f, 0.0f} * finalRollPitchYaw;
+            Vec4f finalForward = Vec4f{0.0f, 0.0f, -1.0f, 0.0f} * finalRollPitchYaw;
+            Vec4f shiftedEyePos = pos +
+                                  Vec4f{useEyePose->Position.x, useEyePose->Position.y,
+                                        useEyePose->Position.z, 0.0f} *
+                                      rollPitchYaw;
+
+            Mat4f view = Mat4fLookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
+            ovrMatrix4f projTemp =
+                ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
+            Mat4f projT;
+            memcpy(&projT, &projTemp, sizeof(projT));
+            Mat4f proj{projT.column(0), projT.column(1), projT.column(2), projT.column(3)};
+
+            // Render the scene
+            for (int t = 0; t < timesToRenderScene; t++)
+                roomScene.Render(DX11,
+                                 Vec3f{shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()},
+                                 view, proj);
+        }
+
+        DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0, EyeRenderTexture.Tex.Get(),
+                                         0, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        luminanceRangeFinder.render(toneMapper.sourceTexSRV.Get());
+        toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()).Get());
+
+        // IMGUI update/rendering
+        if (DX11.imguiActive) {
+            float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
+            DX11.Context->ClearRenderTargetView(imguiRTV.Get(), clearColor);
+            OMSetRenderTargets(DX11.Context, {imguiRTV.Get()});
+            DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
+            ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
+                               static_cast<float>(imguiRTVHeight)};
+            ImGui_ImplDX11_NewFrame(displaySize);
+            ImGui::GetIO().MouseDrawCursor = true;
+            ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
+                                           static_cast<float>(imguiRTVHeight / 4)),
+                                    ImGuiSetCond_FirstUseEver);
+            showGui(roomScene);
+            // ImGui::ShowTestWindow();
+            ImGui::Render();
+            PSSetSamplers(DX11.Context, 0,
+                          {roomScene.linearSampler.Get(), roomScene.standardTextureSampler.Get()});
+            imguiQuadRenderer.render(*toneMapper.renderTargetView.Get(),
+                                     {imguiRenderTargetSRV.Get(), nullptr}, 0, 0, imguiRTVWidth,
+                                     imguiRTVHeight);
+            imguiQuadRenderer.render(
+                *toneMapper.renderTargetView.Get(), {imguiRenderTargetSRV.Get(), nullptr},
+                EyeRenderViewport[ovrEye_Right].Pos.x, EyeRenderViewport[ovrEye_Right].Pos.y,
+                imguiRTVWidth, imguiRTVHeight);
+
+            if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
+                DX11.keyPressed[VK_ESCAPE] = false;
+                DX11.imguiActive = false;
+            }
+        } else {
+            if (DX11.keyPressed[VK_ESCAPE]) {
+                DX11.keyPressed[VK_ESCAPE] = false;
+                DX11.imguiActive = true;
+            }
+        }
+
+        eyeResolveTexture.advanceToNextTexture();
+        DX11.Context->CopyResource(eyeResolveTexture.d3dTexture(),
+                                   toneMapper.renderTargetTex.Get());
+
+        // Initialize our single full screen Fov layer.
+        ovrLayerEyeFov ld;
+        ld.Header.Type = ovrLayerType_EyeFov;
+        ld.Header.Flags = 0;
+
+        for (int eye = 0; eye < 2; eye++) {
+            ld.ColorTexture[eye] = eyeResolveTexture.swapTextureSet();
+            ld.Viewport[eye] = EyeRenderViewport[eye];
+            ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
+            ld.RenderPose[eye] = EyeRenderPose[eye];
+        }
+
+        ovrLayerHeader* layers = &ld.Header;
+        hmd->submitFrame(0, nullptr, &layers, 1);
+
+        // Copy mirror texture to back buffer
+        DX11.Context->CopyResource(DX11.BackBuffer.Get(), mirrorTexture.d3dTexture());
+        DX11.SwapChain->Present(0, 0);
     }
 
     // Release and close down
     ImGui_ImplDX11_Shutdown();
-
-    DX11.ReleaseWindow(hinst);
 
     return 0;
 }

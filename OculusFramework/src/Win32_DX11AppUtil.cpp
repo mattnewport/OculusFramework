@@ -45,14 +45,11 @@ DepthBuffer::DepthBuffer(const char* name, ID3D11Device* device, ovrSizei size) 
     SetDebugObjectName(TexDsv.Get(), string("ImageBuffer::TexDsv - ") + name);
 }
 
-DirectX11::DirectX11() {
-    fill(begin(Key), end(Key), false);
-    fill(begin(keyPressed), end(keyPressed), false);
-}
-
 DirectX11::~DirectX11() {
     Context->ClearState();
     Context->Flush();
+    DestroyWindow(Window);
+    UnregisterClassW(L"OVRAppWindow", hinst);
 }
 
 void DirectX11::ClearAndSetRenderTarget(ID3D11RenderTargetView* rendertarget,
@@ -130,8 +127,8 @@ LRESULT CALLBACK SystemWindowProc(HWND arg_hwnd, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProc(arg_hwnd, msg, wp, lp);
 }
 
-bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pLuid) {
-    Window = [hinst, vp, this] {
+bool DirectX11::InitWindowAndDevice(ovrRecti vp, const LUID* pLuid) {
+    Window = [vp, this] {
         const auto className = L"OVRAppWindow";
         WNDCLASSW wc{};
         wc.lpszClassName = className;
@@ -199,23 +196,12 @@ bool DirectX11::InitWindowAndDevice(HINSTANCE hinst, ovrRecti vp, const LUID* pL
     return true;
 }
 
-bool DirectX11::IsAnyKeyPressed() const {
-    for (unsigned i = 0; i < (sizeof(Key) / sizeof(Key[0])); i++)
-        if (Key[i]) return true;
-    return false;
-}
-
 void DirectX11::HandleMessages() {
     MSG msg;
     if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-}
-
-void DirectX11::ReleaseWindow(HINSTANCE hinst) {
-    DestroyWindow(Window);
-    UnregisterClassW(L"OVRAppWindow", hinst);
 }
 
 void DirectX11::applyState(ID3D11DeviceContext& context, PipelineStateObject& pso) {
