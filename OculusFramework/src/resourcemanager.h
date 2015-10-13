@@ -134,8 +134,8 @@ protected:
     virtual ~ResourceManagerBase() {
         assert(std::all_of(begin(resourceTable), end(resourceTable),
                            [](const auto& e) { return e.second.liveReferences.empty(); }) &&
-               "All resource handles tracked by a ResourceManager should be destroyed before "
-               "it is destroyed.");
+               ("All resource handles tracked by a ResourceManager should be destroyed before "
+                "it is destroyed."));
     }
 
 private:

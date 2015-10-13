@@ -287,7 +287,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     LuminanceRangeFinder luminanceRangeFinder{DX11, eyeBufferSize.w, eyeBufferSize.h};
 
     // Create a mirror texture to see on the monitor.
-    ovrTexture* mirrorTexture = hmd->createMirrorTextureD3D11(
+    auto mirrorTexture = hmd->createMirrorTextureD3D11(
         DX11.Device.Get(),
         Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(windowRect.Size.w), UINT(windowRect.Size.h)}
             .mipLevels(1));
@@ -504,15 +504,13 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             hmd->submitFrame(0, nullptr, &layers, 1);
 
             // Copy mirror texture to back buffer
-            ovrD3D11Texture* tex = (ovrD3D11Texture*)mirrorTexture;
-            DX11.Context->CopyResource(DX11.BackBuffer.Get(), tex->D3D11.pTexture);
+            DX11.Context->CopyResource(DX11.BackBuffer.Get(), mirrorTexture.d3dTexture());
             DX11.SwapChain->Present(0, 0);
         }
     }
 
     // Release and close down
     ImGui_ImplDX11_Shutdown();
-    hmd->destroyMirrorTextureD3D11(mirrorTexture);
 
     DX11.ReleaseWindow(hinst);
 

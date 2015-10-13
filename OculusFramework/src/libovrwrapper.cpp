@@ -22,15 +22,13 @@ namespace libovrwrapper {
 
 struct DummyHmd::RenderHelper {
     RenderHelper(DummyHmd& dummyHmd_, DirectX11& directX11_)
-        : dummyHmd{dummyHmd_}, directX11{directX11_}, quadRenderer{directX11_, "dummyhmdps.hlsl"} {}
+        : dummyHmd{dummyHmd_}, directX11{directX11_} {}
 
     void render(const ovrTexture eyeTexture[2]);
 
     DummyHmd& dummyHmd;
     DirectX11& directX11;
-
-    QuadRenderer quadRenderer;
-    ID3D11RenderTargetViewPtr mirrorTextureRT;
+    ID3D11RenderTargetView* mirrorTextureRtv = nullptr;
 };
 
 DummyHmd::DummyHmd() {}
@@ -117,16 +115,12 @@ SwapTextureSet DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* 
     return {nullptr, size, device};
 }
 
-ovrTexture* DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
-                                               const D3D11_TEXTURE2D_DESC& desc) {
-    ovrD3D11Texture* tex = new ovrD3D11Texture{};
-    auto newDesc = desc;
-    newDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-    auto d3dTex = CreateTexture2D(device, newDesc);
-    renderHelper.get()->mirrorTextureRT = CreateRenderTargetView(device, d3dTex.Get());
-    SetDebugObjectName(renderHelper.get()->mirrorTextureRT.Get(), __FUNCTION__);
-    tex->D3D11.pTexture = d3dTex.Detach();
-    return &tex->Texture;
+MirrorTexture DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
+                                                 const D3D11_TEXTURE2D_DESC& desc) {
+    auto res = MirrorTexture{nullptr, device, desc};
+    assert(!renderHelper->mirrorTextureRtv && "DummyHmd doesn't support multiple mirror textures.");
+    renderHelper->mirrorTextureRtv = res.d3dRenderTargetView();
+    return res;
 }
 
 void DummyHmd::destroyMirrorTextureD3D11(ovrTexture* tex) {
@@ -138,14 +132,13 @@ void DummyHmd::destroyMirrorTextureD3D11(ovrTexture* tex) {
 }
 
 void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
-    [this, eyeTexture] {
-        auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
-        const auto& leftVp = dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport;
-        const auto& rightVp = dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport;
-        quadRenderer.render(*mirrorTextureRT.Get(), {d3dEyeTexture[ovrEye_Left].D3D11.pSRView},
-                            leftVp.Pos.x, leftVp.Pos.y, leftVp.Size.w + rightVp.Size.w,
-                            max(leftVp.Size.h, rightVp.Size.h));
-    }();
+    auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
+    const auto& leftVp = dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport;
+    const auto& rightVp = dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport;
+    auto quadRenderer = QuadRenderer{directX11, "dummyhmdps.hlsl"};
+    quadRenderer.render(*mirrorTextureRtv,
+                        {d3dEyeTexture[ovrEye_Left].D3D11.pSRView}, leftVp.Pos.x, leftVp.Pos.y,
+                        leftVp.Size.w + rightVp.Size.w, max(leftVp.Size.h, rightVp.Size.h));
 }
 
 IHmd::~IHmd() {}

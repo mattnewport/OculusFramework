@@ -19,7 +19,6 @@ namespace libovrwrapper {
 
 void throwOvrError(const char* msg, ovrHmd hmd = nullptr);
 
-// Temp
 class SwapTextureSet {
     struct TextureSetBase {
         virtual ~TextureSetBase() {}
@@ -91,6 +90,59 @@ private:
     std::unique_ptr<TextureSetBase> tex;
 };
 
+class MirrorTexture {
+    struct MirrorTextureBase {
+        virtual ~MirrorTextureBase() {}
+        virtual ID3D11Texture2D* d3dTexture() const = 0;
+        virtual ID3D11RenderTargetView* d3dRenderTargetView() const = 0;
+    };
+
+    struct OvrMirrorTexture : public MirrorTextureBase {
+        std::unique_ptr<ovrTexture, std::function<void(ovrTexture*)>> tex;
+        OvrMirrorTexture(ovrHmd hmd, ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
+            ovrTexture* mirrorTexture = nullptr;
+            if (!OVR_SUCCESS(ovr_CreateMirrorTextureD3D11(hmd, device, &desc, 0, &mirrorTexture)))
+                throwOvrError("ovrHmd_CreateMirrorTextureD3D11() failed!");
+            tex = {mirrorTexture, [hmd](ovrTexture* t) { ovr_DestroyMirrorTexture(hmd, t); }};
+        }
+
+        ID3D11Texture2D* d3dTexture() const override {
+            return reinterpret_cast<ovrD3D11Texture*>(tex.get())->D3D11.pTexture;
+        }
+        ID3D11RenderTargetView* d3dRenderTargetView() const override { return nullptr; }
+    };
+
+    struct DummyMirrorTexture : public MirrorTextureBase {
+        ID3D11Texture2DPtr tex;
+        ID3D11RenderTargetViewPtr rtv;
+        DummyMirrorTexture(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
+            auto newDesc = desc;
+            newDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+            tex = CreateTexture2D(device, newDesc);
+            rtv = CreateRenderTargetView(device, tex.Get());
+        }
+
+        ID3D11Texture2D* d3dTexture() const override { return tex.Get(); }
+        ID3D11RenderTargetView* d3dRenderTargetView() const override { return rtv.Get(); }
+    };
+
+public:
+    MirrorTexture(ovrHmd hmd, ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
+        if (hmd) {
+            tex = std::make_unique<OvrMirrorTexture>(hmd, device, desc);
+        }
+        else {
+            tex = std::make_unique<DummyMirrorTexture>(device, desc);
+        }
+    }
+
+    ID3D11Texture2D* d3dTexture() const { return tex->d3dTexture(); }
+    ID3D11RenderTargetView* d3dRenderTargetView() const { return tex->d3dRenderTargetView(); }
+
+private:
+    std::unique_ptr<MirrorTextureBase> tex;
+};
+
 // Interface let's us easily run without SDK which avoids problems doing PIX captures with HMD
 
 class IHmd {
@@ -108,7 +160,7 @@ public:
     virtual void setCap(ovrHmdCaps cap) = 0;
 
     virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) = 0;
-    virtual ovrTexture* createMirrorTextureD3D11(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) = 0;
+    virtual MirrorTexture createMirrorTextureD3D11(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) = 0;
     virtual void destroyMirrorTextureD3D11(ovrTexture* tex) = 0;
 
     virtual void configureTracking(unsigned int supportedTrackingCaps,
@@ -145,7 +197,7 @@ public:
     virtual bool testCap(ovrHmdCaps cap) const override;
     virtual void setCap(ovrHmdCaps cap) override;
     virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device * device) override;
-    virtual ovrTexture * createMirrorTextureD3D11(ID3D11Device * device, const D3D11_TEXTURE2D_DESC & desc) override;
+    virtual MirrorTexture createMirrorTextureD3D11(ID3D11Device * device, const D3D11_TEXTURE2D_DESC & desc) override;
     virtual void destroyMirrorTextureD3D11(ovrTexture* tex) override;
     virtual void configureTracking(unsigned int supportedTrackingCaps, unsigned int requiredTrackingCaps) override;
     virtual std::array<ovrEyeRenderDesc, 2> getRenderDesc() override;
@@ -190,12 +242,9 @@ public:
         return {hmd_, size, device};
     }
 
-    ovrTexture* createMirrorTextureD3D11(ID3D11Device* device,
+    MirrorTexture createMirrorTextureD3D11(ID3D11Device* device,
         const D3D11_TEXTURE2D_DESC& desc) override {
-        ovrTexture* mirrorTexture = nullptr;
-        if (!OVR_SUCCESS(ovr_CreateMirrorTextureD3D11(hmd_, device, &desc, 0, &mirrorTexture)))
-            throwOvrError("ovrHmd_CreateMirrorTextureD3D11() failed!");
-        return mirrorTexture;
+        return {hmd_, device, desc};
     }
 
     void destroyMirrorTextureD3D11(ovrTexture* tex) override {
