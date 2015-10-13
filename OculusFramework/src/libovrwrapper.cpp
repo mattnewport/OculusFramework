@@ -113,8 +113,8 @@ void DummyHmd::setDirectX11(DirectX11& directX11_) {
     }
 }
 
-OculusTexture* DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) {
-    return new OculusTexture{nullptr, size, device};
+OculusTexture DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) {
+    return OculusTexture{nullptr, size, device};
 }
 
 ovrTexture* DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
@@ -135,11 +135,6 @@ void DummyHmd::destroyMirrorTextureD3D11(ovrTexture* tex) {
     // MNTODO: this is not the ideal place to clean up the render helper, this code needs cleaning
     // up post 0.6.0 SDK upates
     renderHelper.reset();
-}
-
-void DummyHmd::destroySwapTextureSetD3D11(OculusTexture* tex) {
-    tex->Release(nullptr);
-    delete tex;
 }
 
 void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
