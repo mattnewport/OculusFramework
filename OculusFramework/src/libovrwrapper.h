@@ -20,58 +20,75 @@ namespace libovrwrapper {
 void throwOvrError(const char* msg, ovrHmd hmd = nullptr);
 
 // Temp
-struct OculusTexture {
-    ovrHmd hmd;
-    ovrSwapTextureSet* TextureSet;
-    ovrD3D11Texture dummyTexture;
+class SwapTextureSet {
+    struct TextureSetBase {
+        virtual ~TextureSetBase() {}
+        virtual ID3D11Texture2D* d3dTexture() const = 0;
+        virtual ovrSwapTextureSet* swapTextureSet() const = 0;
+        virtual void advanceToNextTexture() = 0;
+    };
 
-    OculusTexture(ovrHmd hmd_, ovrSizei size, ID3D11Device* device) : hmd{hmd_}, dummyTexture{} {
+    struct DummyTextureSet : TextureSetBase {
+        std::unique_ptr<ovrSwapTextureSet> TextureSet;
+        ID3D11Texture2DPtr tex;
+        ID3D11ShaderResourceViewPtr srv;
+        ovrD3D11Texture dummyTexture;
+
+        DummyTextureSet(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& texDesc) : dummyTexture{} {
+            TextureSet =
+                std::make_unique<ovrSwapTextureSet>(ovrSwapTextureSet{&dummyTexture.Texture, 1, 0});
+            tex = CreateTexture2D(device, texDesc);
+            srv = CreateShaderResourceView(device, tex.Get());
+            dummyTexture.D3D11.pTexture = tex.Get();
+            dummyTexture.D3D11.pSRView = srv.Get();
+        }
+
+        ID3D11Texture2D* d3dTexture() const override { return tex.Get(); }
+        ovrSwapTextureSet* swapTextureSet() const override { return TextureSet.get(); }
+        void advanceToNextTexture() override {}
+    };
+
+    struct OvrTextureSet : TextureSetBase {
+        std::unique_ptr<ovrSwapTextureSet, std::function<void(ovrSwapTextureSet*)>> TextureSet;
+
+        OvrTextureSet(ovrHmd hmd, ID3D11Device* device, const D3D11_TEXTURE2D_DESC& texDesc) {
+            ovrSwapTextureSet* ts{};
+            if (!OVR_SUCCESS(ovr_CreateSwapTextureSetD3D11(hmd, device, &texDesc, 0, &ts)))
+                throwOvrError("ovrHmd_CreateSwapTextureSetD3D11() failed!", hmd);
+            TextureSet = {ts, [hmd](ovrSwapTextureSet* ts) { ovr_DestroySwapTextureSet(hmd, ts); }};
+        }
+
+        ID3D11Texture2D* d3dTexture() const override {
+            return reinterpret_cast<ovrD3D11Texture&>(
+                       TextureSet->Textures[TextureSet->CurrentIndex])
+                .D3D11.pTexture;
+        }
+
+        ovrSwapTextureSet* swapTextureSet() const override { return TextureSet.get(); }
+        void advanceToNextTexture() override {
+            TextureSet->CurrentIndex = (TextureSet->CurrentIndex + 1) % TextureSet->TextureCount;
+        }
+    };
+
+public:
+    SwapTextureSet(ovrHmd hmd, ovrSizei size, ID3D11Device* device) {
         const auto texDesc = Texture2DDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h)
                                  .mipLevels(1)
                                  .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 
-        if (!hmd) {
-            TextureSet = new ovrSwapTextureSet{};
-            TextureSet->Textures = &dummyTexture.Texture;
-            TextureSet->TextureCount = 1;
-            TextureSet->CurrentIndex = 0;
-            auto tex = CreateTexture2D(device, texDesc);
-            auto srv = CreateShaderResourceView(device, tex.Get());
-            dummyTexture.D3D11.pTexture = tex.Detach();
-            dummyTexture.D3D11.pSRView = srv.Detach();
+        if (hmd) {
+            tex = std::make_unique<OvrTextureSet>(hmd, device, texDesc);
         } else {
-            if (!OVR_SUCCESS(ovr_CreateSwapTextureSetD3D11(hmd, device, &texDesc, 0, &TextureSet)))
-                throwOvrError("ovrHmd_CreateSwapTextureSetD3D11() failed!", hmd);
+            tex = std::make_unique<DummyTextureSet>(device, texDesc);
         }
     }
 
-    OculusTexture(const OculusTexture&) = delete;
-    OculusTexture(OculusTexture&& x)
-        : hmd{std::move(x.hmd)},
-          TextureSet{std::move(x.TextureSet)} {
-        memcpy(&dummyTexture, &x.dummyTexture, sizeof(dummyTexture));
-        hmd = nullptr;
-        TextureSet = nullptr;
-        dummyTexture.D3D11.pTexture = nullptr;
-        dummyTexture.D3D11.pSRView = nullptr;
-    }
-
-    ~OculusTexture() { Release(); }
-
-    void AdvanceToNextTexture() {
-        TextureSet->CurrentIndex = (TextureSet->CurrentIndex + 1) % TextureSet->TextureCount;
-    }
+    auto d3dTexture() const { return tex->d3dTexture(); }
+    auto swapTextureSet() const { return tex->swapTextureSet(); }
+    void advanceToNextTexture() { tex->advanceToNextTexture(); }
 
 private:
-    void Release() { 
-        if (hmd) {
-            ovr_DestroySwapTextureSet(hmd, TextureSet);
-        } else if (TextureSet) {
-            dummyTexture.D3D11.pSRView->Release();
-            dummyTexture.D3D11.pTexture->Release();
-            delete TextureSet;
-        }
-    }
+    std::unique_ptr<TextureSetBase> tex;
 };
 
 // Interface let's us easily run without SDK which avoids problems doing PIX captures with HMD
@@ -90,7 +107,7 @@ public:
     virtual bool testCap(ovrHmdCaps cap) const = 0;
     virtual void setCap(ovrHmdCaps cap) = 0;
 
-    virtual OculusTexture createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) = 0;
+    virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) = 0;
     virtual ovrTexture* createMirrorTextureD3D11(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) = 0;
     virtual void destroyMirrorTextureD3D11(ovrTexture* tex) = 0;
 
@@ -127,7 +144,7 @@ public:
     virtual ovrFovPort getDefaultEyeFov(ovrEyeType eye) const override;
     virtual bool testCap(ovrHmdCaps cap) const override;
     virtual void setCap(ovrHmdCaps cap) override;
-    virtual OculusTexture createSwapTextureSetD3D11(ovrSizei size, ID3D11Device * device) override;
+    virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device * device) override;
     virtual ovrTexture * createMirrorTextureD3D11(ID3D11Device * device, const D3D11_TEXTURE2D_DESC & desc) override;
     virtual void destroyMirrorTextureD3D11(ovrTexture* tex) override;
     virtual void configureTracking(unsigned int supportedTrackingCaps, unsigned int requiredTrackingCaps) override;
@@ -169,8 +186,8 @@ public:
         ovr_SetEnabledCaps(hmd_, enabledCaps);
     }
 
-    OculusTexture createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) override {
-        return OculusTexture{ hmd_, size, device };
+    SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) override {
+        return {hmd_, size, device};
     }
 
     ovrTexture* createMirrorTextureD3D11(ID3D11Device* device,

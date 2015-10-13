@@ -113,8 +113,8 @@ void DummyHmd::setDirectX11(DirectX11& directX11_) {
     }
 }
 
-OculusTexture DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) {
-    return OculusTexture{nullptr, size, device};
+SwapTextureSet DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) {
+    return {nullptr, size, device};
 }
 
 ovrTexture* DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,

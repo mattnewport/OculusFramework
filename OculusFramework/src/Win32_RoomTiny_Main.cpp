@@ -269,8 +269,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         ovrSizei{idealSizeL.w + idealSizeR.w + eyeBufferpadding, max(idealSizeL.h, idealSizeR.h)};
 
     // Setup VR swap texture set
-    OculusTexture eyeResolveTexture =
-        hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device.Get());
+    auto eyeResolveTexture = hmd->createSwapTextureSetD3D11(eyeBufferSize, DX11.Device.Get());
 
     // Setup individual eye render targets
     auto EyeRenderTexture =
@@ -484,12 +483,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
                 }
             }
 
-            eyeResolveTexture.AdvanceToNextTexture();
+            eyeResolveTexture.advanceToNextTexture();
             DX11.Context->CopyResource(
-                reinterpret_cast<ovrD3D11Texture&>(
-                    eyeResolveTexture.TextureSet
-                        ->Textures[eyeResolveTexture.TextureSet->CurrentIndex])
-                    .D3D11.pTexture,
+                eyeResolveTexture.d3dTexture(),
                 toneMapper.renderTargetTex.Get());
 
             // Initialize our single full screen Fov layer.
@@ -498,7 +494,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             ld.Header.Flags = 0;
 
             for (int eye = 0; eye < 2; eye++) {
-                ld.ColorTexture[eye] = eyeResolveTexture.TextureSet;
+                ld.ColorTexture[eye] = eyeResolveTexture.swapTextureSet();
                 ld.Viewport[eye] = EyeRenderViewport[eye];
                 ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
                 ld.RenderPose[eye] = EyeRenderPose[eye];
