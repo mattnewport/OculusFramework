@@ -74,8 +74,7 @@ auto parseArgs(const char* args) {
 
 int appClock = 0;
 
-void ExampleFeatures1(const DirectX11& DX11, IHmd& hmd, const float* pSpeed,
-                      int* pTimesToRenderScene, ovrVector3f* useHmdToEyeViewOffset) {
+void ExampleFeatures1(const DirectX11& DX11, IHmd& hmd, ovrVector3f* useHmdToEyeViewOffset) {
     // Update the appClock, used by some of the features
     appClock++;
 
@@ -89,9 +88,6 @@ void ExampleFeatures1(const DirectX11& DX11, IHmd& hmd, const float* pSpeed,
         useHmdToEyeViewOffset[0].x = 0;  // This value would normally be half the IPD,
         useHmdToEyeViewOffset[1].x = 0;  //  received from the loaded profile.
     }
-
-    (void)(pSpeed);
-    (void)(pTimesToRenderScene);
 }
 
 void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
@@ -214,19 +210,79 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
     swap(previousFrame, textureChain.back());
 }
 
-void showGui(Scene& scene) {
-    if (!ImGui::Begin()) {
-        // Early out if the window is collapsed, as an optimization.
-        ImGui::End();
-        return;
+struct ImGuiHelper {
+    int width, height;
+    ID3D11ShaderResourceViewPtr srv;
+    ID3D11RenderTargetViewPtr rtv;
+    QuadRenderer renderer;
+
+    ImGuiHelper(DirectX11& DX11, int width_, int height_)
+        : width{width_}, height{height_}, renderer{DX11, "imguips.hlsl", true} {
+        ImGui_ImplDX11_Init(DX11.Window, DX11.Device.Get(), DX11.Context.Get());
+        ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
+
+        // Create a render target for IMGUI
+        [this, &DX11] {
+            auto tex = CreateTexture2D(
+                DX11.Device.Get(),
+                Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(width), UINT(height)}
+                    .mipLevels(1)
+                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+            srv = CreateShaderResourceView(DX11.Device.Get(), tex.Get());
+            rtv = CreateRenderTargetView(DX11.Device.Get(), tex.Get());
+        }();
     }
 
-    ImGui::PushItemWidth(-140);  // Right align, keep 140 pixels for labels
+    ~ImGuiHelper() { ImGui_ImplDX11_Shutdown(); }
 
-    scene.showGui();
+    void render(DirectX11& DX11, Scene& scene, ID3D11RenderTargetView* toneMapperRtv,
+                ovrVector2i rightEyePos) {
+        if (DX11.imguiActive) {
+            float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
+            DX11.Context->ClearRenderTargetView(rtv.Get(), clearColor);
+            OMSetRenderTargets(DX11.Context, {rtv.Get()});
+            DX11.setViewport({{0, 0}, {width, height}});
+            ImVec2 displaySize{static_cast<float>(width), static_cast<float>(height)};
+            ImGui_ImplDX11_NewFrame(displaySize);
+            ImGui::GetIO().MouseDrawCursor = true;
+            ImGui::SetNextWindowPos(
+                ImVec2(static_cast<float>(width / 4), static_cast<float>(height / 4)),
+                ImGuiSetCond_FirstUseEver);
+            showGui(scene);
+            // ImGui::ShowTestWindow();
+            ImGui::Render();
+            PSSetSamplers(DX11.Context, 0,
+                          {scene.linearSampler.Get(), scene.standardTextureSampler.Get()});
+            renderer.render(*toneMapperRtv, {srv.Get(), nullptr}, 0, 0, width, height);
+            renderer.render(*toneMapperRtv, {srv.Get(), nullptr}, rightEyePos.x, rightEyePos.y,
+                            width, height);
 
-    ImGui::End();
-}
+            if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
+                DX11.keyPressed[VK_ESCAPE] = false;
+                DX11.imguiActive = false;
+            }
+        } else {
+            if (DX11.keyPressed[VK_ESCAPE]) {
+                DX11.keyPressed[VK_ESCAPE] = false;
+                DX11.imguiActive = true;
+            }
+        }
+    }
+
+    void showGui(Scene& scene) {
+        if (!ImGui::Begin()) {
+            // Early out if the window is collapsed, as an optimization.
+            ImGui::End();
+            return;
+        }
+
+        ImGui::PushItemWidth(-140);  // Right align, keep 140 pixels for labels
+
+        scene.showGui();
+
+        ImGui::End();
+    }
+};
 
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     auto argMap = parseArgs(args);
@@ -286,29 +342,10 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(windowRect.Size.w), UINT(windowRect.Size.h)}
             .mipLevels(1));
 
-    ImGui_ImplDX11_Init(DX11.Window, DX11.Device.Get(), DX11.Context.Get());
-    ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
-
     // Create a render target for IMGUI
-    ID3D11Texture2DPtr imguiRenderTargetTex;
-    ID3D11ShaderResourceViewPtr imguiRenderTargetSRV;
-    ID3D11RenderTargetViewPtr imguiRTV;
-    const auto imguiRTVWidth =
-        max(EyeRenderViewport[ovrEye_Left].Size.w, EyeRenderViewport[ovrEye_Right].Size.w);
-    const auto imguiRTVHeight =
-        max(EyeRenderViewport[ovrEye_Left].Size.h, EyeRenderViewport[ovrEye_Right].Size.h);
-    [&DX11, &EyeRenderViewport, &imguiRenderTargetTex, &imguiRenderTargetSRV, &imguiRTV,
-     imguiRTVWidth, imguiRTVHeight] {
-        imguiRenderTargetTex = CreateTexture2D(
-            DX11.Device.Get(),
-            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(imguiRTVWidth), UINT(imguiRTVHeight)}
-                .mipLevels(1)
-                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
-        imguiRenderTargetSRV =
-            CreateShaderResourceView(DX11.Device.Get(), imguiRenderTargetTex.Get());
-        imguiRTV = CreateRenderTargetView(DX11.Device.Get(), imguiRenderTargetTex.Get());
-    }();
-    QuadRenderer imguiQuadRenderer{DX11, "imguips.hlsl", true};
+    ImGuiHelper imguiHelper{
+        DX11, max(EyeRenderViewport[ovrEye_Left].Size.w, EyeRenderViewport[ovrEye_Right].Size.w),
+        max(EyeRenderViewport[ovrEye_Left].Size.h, EyeRenderViewport[ovrEye_Right].Size.h)};
 
     const auto EyeRenderDesc = hmd->getRenderDesc();
 
@@ -324,13 +361,11 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
         DX11.HandleMessages();
 
-        const float speed = 1.0f;    // Can adjust the movement speed.
-        int timesToRenderScene = 1;  // Can adjust the render burden on the app.
         ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[0].HmdToEyeViewOffset,
                                                 EyeRenderDesc[1].HmdToEyeViewOffset};
 
         // Handle key toggles for re-centering, meshes, FOV, etc.
-        ExampleFeatures1(DX11, *hmd, &speed, &timesToRenderScene, useHmdToEyeViewOffset);
+        ExampleFeatures1(DX11, *hmd, useHmdToEyeViewOffset);
 
         // Reload shaders
         if (DX11.Key['H']) {
@@ -343,13 +378,14 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         if (DX11.Key[VK_RIGHT]) Yaw -= 0.02f;
 
         // Keyboard inputs to adjust player position
+        const auto speed = 1.0f;    // Can adjust the movement speed.
         const auto rotationMat = Mat4fRotationY(Yaw);
         if (DX11.Key['W'] || DX11.Key[VK_UP])
-            pos += Vec4f{0.0f, 0.0f, -speed * 0.05f, 0.0f} * rotationMat;
+            pos += Vec4f{0.0f, 0.0f, -0.05f, 0.0f} * speed * rotationMat;
         if (DX11.Key['S'] || DX11.Key[VK_DOWN])
-            pos += Vec4f{0.0f, 0.0f, +speed * 0.05f, 0.0f} * rotationMat;
-        if (DX11.Key['D']) pos += Vec4f{+speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
-        if (DX11.Key['A']) pos += Vec4f{-speed * 0.05f, 0.0f, 0.0f, 0.0f} * rotationMat;
+            pos += Vec4f{0.0f, 0.0f, 0.05f, 0.0f} * speed * rotationMat;
+        if (DX11.Key['D']) pos += Vec4f{0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
+        if (DX11.Key['A']) pos += Vec4f{-0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
 
         // gamepad inputs
         for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
@@ -384,8 +420,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
         // Animate the cube
         roomScene.Models[0]->Pos =
-            mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock)) *
-            speed;
+            mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock));
 
         // Get both eye poses simultaneously, with IPD offset already included.
         auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
@@ -396,7 +431,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv.Get(), EyeDepthBuffer.TexDsv.Get());
 
         // Render the two undistorted eye views into their render buffers.
-        for (int eye = 0; eye < 2; eye++) {
+        for (auto eye : {ovrEye_Left, ovrEye_Right}) {
             DX11.setViewport(EyeRenderViewport[eye]);
             ovrPosef* useEyePose = &EyeRenderPose[eye];
             float* useYaw = &YawAtRender[eye];
@@ -426,10 +461,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             Mat4f proj{projT.column(0), projT.column(1), projT.column(2), projT.column(3)};
 
             // Render the scene
-            for (int t = 0; t < timesToRenderScene; t++)
-                roomScene.Render(DX11,
-                                 Vec3f{shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()},
-                                 view, proj);
+            roomScene.Render(DX11, Vec3f{shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()},
+                             view, proj);
         }
 
         DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0, EyeRenderTexture.Tex.Get(),
@@ -438,41 +471,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()).Get());
 
         // IMGUI update/rendering
-        if (DX11.imguiActive) {
-            float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
-            DX11.Context->ClearRenderTargetView(imguiRTV.Get(), clearColor);
-            OMSetRenderTargets(DX11.Context, {imguiRTV.Get()});
-            DX11.setViewport(EyeRenderViewport[ovrEye_Left]);
-            ImVec2 displaySize{static_cast<float>(imguiRTVWidth),
-                               static_cast<float>(imguiRTVHeight)};
-            ImGui_ImplDX11_NewFrame(displaySize);
-            ImGui::GetIO().MouseDrawCursor = true;
-            ImGui::SetNextWindowPos(ImVec2(static_cast<float>(imguiRTVWidth / 4),
-                                           static_cast<float>(imguiRTVHeight / 4)),
-                                    ImGuiSetCond_FirstUseEver);
-            showGui(roomScene);
-            // ImGui::ShowTestWindow();
-            ImGui::Render();
-            PSSetSamplers(DX11.Context, 0,
-                          {roomScene.linearSampler.Get(), roomScene.standardTextureSampler.Get()});
-            imguiQuadRenderer.render(*toneMapper.renderTargetView.Get(),
-                                     {imguiRenderTargetSRV.Get(), nullptr}, 0, 0, imguiRTVWidth,
-                                     imguiRTVHeight);
-            imguiQuadRenderer.render(
-                *toneMapper.renderTargetView.Get(), {imguiRenderTargetSRV.Get(), nullptr},
-                EyeRenderViewport[ovrEye_Right].Pos.x, EyeRenderViewport[ovrEye_Right].Pos.y,
-                imguiRTVWidth, imguiRTVHeight);
-
-            if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
-                DX11.keyPressed[VK_ESCAPE] = false;
-                DX11.imguiActive = false;
-            }
-        } else {
-            if (DX11.keyPressed[VK_ESCAPE]) {
-                DX11.keyPressed[VK_ESCAPE] = false;
-                DX11.imguiActive = true;
-            }
-        }
+        imguiHelper.render(DX11, roomScene, toneMapper.renderTargetView.Get(),
+                           EyeRenderViewport[ovrEye_Right].Pos);
 
         eyeResolveTexture.advanceToNextTexture();
         DX11.Context->CopyResource(eyeResolveTexture.d3dTexture(),
@@ -483,7 +483,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         ld.Header.Type = ovrLayerType_EyeFov;
         ld.Header.Flags = 0;
 
-        for (int eye = 0; eye < 2; eye++) {
+        for (auto eye : {ovrEye_Left, ovrEye_Right}) {
             ld.ColorTexture[eye] = eyeResolveTexture.swapTextureSet();
             ld.Viewport[eye] = EyeRenderViewport[eye];
             ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
@@ -497,9 +497,6 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         DX11.Context->CopyResource(DX11.BackBuffer.Get(), mirrorTexture.d3dTexture());
         DX11.SwapChain->Present(0, 0);
     }
-
-    // Release and close down
-    ImGui_ImplDX11_Shutdown();
 
     return 0;
 }
