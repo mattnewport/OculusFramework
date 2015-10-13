@@ -20,17 +20,6 @@ using namespace std;
 
 namespace libovrwrapper {
 
-struct DummyHmd::RenderHelper {
-    RenderHelper(DummyHmd& dummyHmd_, DirectX11& directX11_)
-        : dummyHmd{dummyHmd_}, directX11{directX11_} {}
-
-    void render(const ovrTexture eyeTexture[2]);
-
-    DummyHmd& dummyHmd;
-    DirectX11& directX11;
-    ID3D11RenderTargetView* mirrorTextureRtv = nullptr;
-};
-
 DummyHmd::DummyHmd() {}
 
 DummyHmd::~DummyHmd() {}
@@ -78,7 +67,13 @@ bool DummyHmd::submitFrame(unsigned int frameIndex, const ovrViewScaleDesc* view
                            ovrLayerHeader const* const* layerPtrList, unsigned int layerCount) {
     auto layer = reinterpret_cast<const ovrLayerEyeFov*>(layerPtrList[0]);
     auto textureSet = layer->ColorTexture[0];
-    renderHelper->render(&textureSet->Textures[0]);
+    auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(&textureSet->Textures[0]);
+    const auto& leftVp = eyeRenderDescs[ovrEye_Left].DistortedViewport;
+    const auto& rightVp = eyeRenderDescs[ovrEye_Right].DistortedViewport;
+    auto quadRenderer = QuadRenderer{*directX11, "dummyhmdps.hlsl"};
+    quadRenderer.render(*mirrorTextureRtv, {d3dEyeTexture[ovrEye_Left].D3D11.pSRView}, leftVp.Pos.x,
+                        leftVp.Pos.y, leftVp.Size.w + rightVp.Size.w,
+                        max(leftVp.Size.h, rightVp.Size.h));
     return false;
 }
 
@@ -105,12 +100,6 @@ std::pair<std::array<ovrPosef, 2>, ovrTrackingState> DummyHmd::getEyePoses(
     return res;
 }
 
-void DummyHmd::setDirectX11(DirectX11& directX11_) {
-    if (!renderHelper) {
-        renderHelper = make_unique<RenderHelper>(*this, directX11_);
-    }
-}
-
 SwapTextureSet DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) {
     return {nullptr, size, device};
 }
@@ -118,27 +107,9 @@ SwapTextureSet DummyHmd::createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* 
 MirrorTexture DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
                                                  const D3D11_TEXTURE2D_DESC& desc) {
     auto res = MirrorTexture{nullptr, device, desc};
-    assert(!renderHelper->mirrorTextureRtv && "DummyHmd doesn't support multiple mirror textures.");
-    renderHelper->mirrorTextureRtv = res.d3dRenderTargetView();
+    assert(!mirrorTextureRtv && "DummyHmd doesn't support multiple mirror textures.");
+    mirrorTextureRtv = res.d3dRenderTargetView();
     return res;
-}
-
-void DummyHmd::destroyMirrorTextureD3D11(ovrTexture* tex) {
-    auto d3dTex = reinterpret_cast<ovrD3D11Texture*>(tex);
-    d3dTex->D3D11.pTexture->Release();
-    // MNTODO: this is not the ideal place to clean up the render helper, this code needs cleaning
-    // up post 0.6.0 SDK upates
-    renderHelper.reset();
-}
-
-void DummyHmd::RenderHelper::render(const ovrTexture eyeTexture[2]) {
-    auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(eyeTexture);
-    const auto& leftVp = dummyHmd.eyeRenderDescs[ovrEye_Left].DistortedViewport;
-    const auto& rightVp = dummyHmd.eyeRenderDescs[ovrEye_Right].DistortedViewport;
-    auto quadRenderer = QuadRenderer{directX11, "dummyhmdps.hlsl"};
-    quadRenderer.render(*mirrorTextureRtv,
-                        {d3dEyeTexture[ovrEye_Left].D3D11.pSRView}, leftVp.Pos.x, leftVp.Pos.y,
-                        leftVp.Size.w + rightVp.Size.w, max(leftVp.Size.h, rightVp.Size.h));
 }
 
 IHmd::~IHmd() {}
@@ -152,11 +123,11 @@ void throwOvrError(const char* msg, ovrHmd hmd) {
     throw std::runtime_error(std::string{msg} + errorInfo.ErrorString);
 }
 
-Hmd::~Hmd() {
+OvrHmd::~OvrHmd() {
     if (hmd_) ovr_Destroy(hmd_);
 }
 
-Hmd::Hmd() {
+OvrHmd::OvrHmd() {
     if (!OVR_SUCCESS(ovr_Initialize(nullptr))) throwOvrError("ovr_Initialize() returned false!");
     if (!OVR_SUCCESS(ovr_Create(&hmd_, &luid_))) {
         MessageBoxA(NULL, "Oculus Rift not detected.\n", "", MB_OK);

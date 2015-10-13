@@ -239,7 +239,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     } else {
         // Initializes LibOVR, and the Rift
         // Note: this must happen before initializing D3D
-        hmd = make_unique<Hmd>();
+        hmd = make_unique<OvrHmd>();
     }
 
     DirectX11 DX11{};
@@ -248,12 +248,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     ovrRecti windowRect{ hmd->getWindowsPos(), hmd->getResolution() };
     if (!DX11.InitWindowAndDevice(hinst, windowRect, hmd->getAdapterLuid())) return 0;
 
-    [&hmd, &DX11] {
-        const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get());
-        if (dummyHmd) {
-            dummyHmd->setDirectX11(DX11);
-        }
-    }();
+    // Bit of a hack: if we're using a DummyHmd, set it's DirectX11 pointer
+    if (const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get())) dummyHmd->setDirectX11(DX11);
 
     // Start the sensor which informs of the Rift's pose and motion
     hmd->configureTracking(ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection |

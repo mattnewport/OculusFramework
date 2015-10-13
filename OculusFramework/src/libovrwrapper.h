@@ -161,7 +161,6 @@ public:
 
     virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) = 0;
     virtual MirrorTexture createMirrorTextureD3D11(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) = 0;
-    virtual void destroyMirrorTextureD3D11(ovrTexture* tex) = 0;
 
     virtual void configureTracking(unsigned int supportedTrackingCaps,
         unsigned int requiredTrackingCaps = 0) = 0;
@@ -198,7 +197,6 @@ public:
     virtual void setCap(ovrHmdCaps cap) override;
     virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device * device) override;
     virtual MirrorTexture createMirrorTextureD3D11(ID3D11Device * device, const D3D11_TEXTURE2D_DESC & desc) override;
-    virtual void destroyMirrorTextureD3D11(ovrTexture* tex) override;
     virtual void configureTracking(unsigned int supportedTrackingCaps, unsigned int requiredTrackingCaps) override;
     virtual std::array<ovrEyeRenderDesc, 2> getRenderDesc() override;
     virtual bool submitFrame(unsigned int frameIndex, const ovrViewScaleDesc* viewScaleDesc,
@@ -211,21 +209,21 @@ public:
     virtual const LUID* getAdapterLuid() const { return nullptr; }
 
     // Non inherited
-    void setDirectX11(DirectX11& directX11_);
+    void setDirectX11(DirectX11& directX11_) { directX11 = &directX11_; }
+
 private:
-    struct RenderHelper;
-    friend struct RenderHelper;
-    std::unique_ptr<RenderHelper> renderHelper;
+    DirectX11* directX11 = nullptr;
+    ID3D11RenderTargetView* mirrorTextureRtv = nullptr;
     std::array<ovrEyeRenderDesc, 2> eyeRenderDescs;
 };
 
-class Hmd : public IHmd {
+class OvrHmd : public IHmd {
     friend class Ovr;
 
 public:
-    Hmd();
-    Hmd(const Hmd&) = delete;
-    ~Hmd();
+    OvrHmd();
+    OvrHmd(const OvrHmd&) = delete;
+    ~OvrHmd();
 
     ovrVector2i getWindowsPos() const override { return{ 0, 0 }; }
     ovrSizei getResolution() const override { return getHmdDesc().Resolution; }
@@ -245,10 +243,6 @@ public:
     MirrorTexture createMirrorTextureD3D11(ID3D11Device* device,
         const D3D11_TEXTURE2D_DESC& desc) override {
         return {hmd_, device, desc};
-    }
-
-    void destroyMirrorTextureD3D11(ovrTexture* tex) override {
-        ovr_DestroyMirrorTexture(hmd_, tex);
     }
 
     void configureTracking(unsigned int supportedTrackingCaps,
