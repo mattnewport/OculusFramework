@@ -123,16 +123,16 @@ void throwOvrError(const char* msg, ovrHmd hmd) {
     throw std::runtime_error(std::string{msg} + errorInfo.ErrorString);
 }
 
-OvrHmd::~OvrHmd() {
-    if (hmd_) ovr_Destroy(hmd_);
-}
-
 OvrHmd::OvrHmd() {
     if (!OVR_SUCCESS(ovr_Initialize(nullptr))) throwOvrError("ovr_Initialize() returned false!");
     if (!OVR_SUCCESS(ovr_Create(&hmd_, &luid_))) {
         MessageBoxA(NULL, "Oculus Rift not detected.\n", "", MB_OK);
         throwOvrError("Failed to create HMD!");
     }
+}
+
+OvrHmd::~OvrHmd() {
+    if (hmd_) ovr_Destroy(hmd_);
 }
 
 }  // namespace libovrwrapper

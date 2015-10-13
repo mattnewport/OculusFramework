@@ -160,19 +160,22 @@ public:
     virtual void setCap(ovrHmdCaps cap) = 0;
 
     virtual SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) = 0;
-    virtual MirrorTexture createMirrorTextureD3D11(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) = 0;
+    virtual MirrorTexture createMirrorTextureD3D11(ID3D11Device* device,
+                                                   const D3D11_TEXTURE2D_DESC& desc) = 0;
 
     virtual void configureTracking(unsigned int supportedTrackingCaps,
-        unsigned int requiredTrackingCaps = 0) = 0;
+                                   unsigned int requiredTrackingCaps = 0) = 0;
 
     virtual std::array<ovrEyeRenderDesc, 2> getRenderDesc() = 0;
 
     virtual bool submitFrame(unsigned int frameIndex, const ovrViewScaleDesc* viewScaleDesc,
-        ovrLayerHeader const* const* layerPtrList, unsigned int layerCount) = 0;
+                             ovrLayerHeader const* const* layerPtrList,
+                             unsigned int layerCount) = 0;
 
     virtual ovrSizei getFovTextureSize(ovrEyeType eye) = 0;
 
-    virtual ovrSizei getFovTextureSize(ovrEyeType eye, ovrFovPort fov, float pixelsPerDisplayPixel = 1.0f) = 0;
+    virtual ovrSizei getFovTextureSize(ovrEyeType eye, ovrFovPort fov,
+                                       float pixelsPerDisplayPixel = 1.0f) = 0;
 
     virtual float getProperty(const char* propertyName, float defaultValue) const = 0;
 
@@ -218,22 +221,22 @@ private:
 };
 
 class OvrHmd : public IHmd {
-    friend class Ovr;
-
 public:
     OvrHmd();
     OvrHmd(const OvrHmd&) = delete;
     ~OvrHmd();
 
-    ovrVector2i getWindowsPos() const override { return{ 0, 0 }; }
+    ovrVector2i getWindowsPos() const override { return {0, 0}; }
     ovrSizei getResolution() const override { return getHmdDesc().Resolution; }
-    ovrFovPort getDefaultEyeFov(ovrEyeType eye) const override { return getHmdDesc().DefaultEyeFov[eye]; }
+    ovrFovPort getDefaultEyeFov(ovrEyeType eye) const override {
+        return getHmdDesc().DefaultEyeFov[eye];
+    }
 
-    bool testCap(ovrHmdCaps cap) const override { return static_cast<ovrHmdCaps>(ovr_GetEnabledCaps(hmd_) & cap) == cap; }
+    bool testCap(ovrHmdCaps cap) const override {
+        return static_cast<ovrHmdCaps>(ovr_GetEnabledCaps(hmd_) & cap) == cap;
+    }
     void setCap(ovrHmdCaps cap) override {
-        int enabledCaps = ovr_GetEnabledCaps(hmd_);
-        enabledCaps |= cap;
-        ovr_SetEnabledCaps(hmd_, enabledCaps);
+        ovr_SetEnabledCaps(hmd_, ovr_GetEnabledCaps(hmd_) | cap);
     }
 
     SwapTextureSet createSwapTextureSetD3D11(ovrSizei size, ID3D11Device* device) override {
@@ -241,34 +244,33 @@ public:
     }
 
     MirrorTexture createMirrorTextureD3D11(ID3D11Device* device,
-        const D3D11_TEXTURE2D_DESC& desc) override {
+                                           const D3D11_TEXTURE2D_DESC& desc) override {
         return {hmd_, device, desc};
     }
 
     void configureTracking(unsigned int supportedTrackingCaps,
-        unsigned int requiredTrackingCaps) override {
+                           unsigned int requiredTrackingCaps) override {
         if (!OVR_SUCCESS(ovr_ConfigureTracking(hmd_, supportedTrackingCaps, requiredTrackingCaps)))
             throwOvrError("ovrHmd_ConfigureTracking() returned false!", hmd_);
     }
 
     std::array<ovrEyeRenderDesc, 2> getRenderDesc() override {
-        std::array<ovrEyeRenderDesc, 2> res;
-        res[0] = ovr_GetRenderDesc(hmd_, ovrEye_Left, getHmdDesc().DefaultEyeFov[0]);
-        res[1] = ovr_GetRenderDesc(hmd_, ovrEye_Right, getHmdDesc().DefaultEyeFov[1]);
-        return res;
+        return {ovr_GetRenderDesc(hmd_, ovrEye_Left, getHmdDesc().DefaultEyeFov[ovrEye_Left]),
+                ovr_GetRenderDesc(hmd_, ovrEye_Right, getHmdDesc().DefaultEyeFov[ovrEye_Right])};
     }
 
     bool submitFrame(unsigned int frameIndex, const ovrViewScaleDesc* viewScaleDesc,
-        ovrLayerHeader const* const* layerPtrList, unsigned int layerCount) {
+                     ovrLayerHeader const* const* layerPtrList, unsigned int layerCount) {
         return ovr_SubmitFrame(hmd_, frameIndex, viewScaleDesc, layerPtrList, layerCount) ==
-            ovrSuccess;
+               ovrSuccess;
     }
 
     ovrSizei getFovTextureSize(ovrEyeType eye) override {
         return getFovTextureSize(eye, getHmdDesc().DefaultEyeFov[eye]);
     }
 
-    ovrSizei getFovTextureSize(ovrEyeType eye, ovrFovPort fov, float pixelsPerDisplayPixel = 1.0f) override {
+    ovrSizei getFovTextureSize(ovrEyeType eye, ovrFovPort fov,
+                               float pixelsPerDisplayPixel = 1.0f) override {
         return ovr_GetFovTextureSize(hmd_, eye, fov, pixelsPerDisplayPixel);
     }
 
@@ -283,14 +285,12 @@ public:
         return res;
     }
 
-    void recenterPose() override {
-        ovr_RecenterPose(hmd_);
-    }
+    void recenterPose() override { ovr_RecenterPose(hmd_); }
 
     const LUID* getAdapterLuid() const { return reinterpret_cast<const LUID*>(&luid_); }
 
 private:
-    ovrHmdDesc getHmdDesc() const { 
+    ovrHmdDesc getHmdDesc() const {
         auto desc = ovr_GetHmdDesc(nullptr);
         assert(desc.Type != ovrHmd_None);
         return desc;
@@ -299,5 +299,4 @@ private:
     ovrHmd hmd_;
     ovrGraphicsLuid luid_;
 };
-
 }

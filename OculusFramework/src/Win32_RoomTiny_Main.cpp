@@ -222,15 +222,13 @@ struct ImGuiHelper {
         ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
 
         // Create a render target for IMGUI
-        [this, &DX11] {
-            auto tex = CreateTexture2D(
-                DX11.Device.Get(),
-                Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(width), UINT(height)}
-                    .mipLevels(1)
-                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
-            srv = CreateShaderResourceView(DX11.Device.Get(), tex.Get());
-            rtv = CreateRenderTargetView(DX11.Device.Get(), tex.Get());
-        }();
+        auto tex =
+            CreateTexture2D(DX11.Device.Get(),
+                            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(width), UINT(height)}
+                                .mipLevels(1)
+                                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+        srv = CreateShaderResourceView(DX11.Device.Get(), tex.Get());
+        rtv = CreateRenderTargetView(DX11.Device.Get(), tex.Get());
     }
 
     ~ImGuiHelper() { ImGui_ImplDX11_Shutdown(); }
@@ -251,8 +249,6 @@ struct ImGuiHelper {
             showGui(scene);
             // ImGui::ShowTestWindow();
             ImGui::Render();
-            PSSetSamplers(DX11.Context, 0,
-                          {scene.linearSampler.Get(), scene.standardTextureSampler.Get()});
             renderer.render(*toneMapperRtv, {srv.Get(), nullptr}, 0, 0, width, height);
             renderer.render(*toneMapperRtv, {srv.Get(), nullptr}, rightEyePos.x, rightEyePos.y,
                             width, height);
@@ -298,11 +294,11 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         hmd = make_unique<OvrHmd>();
     }
 
-    // Setup Window and Graphics - use window frame if relying on Oculus driver
+    // Setup Window and D3D
     auto windowRect = ovrRecti{hmd->getWindowsPos(), hmd->getResolution()};
     DirectX11 DX11{hinst, windowRect, hmd->getAdapterLuid()};
 
-    // Bit of a hack: if we're using a DummyHmd, set it's DirectX11 pointer
+    // Bit of a hack: if we're using a DummyHmd, set its DirectX11 pointer
     if (const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get())) dummyHmd->setDirectX11(DX11);
 
     // Start the sensor which informs of the Rift's pose and motion
