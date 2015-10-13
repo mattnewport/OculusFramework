@@ -302,6 +302,19 @@ inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
     return res;
 }
 
+inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource,
+                                     const D3D11_SHADER_RESOURCE_VIEW_DESC& desc) {
+    ID3D11ShaderResourceViewPtr res;
+    ThrowOnFailure(device->CreateShaderResourceView(resource, &desc, &res));
+    return res;
+}
+
+inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource) {
+    ID3D11ShaderResourceViewPtr res;
+    ThrowOnFailure(device->CreateShaderResourceView(resource, nullptr, &res));
+    return res;
+}
+
 // Helpers for mapping a buffer
 struct MapHandle {
     MapHandle(ID3D11DeviceContext* context, ID3D11Resource* resource, UINT subResource = 0,

@@ -80,7 +80,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                                                   static_cast<UINT>(tifHeight)}
                                         .mipLevels(1),
                             {heights.data(), tifWidth * sizeof(heights[0])});
-        ThrowOnFailure(device->CreateShaderResourceView(heightsTex.Get(), nullptr, &heightsSRV));
+        heightsSRV = CreateShaderResourceView(device, heightsTex.Get());
     }();
 
     SetCSVFilenameHook(CSVFileOverride);
@@ -158,7 +158,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                                   static_cast<UINT>(height)}
                         .mipLevels(1),
             {normals.data(), width * sizeof(normals[0])});
-        ThrowOnFailure(device->CreateShaderResourceView(normalsTex.Get(), nullptr, &normalsSRV));
+        normalsSRV= CreateShaderResourceView(device, normalsTex.Get());
     }();
 
     const auto blockPower = 6;

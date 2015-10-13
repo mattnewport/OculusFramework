@@ -71,7 +71,7 @@ Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* d
                                       .mipLevels(mipLevels));
     SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
-    device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
+    TexSv = CreateShaderResourceView(device, Tex.Get());
     SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
 
     if (data)  // Note data is trashed, as is width and height
@@ -265,7 +265,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         desc.Filter = D3D11_FILTER_ANISOTROPIC;
         desc.AddressU = desc.AddressV = desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
         desc.MaxAnisotropy = 8;
-        device->CreateSamplerState(&desc, &standardTextureSampler);
+        ThrowOnFailure(device->CreateSamplerState(&desc, &standardTextureSampler));
     }();
 
     lighting.lightPos = Vec4f{0.0f, 3.7f, -2.0f, 1.0f};

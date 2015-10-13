@@ -35,8 +35,10 @@ struct OculusTexture {
             TextureSet->Textures = &dummyTexture.Texture;
             TextureSet->TextureCount = 1;
             TextureSet->CurrentIndex = 0;
-            device->CreateTexture2D(&texDesc, nullptr, &dummyTexture.D3D11.pTexture);
-            device->CreateShaderResourceView(dummyTexture.D3D11.pTexture, nullptr, &dummyTexture.D3D11.pSRView);
+            auto tex = CreateTexture2D(device, texDesc);
+            auto srv = CreateShaderResourceView(device, tex.Get());
+            dummyTexture.D3D11.pTexture = tex.Detach();
+            dummyTexture.D3D11.pSRView = srv.Detach();
         } else {
             if (!OVR_SUCCESS(ovr_CreateSwapTextureSetD3D11(hmd, device, &texDesc, 0, &TextureSet)))
                 throwOvrError("ovrHmd_CreateSwapTextureSetD3D11() failed!", hmd);

@@ -25,7 +25,7 @@ ImageBuffer::ImageBuffer(const char* name, ID3D11Device* device, ovrSizei size)
     Tex = CreateTexture2D(device, dsDesc);
     SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
 
-    device->CreateShaderResourceView(Tex.Get(), nullptr, &TexSv);
+    TexSv = CreateShaderResourceView(device, Tex.Get());
     SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
     TexRtv = CreateRenderTargetView(device, Tex.Get());
     SetDebugObjectName(TexRtv.Get(), string("ImageBuffer::TexRtv - ") + name);

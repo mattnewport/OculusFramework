@@ -122,9 +122,10 @@ ovrTexture* DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
     ovrD3D11Texture* tex = new ovrD3D11Texture{};
     auto newDesc = desc;
     newDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-    device->CreateTexture2D(&newDesc, nullptr, &tex->D3D11.pTexture);
-    renderHelper.get()->mirrorTextureRT = CreateRenderTargetView(device, tex->D3D11.pTexture);
+    auto d3dTex = CreateTexture2D(device, newDesc);
+    renderHelper.get()->mirrorTextureRT = CreateRenderTargetView(device, d3dTex.Get());
     SetDebugObjectName(renderHelper.get()->mirrorTextureRT.Get(), __FUNCTION__);
+    tex->D3D11.pTexture = d3dTex.Detach();
     return &tex->Texture;
 }
 

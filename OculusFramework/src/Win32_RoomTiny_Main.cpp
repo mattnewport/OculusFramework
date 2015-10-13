@@ -121,11 +121,10 @@ void ExampleFeatures2(const DirectX11& DX11, int eye, ImageBuffer** pUseBuffer,
 }
 
 struct ToneMapper {
-    ToneMapper(DirectX11& directX11_, int width_, int height_)
-        : directX11{directX11_},
-          width{static_cast<unsigned>(width_)},
+    ToneMapper(DirectX11& directX11, int width_, int height_)
+        : width{static_cast<unsigned>(width_)},
           height{static_cast<unsigned>(height_)},
-          quadRenderer{directX11_, "tonemapps.hlsl"},
+          quadRenderer{directX11, "tonemapps.hlsl"},
           sourceTex{CreateTexture2D(
               directX11.Device.Get(),
               Texture2DDesc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height}.mipLevels(1))},
@@ -134,8 +133,7 @@ struct ToneMapper {
               Texture2DDesc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height}.mipLevels(1).bindFlags(
                   D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET))} {
         SetDebugObjectName(sourceTex.Get(), "ToneMapper::sourceTex");
-        ThrowOnFailure(
-            directX11.Device->CreateShaderResourceView(sourceTex.Get(), nullptr, &sourceTexSRV));
+        sourceTexSRV = CreateShaderResourceView(directX11.Device.Get(), sourceTex.Get());
         SetDebugObjectName(sourceTexSRV.Get(), "ToneMapper::sourceTexSRV");
 
         SetDebugObjectName(renderTargetTex.Get(), "ToneMapper::renderTargetTex");
@@ -148,7 +146,6 @@ struct ToneMapper {
 
     void render(ID3D11ShaderResourceView* avgLogLuminance);
 
-    DirectX11& directX11;
     unsigned width = 0;
     unsigned height = 0;
 
@@ -165,39 +162,34 @@ void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
 }
 
 struct LuminanceRangeFinder {
-    LuminanceRangeFinder(DirectX11& directX11_, int width_, int height_)
-        : directX11{directX11_},
-          width{static_cast<unsigned>(width_)},
+    LuminanceRangeFinder(DirectX11& directX11, int width_, int height_)
+        : width{static_cast<unsigned>(width_)},
           height{static_cast<unsigned>(height_)},
-          logLumRenderer{directX11_, "loglumps.hlsl"},
-          logAverageRenderer{directX11_, "luminancerangeps.hlsl"},
-          luminanceBlender{directX11_, "loglumblendps.hlsl"} {
-        [this] {
-            auto makeLumTex = [this](unsigned texWidth, unsigned texHeight) {
-                auto tex = CreateTexture2D(
-                    directX11.Device.Get(),
-                    Texture2DDesc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight)}
-                        .mipLevels(1)
-                        .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
-                SetDebugObjectName(tex.Get(), "LuminanceRangeFinder::tex");
-                ID3D11ShaderResourceViewPtr srv;
-                ThrowOnFailure(directX11.Device->CreateShaderResourceView(tex.Get(), nullptr, &srv));
-                SetDebugObjectName(srv.Get(), "LuminanceRangeFinder::srv");
-                auto rtv = CreateRenderTargetView(directX11.Device.Get(), tex.Get());
-                SetDebugObjectName(rtv.Get(), "LuminanceRangeFinder::rtv");
-                return make_tuple(tex, srv, rtv);
-            };
-            for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
-                 texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
-                textureChain.emplace_back(makeLumTex(texWidth, texHeight));
-            }
-            previousFrame = makeLumTex(1, 1);
-        }();
+          logLumRenderer{directX11, "loglumps.hlsl"},
+          logAverageRenderer{directX11, "luminancerangeps.hlsl"},
+          luminanceBlender{directX11, "loglumblendps.hlsl"} {
+        auto makeLumTex = [&directX11](unsigned texWidth, unsigned texHeight) {
+            auto tex = CreateTexture2D(
+                directX11.Device.Get(),
+                Texture2DDesc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight)}
+                    .mipLevels(1)
+                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+            SetDebugObjectName(tex.Get(), "LuminanceRangeFinder::tex");
+            auto srv = CreateShaderResourceView(directX11.Device.Get(), tex.Get());
+            SetDebugObjectName(srv.Get(), "LuminanceRangeFinder::srv");
+            auto rtv = CreateRenderTargetView(directX11.Device.Get(), tex.Get());
+            SetDebugObjectName(rtv.Get(), "LuminanceRangeFinder::rtv");
+            return make_tuple(tex, srv, rtv);
+        };
+        for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
+             texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
+            textureChain.emplace_back(makeLumTex(texWidth, texHeight));
+        }
+        previousFrame = makeLumTex(1, 1);
     }
 
     void render(ID3D11ShaderResourceView* sourceSRV);
 
-    DirectX11& directX11;
     unsigned width = 0;
     unsigned height = 0;
 
@@ -319,8 +311,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(imguiRTVWidth), UINT(imguiRTVHeight)}
                 .mipLevels(1)
                 .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
-        ThrowOnFailure(DX11.Device->CreateShaderResourceView(imguiRenderTargetTex.Get(), nullptr,
-                                                             &imguiRenderTargetSRV));
+        imguiRenderTargetSRV =
+            CreateShaderResourceView(DX11.Device.Get(), imguiRenderTargetTex.Get());
         imguiRTV = CreateRenderTargetView(DX11.Device.Get(), imguiRenderTargetTex.Get());
     }();
     QuadRenderer imguiQuadRenderer{DX11, "imguips.hlsl", true};
