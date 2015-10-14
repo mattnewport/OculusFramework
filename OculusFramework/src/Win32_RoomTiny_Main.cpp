@@ -215,6 +215,7 @@ struct ImGuiHelper {
     ID3D11ShaderResourceViewPtr srv;
     ID3D11RenderTargetViewPtr rtv;
     QuadRenderer renderer;
+    bool active = false;
 
     ImGuiHelper(DirectX11& DX11, int width_, int height_)
         : width{width_}, height{height_}, renderer{DX11, "imguips.hlsl", true} {
@@ -235,7 +236,7 @@ struct ImGuiHelper {
 
     void render(DirectX11& DX11, Scene& scene, ID3D11RenderTargetView* toneMapperRtv,
                 ovrVector2i rightEyePos) {
-        if (DX11.imguiActive) {
+        if (active) {
             float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
             DX11.Context->ClearRenderTargetView(rtv.Get(), clearColor);
             OMSetRenderTargets(DX11.Context, {rtv.Get()});
@@ -255,12 +256,12 @@ struct ImGuiHelper {
 
             if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
                 DX11.keyPressed[VK_ESCAPE] = false;
-                DX11.imguiActive = false;
+                active = false;
             }
         } else {
             if (DX11.keyPressed[VK_ESCAPE]) {
                 DX11.keyPressed[VK_ESCAPE] = false;
-                DX11.imguiActive = true;
+                active = true;
             }
         }
     }
@@ -357,8 +358,8 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
     while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
         DX11.HandleMessages();
 
-        ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[0].HmdToEyeViewOffset,
-                                                EyeRenderDesc[1].HmdToEyeViewOffset};
+        ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[ovrEye_Left].HmdToEyeViewOffset,
+                                                EyeRenderDesc[ovrEye_Right].HmdToEyeViewOffset};
 
         // Handle key toggles for re-centering, meshes, FOV, etc.
         ExampleFeatures1(DX11, *hmd, useHmdToEyeViewOffset);
@@ -386,29 +387,27 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         // gamepad inputs
         for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
             XINPUT_STATE state{};
-            auto res = XInputGetState(i, &state);
-            if (SUCCEEDED(res)) {
-                const auto& gp = state.Gamepad;
+            if (SUCCEEDED(XInputGetState(i, &state))) {
                 auto handleDeadzone = [](float x, float y, float deadzone) {
                     const auto v = Vec2f{x, y};
                     const auto mag = magnitude(v);
                     if (mag > deadzone) {
                         const auto n = v * 1.0f / mag;
                         const auto s = saturate(
-                            (magnitude(v) - deadzone) /
+                            (mag - deadzone) /
                             (numeric_limits<decltype(XINPUT_GAMEPAD::sThumbLX)>::max() - deadzone));
                         return n * s;
                     }
                     return Vec2f{0.0f, 0.0f};
                 };
+                const auto& gp = state.Gamepad;
                 const auto ls =
                     handleDeadzone(gp.sThumbLX, gp.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
                 const auto rs =
                     handleDeadzone(gp.sThumbRX, gp.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
 
                 Yaw += -0.04f * rs.x();
-                pos += Vec4f{0.05f * ls.x(), 0.0f, 0.0f, 0.0f} * rotationMat;
-                pos += Vec4f{0.0f, 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
+                pos += Vec4f{0.05f * ls.x(), 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
             }
         }
 
@@ -419,22 +418,14 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock));
 
         // Get both eye poses simultaneously, with IPD offset already included.
-        auto tempEyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
-
-        ovrPosef EyeRenderPose[2];  // Useful to remember where the rendered eye originated
-        float YawAtRender[2];       // Useful to remember where the rendered eye originated
+        const auto eyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
 
         DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv.Get(), EyeDepthBuffer.TexDsv.Get());
 
         // Render the two undistorted eye views into their render buffers.
         for (auto eye : {ovrEye_Left, ovrEye_Right}) {
             DX11.setViewport(EyeRenderViewport[eye]);
-            ovrPosef* useEyePose = &EyeRenderPose[eye];
-            float* useYaw = &YawAtRender[eye];
-
-            // Write in values actually used (becomes significant in Example features)
-            *useEyePose = tempEyePoses.first[eye];
-            *useYaw = Yaw;
+            const ovrPosef* useEyePose = &eyePoses.first[eye];
 
             // Get view and projection matrices (note near Z to reduce eye strain)
             auto rollPitchYaw = Mat4fRotationY(Yaw);
@@ -483,7 +474,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
             ld.ColorTexture[eye] = eyeResolveTexture.swapTextureSet();
             ld.Viewport[eye] = EyeRenderViewport[eye];
             ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
-            ld.RenderPose[eye] = EyeRenderPose[eye];
+            ld.RenderPose[eye] = eyePoses.first[eye];
         }
 
         ovrLayerHeader* layers = &ld.Header;

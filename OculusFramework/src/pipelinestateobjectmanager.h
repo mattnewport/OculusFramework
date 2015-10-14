@@ -11,12 +11,14 @@ using RasterizerStateKey = CD3D11_RASTERIZER_DESC;
 using DepthStencilStateKey = CD3D11_DEPTH_STENCIL_DESC;
 using InputElementDescs = std::vector<D3D11_INPUT_ELEMENT_DESC>;
 
-struct PipelineStateObject;struct PipelineStateObjectDesc {
+struct PipelineStateObject;
+
+struct PipelineStateObjectDesc {
     PipelineStateObjectDesc()
-        : blendState{ D3D11_DEFAULT },
-        rasterizerState{ D3D11_DEFAULT },
-        depthStencilState{ D3D11_DEFAULT },
-        primitiveTopology{ D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST } {}
+        : blendState{D3D11_DEFAULT},
+          rasterizerState{D3D11_DEFAULT},
+          depthStencilState{D3D11_DEFAULT},
+          primitiveTopology{D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST} {}
     VertexShaderKey vertexShader;
     PixelShaderKey pixelShader;
     BlendStateKey blendState;

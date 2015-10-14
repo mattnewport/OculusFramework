@@ -13,9 +13,6 @@
 
 #include <Windows.h>
 
-#pragma warning(push)
-#pragma warning(disable : 4100)  // unreferenced formal parameter - temp until these are implemented
-
 using namespace std;
 
 namespace libovrwrapper {
@@ -28,14 +25,14 @@ ovrVector2i DummyHmd::getWindowsPos() const { return {0, 0}; }
 
 ovrSizei DummyHmd::getResolution() const { return {1920, 1080}; }
 
-ovrFovPort DummyHmd::getDefaultEyeFov(ovrEyeType eye) const { return ovrFovPort(); }
+ovrFovPort DummyHmd::getDefaultEyeFov(ovrEyeType /*eye*/) const { return{}; }
 
-bool DummyHmd::testCap(ovrHmdCaps cap) const { return false; }
+bool DummyHmd::testCap(ovrHmdCaps /*cap*/) const { return false; }
 
-void DummyHmd::setCap(ovrHmdCaps cap) {}
+void DummyHmd::setCap(ovrHmdCaps /*cap*/) {}
 
-void DummyHmd::configureTracking(unsigned int supportedTrackingCaps,
-                                 unsigned int requiredTrackingCaps) {}
+void DummyHmd::configureTracking(unsigned int /*supportedTrackingCaps*/,
+                                 unsigned int /*requiredTrackingCaps*/) {}
 
 std::array<ovrEyeRenderDesc, 2> DummyHmd::getRenderDesc() {
     // Fake out default DK2 values
@@ -63,8 +60,8 @@ std::array<ovrEyeRenderDesc, 2> DummyHmd::getRenderDesc() {
     return eyeRenderDescs;
 }
 
-bool DummyHmd::submitFrame(unsigned int frameIndex, const ovrViewScaleDesc* viewScaleDesc,
-                           ovrLayerHeader const* const* layerPtrList, unsigned int layerCount) {
+bool DummyHmd::submitFrame(unsigned int /*frameIndex*/, const ovrViewScaleDesc* /*viewScaleDesc*/,
+                           ovrLayerHeader const* const* layerPtrList, unsigned int /*layerCount*/) {
     auto layer = reinterpret_cast<const ovrLayerEyeFov*>(layerPtrList[0]);
     auto textureSet = layer->ColorTexture[0];
     auto d3dEyeTexture = reinterpret_cast<const ovrD3D11Texture*>(&textureSet->Textures[0]);
@@ -81,7 +78,8 @@ ovrSizei DummyHmd::getFovTextureSize(ovrEyeType eye) {
     return getFovTextureSize(eye, ovrFovPort{});
 }
 
-ovrSizei DummyHmd::getFovTextureSize(ovrEyeType eye, ovrFovPort fov, float pixelsPerDisplayPixel) {
+ovrSizei DummyHmd::getFovTextureSize(ovrEyeType /*eye*/, ovrFovPort /*fov*/,
+                                     float /*pixelsPerDisplayPixel*/) {
     return {1182, 1464};
 }
 
@@ -91,7 +89,7 @@ float DummyHmd::getProperty(const char* propertyName, const float defaultValue) 
 }
 
 std::pair<std::array<ovrPosef, 2>, ovrTrackingState> DummyHmd::getEyePoses(
-    unsigned int frameIndex, ovrVector3f hmdToEyeViewOffset[2]) const {
+    unsigned int /*frameIndex*/, ovrVector3f hmdToEyeViewOffset[2]) const {
     auto res = std::pair<std::array<ovrPosef, 2>, ovrTrackingState>{};
     res.first[0].Orientation = ovrQuatf{0.0f, 0.0f, 0.0f, 1.0f};
     res.first[0].Position = hmdToEyeViewOffset[0];
@@ -114,7 +112,7 @@ MirrorTexture DummyHmd::createMirrorTextureD3D11(ID3D11Device* device,
 
 IHmd::~IHmd() {}
 
-void throwOvrError(const char* msg, ovrHmd hmd) {
+void throwOvrError(const char* msg, ovrHmd /*hmd*/) {
     ovrErrorInfo errorInfo{};
     ovr_GetLastErrorInfo(&errorInfo);
 #ifdef _DEBUG
@@ -136,5 +134,3 @@ OvrHmd::~OvrHmd() {
 }
 
 }  // namespace libovrwrapper
-
-#pragma warning(pop)

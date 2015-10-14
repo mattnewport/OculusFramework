@@ -14,10 +14,7 @@ struct HeightField {
         Color(unsigned char r = 0, unsigned char g = 0, unsigned char b = 0, unsigned char a = 0xff)
             : R(r), G(g), B(b), A(a) {}
     };
-    struct Vertex {
-        mathlib::Vec2f position;
-        mathlib::Vec2f texcoord;
-    };
+    struct Vertex;
 
     mathlib::Vec3f Pos;
     mathlib::Quatf Rot;
@@ -49,3 +46,11 @@ struct HeightField {
 
     void showGui();
 };
+
+struct HeightField::Vertex {
+    mathlib::Vec2f position;
+    mathlib::Vec2f texcoord;
+};
+static const auto HeightFieldVertexInputElementDescs = {
+    MAKE_INPUT_ELEMENT_DESC(HeightField::Vertex, position),
+    MAKE_INPUT_ELEMENT_DESC(HeightField::Vertex, texcoord)};

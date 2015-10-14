@@ -231,8 +231,7 @@ void HeightField::AddVertices(ID3D11Device* device,
     PipelineStateObjectDesc desc;
     desc.vertexShader = "terrainvs.hlsl";
     desc.pixelShader = "terrainps.hlsl";
-    desc.inputElementDescs = {MAKE_INPUT_ELEMENT_DESC(Vertex, position),
-                              MAKE_INPUT_ELEMENT_DESC(Vertex, texcoord)};
+    desc.inputElementDescs = HeightFieldVertexInputElementDescs;
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
     objectConstantBuffer = CreateBuffer(
