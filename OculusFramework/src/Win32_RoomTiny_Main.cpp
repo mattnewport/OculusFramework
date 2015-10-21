@@ -281,7 +281,7 @@ struct ImGuiHelper {
     }
 };
 
-int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
+int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _In_ int) {
     auto argMap = parseArgs(args);
 
     unique_ptr<IHmd> hmd;
@@ -376,7 +376,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
 
         // Keyboard inputs to adjust player position
         const auto speed = 1.0f;    // Can adjust the movement speed.
-        const auto rotationMat = Mat4fRotationY(Yaw);
+        const auto rotationMat = rotationYMat4f(Yaw);
         if (DX11.Key['W'] || DX11.Key[VK_UP])
             pos += Vec4f{0.0f, 0.0f, -0.05f, 0.0f} * speed * rotationMat;
         if (DX11.Key['S'] || DX11.Key[VK_DOWN])
@@ -425,31 +425,31 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE, LPSTR args, int) {
         // Render the two undistorted eye views into their render buffers.
         for (auto eye : {ovrEye_Left, ovrEye_Right}) {
             DX11.setViewport(EyeRenderViewport[eye]);
-            const ovrPosef* useEyePose = &eyePoses.first[eye];
+            const auto useEyePose = &eyePoses.first[eye];
 
             // Get view and projection matrices (note near Z to reduce eye strain)
-            auto rollPitchYaw = Mat4fRotationY(Yaw);
+            const auto rollPitchYaw = rotationYMat4f(Yaw);
             mathlib::Quatf ori;
             memcpy(&ori, &useEyePose->Orientation, sizeof(ori));
-            auto fromOri = Mat4FromQuat(ori);
-            Mat4f finalRollPitchYaw = fromOri * rollPitchYaw;
-            Vec4f finalUp = Vec4f{0.0f, 1.0f, 0.0f, 0.0f} * finalRollPitchYaw;
-            Vec4f finalForward = Vec4f{0.0f, 0.0f, -1.0f, 0.0f} * finalRollPitchYaw;
-            Vec4f shiftedEyePos = pos +
-                                  Vec4f{useEyePose->Position.x, useEyePose->Position.y,
-                                        useEyePose->Position.z, 0.0f} *
-                                      rollPitchYaw;
+            const auto fromOri = Mat4FromQuat(ori);
+            const auto finalRollPitchYaw = fromOri * rollPitchYaw;
+            const auto finalUp = Vec4f{0.0f, 1.0f, 0.0f, 0.0f} * finalRollPitchYaw;
+            const auto finalForward = Vec4f{0.0f, 0.0f, -1.0f, 0.0f} * finalRollPitchYaw;
+            const auto shiftedEyePos = pos +
+                                       Vec4f{useEyePose->Position.x, useEyePose->Position.y,
+                                             useEyePose->Position.z, 0.0f} *
+                                           rollPitchYaw;
 
-            Mat4f view = Mat4fLookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
-            ovrMatrix4f projTemp =
+            const auto view = lookAtRhMat4f(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
+            const auto projTemp =
                 ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
             Mat4f projT;
             memcpy(&projT, &projTemp, sizeof(projT));
-            Mat4f proj{projT.column(0), projT.column(1), projT.column(2), projT.column(3)};
+            const auto proj = transpose(projT);
 
             // Render the scene
-            roomScene.Render(DX11, Vec3f{shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()},
-                             view, proj);
+            roomScene.Render(DX11, {shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()}, view,
+                             proj);
         }
 
         DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0, EyeRenderTexture.Tex.Get(),

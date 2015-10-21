@@ -343,8 +343,8 @@ template <typename Context>
 void IASetVertexBuffers(const Context& context, unsigned startSlot,
                         gsl::array_view<ID3D11Buffer* const> buffers,
                         gsl::array_view<const UINT> strides, gsl::array_view<const UINT> offsets) {
-    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), buffers.data(),
-                                strides.data(), offsets.data());
+    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::data(buffers),
+                                std::data(strides), std::data(offsets));
 };
 
 template <typename Context>
@@ -352,49 +352,49 @@ void IASetVertexBuffers(const Context& context, unsigned startSlot,
                         gsl::array_view<ID3D11Buffer* const> buffers,
                         gsl::array_view<const UINT> strides) {
     UINT offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT] = {};
-    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), buffers.data(),
-                                strides.data(), std::begin(offsets));
+    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::data(buffers),
+                                std::data(strides), std::begin(offsets));
 };
 
 template <typename Context>
 void PSSetConstantBuffers(const Context& context, unsigned startSlot,
                           gsl::array_view<ID3D11Buffer* const> buffers) {
-    context->PSSetConstantBuffers(startSlot, std::size(buffers), buffers.data());
+    context->PSSetConstantBuffers(startSlot, std::size(buffers), std::data(buffers));
 }
 
 template <typename Context>
 void VSSetConstantBuffers(const Context& context, unsigned startSlot,
                           gsl::array_view<ID3D11Buffer* const> buffers) {
-    context->VSSetConstantBuffers(startSlot, std::size(buffers), buffers.data());
+    context->VSSetConstantBuffers(startSlot, std::size(buffers), std::data(buffers));
 }
 
 template <typename Context>
 void PSSetShaderResources(const Context& context, unsigned startSlot,
                           gsl::array_view<ID3D11ShaderResourceView* const> srvs) {
-    context->PSSetShaderResources(UINT(startSlot), std::size(srvs), srvs.data());
+    context->PSSetShaderResources(UINT(startSlot), std::size(srvs), std::data(srvs));
 }
 
 template <typename Context>
 void VSSetShaderResources(const Context& context, unsigned startSlot,
                           gsl::array_view<ID3D11ShaderResourceView* const> srvs) {
-    context->VSSetShaderResources(UINT(startSlot), std::size(srvs), srvs.data());
+    context->VSSetShaderResources(UINT(startSlot), std::size(srvs), std::data(srvs));
 }
 
 template <typename Context>
 void PSSetSamplers(const Context& context, unsigned startSlot,
                    gsl::array_view<ID3D11SamplerState* const> samplers) {
-    context->PSSetSamplers(UINT(startSlot), std::size(samplers), samplers.data());
+    context->PSSetSamplers(UINT(startSlot), std::size(samplers), std::data(samplers));
 }
 
 template <typename Context>
 void OMSetRenderTargets(const Context& context, gsl::array_view<ID3D11RenderTargetView* const> rtvs,
                         ID3D11DepthStencilView* dsv = nullptr) {
-    context->OMSetRenderTargets(std::size(rtvs), rtvs.data(), dsv);
+    context->OMSetRenderTargets(std::size(rtvs), std::data(rtvs), dsv);
 }
 
 template <typename Context>
 void RSSetViewports(const Context& context, gsl::array_view<const D3D11_VIEWPORT> vps) {
-    context->RSSetViewports(std::size(vps), vps.data());
+    context->RSSetViewports(std::size(vps), std::data(vps));
 }
 
 // Misc helpers

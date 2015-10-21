@@ -21,7 +21,7 @@ public:
     void Render(DirectX11& dx11, ID3D11DeviceContext* context);
 
     const mathlib::Mat4f GetMatrix() {
-        auto scale = mathlib::Mat4fScale(0.25f);
+        auto scale = mathlib::scaleMat4f(0.25f);
         scale.row(3).y() = 1.0f;
         return scale;
     }

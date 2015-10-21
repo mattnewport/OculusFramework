@@ -54,7 +54,7 @@ struct Model {
     Model(mathlib::Vec3f pos_, std::unique_ptr<ShaderFill>&& arg_Fill)
         : Pos{pos_}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f}, Fill{std::move(arg_Fill)} {}
     const mathlib::Mat4f& GetMatrix() {
-        Mat = Mat4FromQuat(Rot) * Mat4fTranslation(Pos);
+        Mat = Mat4FromQuat(Rot) * translationMat4f(Pos);
         return Mat;
     }
     void AddVertex(const Vertex& v) { Vertices.push_back(v); }
