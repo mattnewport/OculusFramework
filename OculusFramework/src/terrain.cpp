@@ -150,7 +150,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                 normalize(Vec3f{2.0f * gridStepY * (getHeight(idx, -1, 0) - getHeight(idx, 1, 0)),
                                 4.0f * gridStepX * gridStepY,
                                 2.0f * gridStepX * (getHeight(idx, 0, -1) - getHeight(idx, 0, 1))});
-            normalsView[idx] = {normal.x(), normal.z()};
+            normalsView[idx] = normal.xz();
         }
 
         normalsTex = CreateTexture2D(

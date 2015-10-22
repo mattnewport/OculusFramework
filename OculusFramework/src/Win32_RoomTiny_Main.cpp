@@ -398,7 +398,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                             (numeric_limits<decltype(XINPUT_GAMEPAD::sThumbLX)>::max() - deadzone));
                         return n * s;
                     }
-                    return Vec2f{0.0f, 0.0f};
+                    return Vec2f{0.0f};
                 };
                 const auto& gp = state.Gamepad;
                 const auto ls =
@@ -433,23 +433,18 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             memcpy(&ori, &useEyePose->Orientation, sizeof(ori));
             const auto fromOri = Mat4FromQuat(ori);
             const auto finalRollPitchYaw = fromOri * rollPitchYaw;
-            const auto finalUp = Vec4f{0.0f, 1.0f, 0.0f, 0.0f} * finalRollPitchYaw;
-            const auto finalForward = Vec4f{0.0f, 0.0f, -1.0f, 0.0f} * finalRollPitchYaw;
-            const auto shiftedEyePos = pos +
-                                       Vec4f{useEyePose->Position.x, useEyePose->Position.y,
-                                             useEyePose->Position.z, 0.0f} *
-                                           rollPitchYaw;
+            const auto finalUp = basisVector<Vec4f>(Y) * finalRollPitchYaw;
+            const auto finalForward = -basisVector<Vec4f>(Z) * finalRollPitchYaw;
+            const auto shiftedEyePos =
+                pos + Vec4f{Vec3f{&useEyePose->Position.x}, 0.0f} * rollPitchYaw;
 
             const auto view = lookAtRhMat4f(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
             const auto projTemp =
                 ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
-            Mat4f projT;
-            memcpy(&projT, &projTemp, sizeof(projT));
-            const auto proj = transpose(projT);
+            const auto proj = transpose(MatrixFromDataPointer<float, 4, 4>(&projTemp.M[0][0]));
 
             // Render the scene
-            roomScene.Render(DX11, {shiftedEyePos.x(), shiftedEyePos.y(), shiftedEyePos.z()}, view,
-                             proj);
+            roomScene.Render(DX11, shiftedEyePos.xyz(), view, proj);
         }
 
         DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0, EyeRenderTexture.Tex.Get(),

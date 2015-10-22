@@ -52,7 +52,7 @@ struct Model {
     ID3D11BufferPtr objectConstantBuffer;
 
     Model(mathlib::Vec3f pos_, std::unique_ptr<ShaderFill>&& arg_Fill)
-        : Pos{pos_}, Rot{mathlib::Vec3f{0.0f, 0.0f, 0.0f}, 0.0f}, Fill{std::move(arg_Fill)} {}
+        : Pos{pos_}, Rot{}, Fill{std::move(arg_Fill)} {}
     const mathlib::Mat4f& GetMatrix() {
         Mat = Mat4FromQuat(Rot) * translationMat4f(Pos);
         return Mat;

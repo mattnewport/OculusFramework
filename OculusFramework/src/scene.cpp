@@ -31,7 +31,7 @@ void Model::AllocateBuffers(ID3D11Device* device) {
 }
 
 void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, float z2, Color c) {
-    mathlib::Vec3f Vert[][2] = {
+    Vec3f Vert[][2] = {
         {{x1, y2, z1}, {z1, x1, 0.0f}}, {{x2, y2, z1}, {z1, x2, 0.0f}},
         {{x2, y2, z2}, {z2, x2, 0.0f}}, {{x1, y2, z2}, {z2, x1, 0.0f}},
         {{x1, y1, z1}, {z1, x1, 0.0f}}, {{x2, y1, z1}, {z1, x2, 0.0f}},
@@ -53,10 +53,10 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
     for (auto idx : CubeIndices) AddIndex(static_cast<uint16_t>(idx + Vertices.size()));
 
     for (const auto& v : Vert) {
-        Vertex vvv{v[0], {}, mathlib::Vec2f{v[1].x(), v[1].y()}};
-        float dist1 = mathlib::magnitude(vvv.position - mathlib::Vec3f{-2.0f, 4.0f, -2.0f});
-        float dist2 = mathlib::magnitude(vvv.position - mathlib::Vec3f{3.0f, 4.0f, -3.0f});
-        float dist3 = mathlib::magnitude(vvv.position - mathlib::Vec3f{-4.0f, 3.0f, 25.0f});
+        Vertex vvv{v[0], {}, v[1].xy()};
+        float dist1 = magnitude(vvv.position - Vec3f{-2.0f, 4.0f, -2.0f});
+        float dist2 = magnitude(vvv.position - Vec3f{3.0f, 4.0f, -3.0f});
+        float dist3 = magnitude(vvv.position - Vec3f{-4.0f, 3.0f, 25.0f});
         int bri = rand() % 160;
         float RRR = c.R * (bri + 192.0f * (0.65f + 8 / dist1 + 1 / dist2 + 4 / dist3)) / 255.0f;
         float GGG = c.G * (bri + 192.0f * (0.65f + 8 / dist1 + 1 / dist2 + 4 / dist3)) / 255.0f;
@@ -153,12 +153,12 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
 
     // Construct geometry
     std::unique_ptr<Model> m =
-        make_unique<Model>(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[2]));  // Moving box
+        make_unique<Model>(Vec3f{}, std::move(generated_texture[2]));  // Moving box
     m->AddSolidColorBox(0, 0, 0, +1.0f, +1.0f, 1.0f, Model::Color(64, 64, 64));
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[1])));  // Walls
+    m.reset(new Model(Vec3f{}, std::move(generated_texture[1])));  // Walls
     m->AddSolidColorBox(-10.1f, 0.0f, -20.0f, -10.0f, 4.0f, 20.0f,
                         Model::Color(128, 128, 128));  // Left Wall
     m->AddSolidColorBox(-10.0f, -0.1f, -20.1f, 10.0f, 4.0f, -20.0f,
@@ -168,7 +168,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[0])));  // Floors
+    m.reset(new Model(Vec3f{}, std::move(generated_texture[0])));  // Floors
     m->AddSolidColorBox(-10.0f, -0.1f, -20.0f, 10.0f, 0.0f, 20.1f,
                         Model::Color(128, 128, 128));  // Main floor
     m->AddSolidColorBox(-15.0f, -6.1f, 18.0f, 15.0f, -6.0f, 30.0f,
@@ -176,12 +176,12 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[4])));  // Ceiling
+    m.reset(new Model(Vec3f{}, std::move(generated_texture[4])));  // Ceiling
     m->AddSolidColorBox(-10.0f, 4.0f, -20.0f, 10.0f, 4.1f, 20.1f, Model::Color(128, 128, 128));
     m->AllocateBuffers(device);
     Add(move(m));
 
-    m.reset(new Model(mathlib::Vec3f(0.0f, 0.0f, 0.0f), std::move(generated_texture[3])));  // Fixtures & furniture
+    m.reset(new Model(Vec3f{}, std::move(generated_texture[3])));  // Fixtures & furniture
     m->AddSolidColorBox(9.5f, 0.75f, 3.0f, 10.1f, 2.5f, 3.1f,
                         Model::Color(96, 96, 96));  // Right side shelf// Verticals
     m->AddSolidColorBox(9.5f, 0.95f, 3.7f, 10.1f, 2.75f, 3.8f,
@@ -230,7 +230,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     Add(move(m));
 
     // Terrain
-    heightField = make_unique<HeightField>(mathlib::Vec3f{-1.0f, 0.8f, 0.0f});
+    heightField = make_unique<HeightField>(Vec3f{-1.0f, 0.8f, 0.0f});
     heightField->AddVertices(device, pipelineStateObjectManager, texture2DManager);
 
     sphere = make_unique<Sphere>();
@@ -272,19 +272,19 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
         ThrowOnFailure(device->CreateSamplerState(&desc, &standardTextureSampler));
     }();
 
-    lighting.lightPos = Vec4f{0.0f, 3.7f, -2.0f, 1.0f};
-    lighting.lightColor = Vec4f{1.0f, 1.0f, 1.0f, 1.0f} * 2.0f;
-    lighting.lightAmbient = Vec4f{1.0f, 1.0f, 1.0f, 1.0f} * 2.0f;
+    lighting.lightPos = {0.0f, 3.7f, -2.0f, 1.0f};
+    lighting.lightColor = Vec4f{2.0f};
+    lighting.lightAmbient = Vec4f{2.0f};
 }
 
 void Scene::showGui() {
     if (ImGui::CollapsingHeader("Scene")) {
-        static Vec4f lightColor = {1.0f, 1.0f, 1.0f, 1.0f};
-        ImGui::ColorEdit3("Light color", &lightColor.x());
+        static auto lightColor = Vec4f{1.0f};
+        ImGui::ColorEdit3("Light color", lightColor.data());
         static float lightIntensity = 10.0f;
         ImGui::SliderFloat("Light intensity", &lightIntensity, 0.0f, 16.0f, "intensity = %.3f");
         lighting.lightColor = lightColor * lightIntensity;
-        ImGui::DragFloat3("Light position", &lighting.lightPos.x(), 0.1f);
+        ImGui::DragFloat3("Light position", lighting.lightPos.data(), 0.1f);
     }
     heightField->showGui();
 }

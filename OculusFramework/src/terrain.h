@@ -35,8 +35,7 @@ struct HeightField {
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
-        Mat = mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) * translationMat4f(Pos);
-        return Mat;
+        return Mat = mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) * translationMat4f(Pos);
     }
 
     void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
