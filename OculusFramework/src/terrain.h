@@ -33,7 +33,7 @@ struct HeightField {
     ID3D11ShaderResourceViewPtr normalsSRV;
     float scale = 1e-4f;
 
-    HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{{0.0f, 0.0f, 0.0f}, 0.0f} {}
+    HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
         Mat = mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) * translationMat4f(Pos);
         return Mat;
