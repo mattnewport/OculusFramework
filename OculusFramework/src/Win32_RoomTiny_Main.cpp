@@ -302,10 +302,6 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     // Bit of a hack: if we're using a DummyHmd, set its DirectX11 pointer
     if (const auto dummyHmd = dynamic_cast<DummyHmd*>(hmd.get())) dummyHmd->setDirectX11(DX11);
 
-    // Start the sensor which informs of the Rift's pose and motion
-    hmd->configureTracking(ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection |
-                           ovrTrackingCap_Position);
-
     // Make the eye render buffers (caution if actual size < requested due to HW limits).
     const auto idealSizeL = hmd->getFovTextureSize(ovrEyeType(ovrEye_Left));
     const auto idealSizeR = hmd->getFovTextureSize(ovrEyeType(ovrEye_Right));
@@ -418,6 +414,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock));
 
         // Get both eye poses simultaneously, with IPD offset already included.
+        const auto sensorSampleTime = hmd->getTimeInSeconds();
         const auto eyePoses = hmd->getEyePoses(0, useHmdToEyeViewOffset);
 
         DX11.ClearAndSetRenderTarget(EyeRenderTexture.TexRtv.Get(), EyeDepthBuffer.TexDsv.Get());
@@ -470,6 +467,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             ld.Viewport[eye] = EyeRenderViewport[eye];
             ld.Fov[eye] = hmd->getDefaultEyeFov(ovrEyeType(eye));
             ld.RenderPose[eye] = eyePoses.first[eye];
+            ld.SensorSampleTime = sensorSampleTime;
         }
 
         ovrLayerHeader* layers = &ld.Header;

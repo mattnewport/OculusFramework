@@ -21,6 +21,11 @@ DummyHmd::DummyHmd() {}
 
 DummyHmd::~DummyHmd() {}
 
+double DummyHmd::getTimeInSeconds() const
+{
+    return ovr_GetTimeInSeconds();
+}
+
 ovrVector2i DummyHmd::getWindowsPos() const { return {0, 0}; }
 
 ovrSizei DummyHmd::getResolution() const { return {1920, 1080}; }

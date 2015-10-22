@@ -152,6 +152,8 @@ public:
     IHmd(IHmd&& x) = default;
     virtual ~IHmd() = 0;
 
+    virtual double getTimeInSeconds() const = 0;
+
     virtual ovrVector2i getWindowsPos() const = 0;
     virtual ovrSizei getResolution() const = 0;
     virtual ovrFovPort getDefaultEyeFov(ovrEyeType eye) const = 0;
@@ -193,6 +195,7 @@ public:
     ~DummyHmd();
 
     // Inherited via IHmd
+    virtual double getTimeInSeconds() const override;
     virtual ovrVector2i getWindowsPos() const override;
     virtual ovrSizei getResolution() const override;
     virtual ovrFovPort getDefaultEyeFov(ovrEyeType eye) const override;
@@ -226,6 +229,7 @@ public:
     OvrHmd(const OvrHmd&) = delete;
     ~OvrHmd();
 
+    double getTimeInSeconds() const override { return ovr_GetTimeInSeconds(); }
     ovrVector2i getWindowsPos() const override { return {0, 0}; }
     ovrSizei getResolution() const override { return getHmdDesc().Resolution; }
     ovrFovPort getDefaultEyeFov(ovrEyeType eye) const override {
@@ -281,7 +285,7 @@ public:
     std::pair<std::array<ovrPosef, 2>, ovrTrackingState> getEyePoses(
         unsigned int frameIndex, ovrVector3f hmdToEyeViewOffset[2]) const override {
         std::pair<std::array<ovrPosef, 2>, ovrTrackingState> res;
-        ovr_GetEyePoses(hmd_, frameIndex, hmdToEyeViewOffset, res.first.data(), &res.second);
+        ovr_GetEyePoses(hmd_, frameIndex, true, hmdToEyeViewOffset, res.first.data(), &res.second);
         return res;
     }
 

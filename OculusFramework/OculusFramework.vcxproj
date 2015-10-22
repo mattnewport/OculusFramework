@@ -67,7 +67,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)proj-4.9.1\src;$(SolutionDir)tiff-4.0.3\libtiff;$(OVR_SDK)\LibOVR\Lib\Windows\$(Platform)\$(Configuration)\VS2013;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)proj-4.9.1\src;$(SolutionDir)tiff-4.0.3\libtiff;$(OVR_SDK)\LibOVR\Lib\Windows\$(Platform)\$(Configuration)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>geotiff.lib;libtiff.lib;proj.lib;libovr.lib;ws2_32.lib;%(AdditionalDependencies);winmm.lib;d3d11.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;xinput.lib</AdditionalDependencies>
       <AdditionalOptions>/DEBUG:FASTLINK /time+ %(AdditionalOptions)</AdditionalOptions>
     </Link>
@@ -94,7 +94,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)proj-4.9.1\src;$(SolutionDir)tiff-4.0.3\libtiff;$(OVR_SDK)\LibOVR\Lib\Windows\$(Platform)\$(Configuration)\VS2013;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)libgeotiff-1.4.0;$(SolutionDir)proj-4.9.1\src;$(SolutionDir)tiff-4.0.3\libtiff;$(OVR_SDK)\LibOVR\Lib\Windows\$(Platform)\$(Configuration)\VS2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>geotiff.lib;libtiff.lib;proj.lib;libovr.lib;ws2_32.lib;%(AdditionalDependencies);winmm.lib;d3d11.lib;dxgi.lib;dxguid.lib;d3dcompiler.lib;xinput.lib</AdditionalDependencies>
       <AdditionalOptions>/DEBUG:FASTLINK /time+ %(AdditionalOptions)</AdditionalOptions>
       <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
