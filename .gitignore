@@ -185,3 +185,7 @@ FakesAssemblies/
 # Force this file to be included
 !PJ_imw_p.c
 !listgeo.c
+!getopt.c
+!makegeo.c
+!geotifcp.c
+!applygeo.c
