@@ -435,7 +435,8 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             const auto shiftedEyePos =
                 pos + Vec4f{Vec3f{&useEyePose->Position.x}, 0.0f} * rollPitchYaw;
 
-            const auto view = lookAtRhMat4f(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
+            const auto view = lookAtRhMat4f(
+                shiftedEyePos.xyz(), shiftedEyePos.xyz() + finalForward.xyz(), finalUp.xyz());
             const auto projTemp =
                 ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
             const auto proj = transpose(MatrixFromDataPointer<float, 4, 4>(&projTemp.M[0][0]));
