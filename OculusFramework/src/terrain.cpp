@@ -7,6 +7,7 @@
 #include "imgui/imgui.h"
 
 #include "mathfuncs.h"
+#include "mathio.h"
 #include "vector.h"
 
 #include "cpl_serv.h"
@@ -14,6 +15,7 @@
 #include "geodesic.h"
 #include "geotiff.h"
 #include "geovalues.h"
+#include "shapefil.h"
 #include "xtiffio.h"
 
 #pragma warning(push)
@@ -25,6 +27,7 @@
 #include "../commonstructs.hlsli"
 
 #include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -237,6 +240,8 @@ void HeightField::AddVertices(ID3D11Device* device,
     objectConstantBuffer = CreateBuffer(
         device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
+
+    loadShapeFile();
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
@@ -259,6 +264,41 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {UINT(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
     }
+}
+
+void HeightField::loadShapeFile() {
+    const auto shapeHandle = unique_ptr<SHPInfo, void (*)(SHPHandle)>{
+        SHPOpen(
+            R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\canvec_150528_015119_shp\to_1580009_0.shp)",
+            "rb"),
+        [](SHPHandle h) { SHPClose(h); }};
+
+    auto numEntities = 0;
+    auto shapeType = 0;
+    auto minBounds = Vector<double, 4>{};
+    auto maxBounds = Vector<double, 4>{};
+    SHPGetInfo(shapeHandle.get(), &numEntities, &shapeType, minBounds.data(), maxBounds.data());
+    stringstream info;
+    info << "numEntities: " << numEntities << ", "
+         << "shapeType: ";
+    switch (shapeType) {
+        case SHPT_POINT:
+            info << "SHPT_POINT";
+            break;
+        case SHPT_ARC:
+            info << "SHPT_ARC";
+            break;
+        case SHPT_POLYGON:
+            info << "SHPT_POLYGON";
+            break;
+        case SHPT_MULTIPOINT:
+            info << "SHPT_MULTIPOINT";
+            break;
+        default:
+            info << shapeType;
+    }
+    info << ", minBounds: " << minBounds << ", maxBounds: " << maxBounds;
+    OutputDebugStringA(info.str().c_str());
 }
 
 void HeightField::showGui() {

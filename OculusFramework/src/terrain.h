@@ -43,6 +43,8 @@ struct HeightField {
 
     void Render(DirectX11& dx11, ID3D11DeviceContext* context);
 
+    void loadShapeFile();
+
     void showGui();
 };
 
