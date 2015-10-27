@@ -27,7 +27,9 @@
 #include "../commonstructs.hlsli"
 
 #include <fstream>
+#include <string>
 #include <sstream>
+#include <unordered_map>
 
 using namespace std;
 
@@ -266,12 +268,52 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     }
 }
 
+auto shapeTypeToString(int shapeType) {
+    switch (shapeType) {
+        case SHPT_POINT:
+            return "SHPT_POINT"s;
+        case SHPT_ARC:
+            return "SHPT_ARC"s;
+        case SHPT_POLYGON:
+            return "SHPT_POLYGON"s;
+        case SHPT_MULTIPOINT:
+            return "SHPT_MULTIPOINT"s;
+        default:
+            return to_string(shapeType);
+    }
+}
+
+auto toString(DBFFieldType fieldType) {
+    switch (fieldType) {
+        case FTString:
+            return "FTString";
+        case FTInteger:
+            return "FTInteger";
+        case FTDouble:
+            return "FTDouble";
+        case FTLogical:
+            return "FTLogical";
+        case FTInvalid:
+            return "FTInvalid";
+        default:
+            return "Unrecognized";
+    }
+}
+
+struct DBFFieldInfo {
+    int index = 0;
+    DBFFieldType type = FTInvalid;
+    char name[12] = {};
+    int width = 0;
+    int decimals = 0;
+};
+
 void HeightField::loadShapeFile() {
     const auto shapeHandle = unique_ptr<SHPInfo, void (*)(SHPHandle)>{
         SHPOpen(
             R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\canvec_150528_015119_shp\to_1580009_0.shp)",
             "rb"),
-        [](SHPHandle h) { SHPClose(h); }};
+        SHPClose};
 
     auto numEntities = 0;
     auto shapeType = 0;
@@ -280,24 +322,52 @@ void HeightField::loadShapeFile() {
     SHPGetInfo(shapeHandle.get(), &numEntities, &shapeType, minBounds.data(), maxBounds.data());
     stringstream info;
     info << "numEntities: " << numEntities << ", "
-         << "shapeType: ";
-    switch (shapeType) {
-        case SHPT_POINT:
-            info << "SHPT_POINT";
-            break;
-        case SHPT_ARC:
-            info << "SHPT_ARC";
-            break;
-        case SHPT_POLYGON:
-            info << "SHPT_POLYGON";
-            break;
-        case SHPT_MULTIPOINT:
-            info << "SHPT_MULTIPOINT";
-            break;
-        default:
-            info << shapeType;
+         << "shapeType: " << shapeTypeToString(shapeType) << ", minBounds: " << minBounds
+         << ", maxBounds: " << maxBounds << '\n';
+
+    using ShpObjectPtr = unique_ptr<SHPObject, void(*)(SHPObject*)>;
+    vector<ShpObjectPtr> shapes;
+    shapes.reserve(numEntities);
+    for (int i = 0; i < numEntities; ++i) {
+        shapes.emplace_back(SHPReadObject(shapeHandle.get(), i), SHPDestroyObject);
     }
-    info << ", minBounds: " << minBounds << ", maxBounds: " << maxBounds;
+
+    const auto dbfHandle = unique_ptr<DBFInfo, void (*)(DBFHandle)>{DBFOpen(
+        R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\canvec_150528_015119_shp\to_1580009_0.dbf)",
+        "rb"), DBFClose};
+    const auto dbfFieldCount = DBFGetFieldCount(dbfHandle.get());
+    const auto dbfRecordCount = DBFGetRecordCount(dbfHandle.get());
+    assert(dbfRecordCount == numEntities);
+    unordered_map<string, DBFFieldInfo> dbfFieldInfos;
+    for (int i = 0; i < dbfFieldCount; ++i) {
+        auto fieldInfo = DBFFieldInfo{};
+        fieldInfo.type = DBFGetFieldInfo(dbfHandle.get(), i, fieldInfo.name, &fieldInfo.width, &fieldInfo.decimals);
+        dbfFieldInfos[fieldInfo.name] = fieldInfo;
+        info << "DBF Field " << i << ": " << toString(fieldInfo.type) << ", " << fieldInfo.name
+             << ", width = " << fieldInfo.width << ", decimals = " << fieldInfo.decimals << '\n';
+    }
+
+    auto dbfReadString = [dbf = dbfHandle.get(), &dbfFieldInfos](int shapeId, const char* fieldName) {
+        const auto fieldIndex = DBFGetFieldIndex(dbf, fieldName);
+        assert(dbfFieldInfos[fieldName].type == FTString);
+        const auto fieldChars = DBFReadStringAttribute(dbf, shapeId, fieldIndex);
+        return string{fieldChars};
+    };
+
+    for (const auto& up : shapes) {
+        const auto id = dbfReadString(up->nShapeId, "id");
+        const auto nameid = dbfReadString(up->nShapeId, "nameid");
+        const auto geonamedb = dbfReadString(up->nShapeId, "geonamedb");
+        const auto nameen = dbfReadString(up->nShapeId, "nameen");
+        info << shapeTypeToString(up->nSHPType) << ", nShapeId: " << up->nShapeId
+             << ", nParts: " << up->nParts << ", id: " << id << ", nameid: " << nameid
+             << ", geonamedb: " << geonamedb << ", nameen: " << nameen << '\n';
+
+        const auto latitude = float(*up->padfX);
+        const auto longitude = float(*up->padfY);
+        topographicFeatures.push_back({Vec2f{latitude, longitude}, nameen});
+    }
+
     OutputDebugStringA(info.str().c_str());
 }
 

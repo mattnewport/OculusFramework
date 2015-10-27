@@ -1,6 +1,6 @@
 
 #CFLAGS	=	/DSHPAPI_CALL=__stdcall
-CFLAGS =	/nologo /Ox /MT /DSHAPELIB_DLLEXPORT
+CFLAGS =	/nologo /Ox /MT /Zi /DSHAPELIB_DLLEXPORT
 
 IMPORT_LIB	= shapelib_i.lib
 STATIC_LIB	= shapelib.lib

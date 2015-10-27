@@ -6,6 +6,7 @@
 #include "matrix.h"
 
 #include <memory>
+#include <string>
 
 struct HeightField {
     struct Color {
@@ -15,6 +16,11 @@ struct HeightField {
             : R(r), G(g), B(b), A(a) {}
     };
     struct Vertex;
+
+    struct LabeledPoint {
+        mathlib::Vec2f latLong;
+        std::string label;
+    };
 
     mathlib::Vec3f Pos;
     mathlib::Quatf Rot;
@@ -32,6 +38,8 @@ struct HeightField {
     ID3D11Texture2DPtr normalsTex;
     ID3D11ShaderResourceViewPtr normalsSRV;
     float scale = 1e-4f;
+
+    std::vector<LabeledPoint> topographicFeatures;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
