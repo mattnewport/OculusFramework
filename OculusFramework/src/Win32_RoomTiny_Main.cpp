@@ -225,9 +225,10 @@ struct ImGuiHelper {
             CreateTexture2D(DX11.Device.Get(),
                             Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(width), UINT(height)}
                                 .mipLevels(1)
-                                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
-        srv = CreateShaderResourceView(DX11.Device.Get(), tex.Get());
-        rtv = CreateRenderTargetView(DX11.Device.Get(), tex.Get());
+                                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
+                            "ImGuiHelper::tex");
+        srv = CreateShaderResourceView(DX11.Device.Get(), tex.Get(), "ImGuiHelper::srv");
+        rtv = CreateRenderTargetView(DX11.Device.Get(), tex.Get(), "ImGuiHelper::rtv");
     }
 
     ~ImGuiHelper() { ImGui_ImplDX11_Shutdown(); }
@@ -424,23 +425,19 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
             // Get view and projection matrices (note near Z to reduce eye strain)
             const auto rollPitchYaw = rotationYMat4f(Yaw);
-            mathlib::Quatf ori;
-            memcpy(&ori, &useEyePose->Orientation, sizeof(ori));
-            const auto fromOri = Mat4FromQuat(ori);
-            const auto finalRollPitchYaw = fromOri * rollPitchYaw;
+            const auto finalRollPitchYaw =
+                Mat4FromQuat(Quatf{&useEyePose->Orientation.x}) * rollPitchYaw;
             const auto finalUp = basisVector<Vec4f>(Y) * finalRollPitchYaw;
             const auto finalForward = -basisVector<Vec4f>(Z) * finalRollPitchYaw;
-            const auto shiftedEyePos =
-                pos + Vec4f{Vec3f{&useEyePose->Position.x}, 0.0f} * rollPitchYaw;
-
-            const auto view = lookAtRhMat4f(
-                shiftedEyePos.xyz(), shiftedEyePos.xyz() + finalForward.xyz(), finalUp.xyz());
+            const auto finalEye = pos + Vec4f{Vec3f{&useEyePose->Position.x}, 0.0f} * rollPitchYaw;
+            const auto finalAt = finalEye + finalForward;
+            const auto view = lookAtRhMat4f(finalEye.xyz(), finalAt.xyz(), finalUp.xyz());
             const auto projTemp =
                 ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.1f, 1000.0f, true);
             const auto proj = transpose(MatrixFromDataPointer<float, 4, 4>(&projTemp.M[0][0]));
 
             // Render the scene
-            roomScene.Render(DX11, shiftedEyePos.xyz(), view, proj);
+            roomScene.Render(DX11, finalEye.xyz(), view, proj);
         }
 
         DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0, EyeRenderTexture.Tex.Get(),
