@@ -117,29 +117,196 @@ constexpr auto makeInputElementDescHelper(
                                #member, __VA_ARGS__)
 
 // Fluent interface helpers for setting up various DESC structs
-
 struct Texture2DDesc : public CD3D11_TEXTURE2D_DESC {
     using CD3D11_TEXTURE2D_DESC::CD3D11_TEXTURE2D_DESC;
-    auto& width(UINT x) { Width = x; return *this; }
-    auto& height(UINT x) { Height = x; return *this; }
-    auto& mipLevels(UINT x) { MipLevels = x; return *this; }
-    auto& arraySize(UINT x) { ArraySize = x; return *this; }
-    auto& format(DXGI_FORMAT x) { Format = x; return *this; }
-    auto& sampleDesc(DXGI_SAMPLE_DESC x) { SampleDesc = x; return *this; }
-    auto& usage(D3D11_USAGE x) { Usage = x; return *this; }
-    auto& bindFlags(UINT x) { BindFlags = x; return *this; }
-    auto& cpuAccessFlags(UINT x) { CPUAccessFlags = x; return *this; }
-    auto& miscFlags(UINT x) { MiscFlags = x; return *this; }
+    auto& width(UINT x) {
+        Width = x;
+        return *this;
+    }
+    auto& height(UINT x) {
+        Height = x;
+        return *this;
+    }
+    auto& mipLevels(UINT x) {
+        MipLevels = x;
+        return *this;
+    }
+    auto& arraySize(UINT x) {
+        ArraySize = x;
+        return *this;
+    }
+    auto& format(DXGI_FORMAT x) {
+        Format = x;
+        return *this;
+    }
+    auto& sampleDesc(DXGI_SAMPLE_DESC x) {
+        SampleDesc = x;
+        return *this;
+    }
+    auto& usage(D3D11_USAGE x) {
+        Usage = x;
+        return *this;
+    }
+    auto& bindFlags(UINT x) {
+        BindFlags = x;
+        return *this;
+    }
+    auto& cpuAccessFlags(UINT x) {
+        CPUAccessFlags = x;
+        return *this;
+    }
+    auto& miscFlags(UINT x) {
+        MiscFlags = x;
+        return *this;
+    }
 };
 
 struct BufferDesc : public CD3D11_BUFFER_DESC {
     using CD3D11_BUFFER_DESC::CD3D11_BUFFER_DESC;
-    auto& byteWidth(UINT x) { ByteWidth = x; return *this; }
-    auto& usage(D3D11_USAGE x) { Usage = x; return *this; }
-    auto& bindFlags(UINT x) { BindFlags = x; return *this; }
-    auto& cpuAccessFlags(UINT x) { CPUAccessFlags = x; return *this; }
-    auto& miscFlags(UINT x) { MiscFlags = x; return *this; }
-    auto& structureByteStride(UINT x) { StructureByteStride = x; return *this; }
+    auto& byteWidth(UINT x) {
+        ByteWidth = x;
+        return *this;
+    }
+    auto& usage(D3D11_USAGE x) {
+        Usage = x;
+        return *this;
+    }
+    auto& bindFlags(UINT x) {
+        BindFlags = x;
+        return *this;
+    }
+    auto& cpuAccessFlags(UINT x) {
+        CPUAccessFlags = x;
+        return *this;
+    }
+    auto& miscFlags(UINT x) {
+        MiscFlags = x;
+        return *this;
+    }
+    auto& structureByteStride(UINT x) {
+        StructureByteStride = x;
+        return *this;
+    }
+};
+
+struct BlendDesc : public CD3D11_BLEND_DESC {
+    using CD3D11_BLEND_DESC::CD3D11_BLEND_DESC;
+    BlendDesc() : CD3D11_BLEND_DESC{D3D11_DEFAULT} {}
+    auto& alphaToCoverageEnable(BOOL x) {
+        AlphaToCoverageEnable = x;
+        return *this;
+    }
+    auto& independentBlendEnable(BOOL x) {
+        IndependentBlendEnable = x;
+        return *this;
+    }
+    auto& blendEnable(BOOL x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].BlendEnable = x;
+        return *this;
+    }
+    auto& srcBlend(D3D11_BLEND x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].SrcBlend = x;
+        return *this;
+    }
+    auto& destBlend(D3D11_BLEND x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].DestBlend = x;
+        return *this;
+    }
+    auto& blendOp(D3D11_BLEND_OP x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].BlendOp = x;
+        return *this;
+    }
+    auto& srcBlendAlpha(D3D11_BLEND x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].SrcBlendAlpha = x;
+        return *this;
+    }
+    auto& destBlendAlpha(D3D11_BLEND x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].DestBlendAlpha = x;
+        return *this;
+    }
+    auto& blendOpAlpha(D3D11_BLEND_OP x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].BlendOpAlpha = x;
+        return *this;
+    }
+    auto& renderTargetWriteMask(UINT8 x, size_t rtIdx = 0) {
+        RenderTarget[rtIdx].RenderTargetWriteMask = x;
+        return *this;
+    }
+};
+
+struct DepthStencilOpDesc : public D3D11_DEPTH_STENCILOP_DESC {
+    DepthStencilOpDesc()
+        : D3D11_DEPTH_STENCILOP_DESC{D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP,
+                                     D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS} {}
+    auto& stencilFailOp(D3D11_STENCIL_OP x) {
+        StencilFailOp = x;
+        return *this;
+    }
+    auto& stencilDepthFailOp(D3D11_STENCIL_OP x) {
+        StencilDepthFailOp = x;
+        return *this;
+    }
+    auto& stencilPassOp(D3D11_STENCIL_OP x) {
+        StencilPassOp = x;
+        return *this;
+    }
+    auto& stencilFunc(D3D11_COMPARISON_FUNC x) {
+        StencilFunc = x;
+        return *this;
+    }
+};
+
+struct DepthStencilDesc : public CD3D11_DEPTH_STENCIL_DESC {
+    using CD3D11_DEPTH_STENCIL_DESC::CD3D11_DEPTH_STENCIL_DESC;
+    DepthStencilDesc() : CD3D11_DEPTH_STENCIL_DESC{D3D11_DEFAULT} {}
+    auto& depthEnable(BOOL x) {
+        DepthEnable = x;
+        return *this;
+    }
+    auto& depthWriteMask(D3D11_DEPTH_WRITE_MASK x) {
+        DepthWriteMask = x;
+        return *this;
+    }
+    auto& depthFunc(D3D11_COMPARISON_FUNC x) {
+        DepthFunc = x;
+        return *this;
+    }
+    auto& stencilEnable(BOOL x) {
+        StencilEnable = x;
+        return *this;
+    }
+    auto& stencilReadMask(UINT8 x) {
+        StencilReadMask = x;
+        return *this;
+    }
+    auto& stencilWriteMask(UINT8 x) {
+        StencilWriteMask = x;
+        return *this;
+    }
+    auto& frontFace(D3D11_DEPTH_STENCILOP_DESC x) {
+        FrontFace = x;
+        return *this;
+    }
+    auto& backFace(D3D11_DEPTH_STENCILOP_DESC x) {
+        BackFace = x;
+        return *this;
+    }
+};
+
+struct SamplerDesc : public CD3D11_SAMPLER_DESC {
+    using CD3D11_SAMPLER_DESC::CD3D11_SAMPLER_DESC;
+    SamplerDesc() : CD3D11_SAMPLER_DESC{D3D11_DEFAULT} {}
+    auto& filter(D3D11_FILTER x) { Filter = x; return *this; }
+    auto& address(D3D11_TEXTURE_ADDRESS_MODE x) { AddressU = AddressV = AddressW = x; return *this; }
+    auto& addressU(D3D11_TEXTURE_ADDRESS_MODE x) { AddressU = x; return *this; }
+    auto& addressV(D3D11_TEXTURE_ADDRESS_MODE x) { AddressV = x; return *this; }
+    auto& addressW(D3D11_TEXTURE_ADDRESS_MODE x) { AddressW = x; return *this; }
+    auto& mipLodBias(FLOAT x) { MipLODBias = x; return *this; }
+    auto& maxAnisotropy(UINT x) { MaxAnisotropy = x; return *this; }
+    auto& comparisonFunc(D3D11_COMPARISON_FUNC x) { ComparisonFunc = x; return *this; }
+    auto& borderColor(FLOAT r, FLOAT g, FLOAT b, FLOAT a) { BorderColor[0] = r; BorderColor[1] = g; BorderColor[2] = b; BorderColor[3] = a; return *this; }
+    auto& minLod(FLOAT x) { MinLOD = x; return *this; }
+    auto& maxLod(FLOAT x) { MaxLOD = x; return *this; }
 };
 
 // Helper operators

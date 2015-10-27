@@ -261,14 +261,14 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_irrad.dds)",
                                                      &irradEnvMapTex, &irradEnvMapSRV));
     [this, device] {
-        const CD3D11_SAMPLER_DESC desc{D3D11_DEFAULT};
+        const auto desc = SamplerDesc{};
         ThrowOnFailure(device->CreateSamplerState(&desc, &linearSampler));
     }();
     [this, device] {
-        auto desc = CD3D11_SAMPLER_DESC{D3D11_DEFAULT};
-        desc.Filter = D3D11_FILTER_ANISOTROPIC;
-        desc.AddressU = desc.AddressV = desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-        desc.MaxAnisotropy = 8;
+        const auto desc = SamplerDesc{}
+                              .filter(D3D11_FILTER_ANISOTROPIC)
+                              .address(D3D11_TEXTURE_ADDRESS_WRAP)
+                              .maxAnisotropy(8);
         ThrowOnFailure(device->CreateSamplerState(&desc, &standardTextureSampler));
     }();
 

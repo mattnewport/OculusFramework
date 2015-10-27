@@ -85,24 +85,12 @@ struct QuadRenderer {
             PipelineStateObjectDesc desc;
             desc.vertexShader = "quadvs.hlsl";
             desc.pixelShader = pixelShader;
-            desc.depthStencilState = [] {
-                CD3D11_DEPTH_STENCIL_DESC desc{D3D11_DEFAULT};
-                desc.DepthEnable = FALSE;
-                return desc;
-            }();
-            desc.blendState = [alphaBlend] {
-                CD3D11_BLEND_DESC desc{D3D11_DEFAULT};
-                auto& rt0Blend = desc.RenderTarget[0];
-                rt0Blend.BlendEnable = alphaBlend ? TRUE : FALSE;
-                rt0Blend.SrcBlend = D3D11_BLEND_ONE;
-                rt0Blend.DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-                rt0Blend.BlendOp = D3D11_BLEND_OP_ADD;
-                rt0Blend.SrcBlendAlpha = D3D11_BLEND_ONE;
-                rt0Blend.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-                rt0Blend.BlendOpAlpha = D3D11_BLEND_OP_ADD;
-                rt0Blend.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-                return desc;
-            }();
+            desc.depthStencilState = DepthStencilDesc{}.depthEnable(FALSE);
+            desc.blendState =
+                BlendDesc{}
+                    .blendEnable(alphaBlend ? TRUE : FALSE)
+                    .destBlend(alphaBlend ? D3D11_BLEND_INV_SRC_ALPHA : D3D11_BLEND_ZERO)
+                    .destBlendAlpha(alphaBlend ? D3D11_BLEND_INV_SRC_ALPHA : D3D11_BLEND_ZERO);
             pipelineStateObject = directX11.pipelineStateObjectManager->get(desc);
         }();
     }
