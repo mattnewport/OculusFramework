@@ -17,6 +17,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4245)
 #include <array_view.h>
+#include <string_view.h>
 #pragma warning(pop)
 
 using ID3D11BufferPtr = Microsoft::WRL::ComPtr<ID3D11Buffer>;
@@ -54,26 +55,17 @@ constexpr auto IsDebugBuild() {
 
 // Helper sets a D3D resource name string (used by PIX and debug layer leak reporting).
 
-inline void SetDebugObjectName(IUnknown* resource, const char* name, size_t nameLen) {
+inline void SetDebugObjectName(IUnknown* resource, gsl::cstring_view<> name) {
 #if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
     ID3D11DeviceChildPtr deviceChild;
     resource->QueryInterface(__uuidof(ID3D11DeviceChild),
                              reinterpret_cast<void**>(deviceChild.ReleaseAndGetAddressOf()));
-    if (deviceChild) deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, nameLen, name);
+    if (deviceChild && name)
+        deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, name.bytes(), name.data());
 #else
     UNREFERENCED_PARAMETER(resource);
     UNREFERENCED_PARAMETER(name);
-    UNREFERENCED_PARAMETER(nameLen);
 #endif
-}
-
-template <size_t N>
-inline void SetDebugObjectName(IUnknown* resource, const char(&name)[N]) {
-    SetDebugObjectName(resource, name, N - 1);
-}
-
-inline void SetDebugObjectName(IUnknown* resource, const std::string& name) {
-    SetDebugObjectName(resource, name.c_str(), name.size());
 }
 
 // Helpers to convert common types to equivalent DXGI_FORMAT
@@ -296,17 +288,53 @@ struct DepthStencilDesc : public CD3D11_DEPTH_STENCIL_DESC {
 struct SamplerDesc : public CD3D11_SAMPLER_DESC {
     using CD3D11_SAMPLER_DESC::CD3D11_SAMPLER_DESC;
     SamplerDesc() : CD3D11_SAMPLER_DESC{D3D11_DEFAULT} {}
-    auto& filter(D3D11_FILTER x) { Filter = x; return *this; }
-    auto& address(D3D11_TEXTURE_ADDRESS_MODE x) { AddressU = AddressV = AddressW = x; return *this; }
-    auto& addressU(D3D11_TEXTURE_ADDRESS_MODE x) { AddressU = x; return *this; }
-    auto& addressV(D3D11_TEXTURE_ADDRESS_MODE x) { AddressV = x; return *this; }
-    auto& addressW(D3D11_TEXTURE_ADDRESS_MODE x) { AddressW = x; return *this; }
-    auto& mipLodBias(FLOAT x) { MipLODBias = x; return *this; }
-    auto& maxAnisotropy(UINT x) { MaxAnisotropy = x; return *this; }
-    auto& comparisonFunc(D3D11_COMPARISON_FUNC x) { ComparisonFunc = x; return *this; }
-    auto& borderColor(FLOAT r, FLOAT g, FLOAT b, FLOAT a) { BorderColor[0] = r; BorderColor[1] = g; BorderColor[2] = b; BorderColor[3] = a; return *this; }
-    auto& minLod(FLOAT x) { MinLOD = x; return *this; }
-    auto& maxLod(FLOAT x) { MaxLOD = x; return *this; }
+    auto& filter(D3D11_FILTER x) {
+        Filter = x;
+        return *this;
+    }
+    auto& address(D3D11_TEXTURE_ADDRESS_MODE x) {
+        AddressU = AddressV = AddressW = x;
+        return *this;
+    }
+    auto& addressU(D3D11_TEXTURE_ADDRESS_MODE x) {
+        AddressU = x;
+        return *this;
+    }
+    auto& addressV(D3D11_TEXTURE_ADDRESS_MODE x) {
+        AddressV = x;
+        return *this;
+    }
+    auto& addressW(D3D11_TEXTURE_ADDRESS_MODE x) {
+        AddressW = x;
+        return *this;
+    }
+    auto& mipLodBias(FLOAT x) {
+        MipLODBias = x;
+        return *this;
+    }
+    auto& maxAnisotropy(UINT x) {
+        MaxAnisotropy = x;
+        return *this;
+    }
+    auto& comparisonFunc(D3D11_COMPARISON_FUNC x) {
+        ComparisonFunc = x;
+        return *this;
+    }
+    auto& borderColor(FLOAT r, FLOAT g, FLOAT b, FLOAT a) {
+        BorderColor[0] = r;
+        BorderColor[1] = g;
+        BorderColor[2] = b;
+        BorderColor[3] = a;
+        return *this;
+    }
+    auto& minLod(FLOAT x) {
+        MinLOD = x;
+        return *this;
+    }
+    auto& maxLod(FLOAT x) {
+        MaxLOD = x;
+        return *this;
+    }
 };
 
 // Helper operators
@@ -430,55 +458,86 @@ inline auto D3D11CreateDeviceAndSwapChain(IDXGIAdapter* adapter,
     return res;
 }
 
-inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource) {
+inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource,
+                                   gsl::cstring_view<> name = {}) {
     ID3D11RenderTargetViewPtr res;
     ThrowOnFailure(device->CreateRenderTargetView(resource, nullptr, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
 inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource,
-                                   const D3D11_RENDER_TARGET_VIEW_DESC& desc) {
+                                   const D3D11_RENDER_TARGET_VIEW_DESC& desc,
+                                   gsl::cstring_view<> name = {}) {
     ID3D11RenderTargetViewPtr res;
     ThrowOnFailure(device->CreateRenderTargetView(resource, &desc, &res));
-    return res;
-}
-
-inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
-    ID3D11Texture2DPtr res;
-    ThrowOnFailure(device->CreateTexture2D(&desc, nullptr, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
 inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc,
-                            const D3D11_SUBRESOURCE_DATA& data) {
+                            gsl::cstring_view<> name = {}) {
     ID3D11Texture2DPtr res;
-    ThrowOnFailure(device->CreateTexture2D(&desc, &data, &res));
+    ThrowOnFailure(device->CreateTexture2D(&desc, nullptr, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
-inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc) {
-    ID3D11BufferPtr res;
-    ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &res));
+inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc,
+                            const D3D11_SUBRESOURCE_DATA& data, gsl::cstring_view<> name = {}) {
+    ID3D11Texture2DPtr res;
+    ThrowOnFailure(device->CreateTexture2D(&desc, &data, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
 inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
-                         const D3D11_SUBRESOURCE_DATA& data) {
+                         gsl::cstring_view<> name = {}) {
+    ID3D11BufferPtr res;
+    ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &res));
+    SetDebugObjectName(res.Get(), name);
+    return res;
+}
+
+inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
+                         const D3D11_SUBRESOURCE_DATA& data, gsl::cstring_view<> name = {}) {
     ID3D11BufferPtr res;
     ThrowOnFailure(device->CreateBuffer(&desc, &data, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
 inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource,
-                                     const D3D11_SHADER_RESOURCE_VIEW_DESC& desc) {
+                                     const D3D11_SHADER_RESOURCE_VIEW_DESC& desc,
+                                     gsl::cstring_view<> name = {}) {
     ID3D11ShaderResourceViewPtr res;
     ThrowOnFailure(device->CreateShaderResourceView(resource, &desc, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
-inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource) {
+inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource,
+                                     gsl::cstring_view<> name = {}) {
     ID3D11ShaderResourceViewPtr res;
     ThrowOnFailure(device->CreateShaderResourceView(resource, nullptr, &res));
+    SetDebugObjectName(res.Get(), name);
+    return res;
+}
+
+inline auto CreateDepthStencilView(ID3D11Device* device, ID3D11Resource* resource,
+                                   const D3D11_DEPTH_STENCIL_VIEW_DESC& desc,
+                                   gsl::cstring_view<> name = {}) {
+    ID3D11DepthStencilViewPtr res;
+    ThrowOnFailure(device->CreateDepthStencilView(resource, &desc, &res));
+    SetDebugObjectName(res.Get(), name);
+    return res;
+}
+
+inline auto CreateDepthStencilView(ID3D11Device* device, ID3D11Resource* resource,
+                                   gsl::cstring_view<> name = {}) {
+    ID3D11DepthStencilViewPtr res;
+    ThrowOnFailure(device->CreateDepthStencilView(resource, nullptr, &res));
+    SetDebugObjectName(res.Get(), name);
     return res;
 }
 
@@ -490,7 +549,12 @@ struct MapHandle {
         ThrowOnFailure(context_->Map(resource_.Get(), subResource, mapType, mapFlags, &data_));
     }
     MapHandle(const MapHandle&) = delete;
-    MapHandle(MapHandle&& x) = default;
+    MapHandle(MapHandle&& x) {
+        context_.Swap(x.context_);
+        resource_.Swap(x.resource_);
+        std::swap(subResource_, x.subResource_);
+        std::swap(data_, x.data_);
+    }
     ~MapHandle() {
         if (context_) context_->Unmap(resource_.Get(), subResource_);
     }
@@ -520,7 +584,7 @@ void IASetVertexBuffers(const Context& context, unsigned startSlot,
                         gsl::array_view<const UINT> strides) {
     UINT offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT] = {};
     context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::data(buffers),
-                                std::data(strides), std::begin(offsets));
+                                std::data(strides), std::data(offsets));
 };
 
 template <typename Context>

@@ -13,7 +13,7 @@ using namespace std;
 VertexShader::VertexShader(ID3D11Device* device, ID3DBlob* s, const char* name)
     : byteCode{s}, numUniformInfo(0) {
     device->CreateVertexShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DVert);
-    SetDebugObjectName(D3DVert.Get(), name);
+    SetDebugObjectName(D3DVert.Get(), gsl::ensure_z(name));
 
     D3DGetBlobPart(s->GetBufferPointer(), s->GetBufferSize(), D3D_BLOB_INPUT_SIGNATURE_BLOB, 0,
                    &inputSignature);
@@ -49,7 +49,7 @@ void VertexShader::SetUniform(const char* name, int n, const float* v) {
 
 PixelShader::PixelShader(ID3D11Device* device, ID3DBlob* s, const char* name) : numUniformInfo(0) {
     device->CreatePixelShader(s->GetBufferPointer(), s->GetBufferSize(), NULL, &D3DPix);
-    SetDebugObjectName(D3DPix.Get(), name);
+    SetDebugObjectName(D3DPix.Get(), gsl::ensure_z(name));
 
     ID3D11ShaderReflectionPtr ref;
     D3DReflect(s->GetBufferPointer(), s->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&ref);

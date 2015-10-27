@@ -71,12 +71,11 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
                  ovrSizei size, int mipLevels, unsigned char* data)
     : name(name_) {
-    Tex = CreateTexture2D(device, Texture2DDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h)
-                                      .mipLevels(mipLevels));
-    SetDebugObjectName(Tex.Get(), string("ImageBuffer::Tex - ") + name);
+    Tex = CreateTexture2D(
+        device, Texture2DDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h).mipLevels(mipLevels),
+        "ImageBuffer::Tex - "s + name);
 
-    TexSv = CreateShaderResourceView(device, Tex.Get());
-    SetDebugObjectName(TexSv.Get(), string("ImageBuffer::TexSv - ") + name);
+    TexSv = CreateShaderResourceView(device, Tex.Get(), "ImageBuffer::TexSv - "s + name);
 
     if (data)  // Note data is trashed, as is width and height
     {
@@ -248,13 +247,13 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
 
     cameraConstantBuffer = CreateBuffer(
         device, BufferDesc{roundUpConstantBufferSize(sizeof(Camera)), D3D11_BIND_CONSTANT_BUFFER,
-                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
-    SetDebugObjectName(cameraConstantBuffer.Get(), "Scene::cameraConstantBuffer");
+                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE},
+        "Scene::cameraConstantBuffer");
 
     lightingConstantBuffer = CreateBuffer(
         device, BufferDesc{roundUpConstantBufferSize(sizeof(Lighting)), D3D11_BIND_CONSTANT_BUFFER,
-                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
-    SetDebugObjectName(lightingConstantBuffer.Get(), "Scene::lightingConstantBuffer");
+                           D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE},
+        "Scene::lightingConstantBuffer");
 
     ThrowOnFailure(DirectX::CreateDDSTextureFromFile(device, LR"(data\rnl_cube_pmrem.dds)",
                                                      &pmremEnvMapTex, &pmremEnvMapSRV));

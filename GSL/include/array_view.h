@@ -1726,7 +1726,7 @@ public:
 		&& std::is_convertible<static_bounds<SizeType, dynamic_range>, typename Base::bounds_type>::value
 		&& std::is_same<std::decay_t<decltype(std::declval<Cont>().size(), *std::declval<Cont>().data())>, DataType>::value>
 	>
-	constexpr array_view (Cont& cont) : Base(static_cast<pointer>(cont.data()), details::newBoundsHelper<typename Base::bounds_type>(cont.size()))
+	constexpr array_view (Cont&& cont) : Base(static_cast<pointer>(cont.data()), details::newBoundsHelper<typename Base::bounds_type>(cont.size()))
 	{
 
 	}
