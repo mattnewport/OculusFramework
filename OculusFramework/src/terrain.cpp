@@ -190,17 +190,16 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
         const auto topLeft = geoTiff.topLeftLatLong();
         const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
         const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
+        const auto labelPos = Vec3f{labelX, labelHeight, labelZ};
+        const auto labelColor = 0xffffffffu;
         const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 20.0f;
         const auto baseVertexIdx = uint16_t(labelsVertices.size());
         labelsVertices.push_back(
-            {Vec3f{labelX, float(labelHeight), labelZ}, 0xffffffff, Vec2f{1.0f, 1.0f}});
+            {labelPos, labelColor, Vec2f{1.0f, 1.0f}, Vec2f{labelSize.x(), 0.0f}});
+        labelsVertices.push_back({labelPos, labelColor, Vec2f{0.0f, 1.0f}, Vec2f{0.0f, 0.0f}});
         labelsVertices.push_back(
-            {Vec3f{labelX + labelSize.x(), labelHeight, labelZ}, 0xffffffff, Vec2f{0.0f, 1.0f}});
-        labelsVertices.push_back(
-            {Vec3f{labelX + labelSize.x(), labelHeight + labelSize.y(), labelZ}, 0xffffffff,
-             Vec2f{0.0f, 0.0f}});
-        labelsVertices.push_back(
-            {Vec3f{labelX, labelHeight + labelSize.y(), labelZ}, 0xffffffff, Vec2f{1.0f, 0.0f}});
+            {labelPos, labelColor, Vec2f{0.0f, 0.0f}, Vec2f{0.0f, labelSize.y()}});
+        labelsVertices.push_back({labelPos, labelColor, Vec2f{1.0f, 0.0f}, labelSize});
         labelsIndices.push_back(baseVertexIdx + 0);
         labelsIndices.push_back(baseVertexIdx + 1);
         labelsIndices.push_back(baseVertexIdx + 2);
@@ -218,8 +217,8 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
         {labelsIndices.data()});
 
     PipelineStateObjectDesc labelsDesc;
-    labelsDesc.vertexShader = "simplevs.hlsl";
-    labelsDesc.pixelShader = "simpleps.hlsl";
+    labelsDesc.vertexShader = "labelvs.hlsl";
+    labelsDesc.pixelShader = "labelps.hlsl";
     labelsDesc.inputElementDescs = HeightFieldLabelVertexInputElementDescs;
     labelsPipelineStateObject = pipelineStateObjectManager.get(labelsDesc);
 }

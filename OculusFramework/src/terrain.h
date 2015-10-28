@@ -84,9 +84,12 @@ struct HeightField::LabelVertex {
     mathlib::Vec3f position;
     std::uint32_t color;
     mathlib::Vec2f texcoord;
+    mathlib::Vec2f labelSize;
 };
 static const auto HeightFieldLabelVertexInputElementDescs = {
     MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, position),
     MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, color),
-    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, texcoord) };
+    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, texcoord),
+    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, labelSize, "texcoord", 1)
+};
 
