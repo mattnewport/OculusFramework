@@ -19,7 +19,7 @@ using ID2D1SolidColorBrushPtr = Microsoft::WRL::ComPtr<ID2D1SolidColorBrush>;
 
 class Label {
 public:
-    Label(ID3D11Device* device, const char* labelText);
+    Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* labelText);
     ID3D11ShaderResourceView* srv() { return texSrv.Get(); }
     auto getWidth() const { return width; }
     auto getHeight() const { return height; }

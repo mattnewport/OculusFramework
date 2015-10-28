@@ -2,12 +2,17 @@
 
 #include "util.h"
 
+#include <dxgi1_2.h>
+
 #include <cmath>
 
 using namespace std;
 using namespace util;
 
-Label::Label(ID3D11Device* device, const char* labelText) {
+using IDXGIResource1Ptr = Microsoft::WRL::ComPtr<IDXGIResource1>;
+using IDXGISurface2Ptr = Microsoft::WRL::ComPtr<IDXGISurface2>;
+
+Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* labelText) {
     IDWriteFactoryPtr dwriteFactory;
     ThrowOnFailure(
         DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(dwriteFactory),
@@ -29,11 +34,15 @@ Label::Label(ID3D11Device* device, const char* labelText) {
     tex = CreateTexture2D(device,
                           Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM, UINT(width), UINT(height)}
                               .bindFlags(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE)
-                              .mipLevels(1),
+                              .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
                           "Label::tex");
     texSrv = CreateShaderResourceView(device, tex.Get(), "Label::texSrv");
+    IDXGIResource1Ptr dxgiResource1;
+    ThrowOnFailure(tex.As(&dxgiResource1));
+    IDXGISurface2Ptr dxgiSurface2;
+    ThrowOnFailure(dxgiResource1->CreateSubresourceSurface(0, dxgiSurface2.ReleaseAndGetAddressOf()));
     IDXGISurface1Ptr dxgiSurface;
-    ThrowOnFailure(tex.As(&dxgiSurface));
+    ThrowOnFailure(dxgiSurface2.As(&dxgiSurface));
 
     const auto props = D2D1::RenderTargetProperties(
         D2D1_RENDER_TARGET_TYPE_DEFAULT,
@@ -52,4 +61,5 @@ Label::Label(ID3D11Device* device, const char* labelText) {
     d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::White});
     d2d1Rt->DrawTextLayout({0.0f, 0.0f}, textLayout.Get(), brush.Get());
     ThrowOnFailure(d2d1Rt->EndDraw());
+    context->GenerateMips(texSrv.Get());
 }

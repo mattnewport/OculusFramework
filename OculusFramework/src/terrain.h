@@ -57,7 +57,8 @@ struct HeightField {
         return Mat = mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) * translationMat4f(Pos);
     }
 
-    void AddVertices(ID3D11Device* device, PipelineStateObjectManager& pipelineStateObjectManager,
+    void AddVertices(ID3D11Device* device, ID3D11DeviceContext* context,
+                     PipelineStateObjectManager& pipelineStateObjectManager,
                      Texture2DManager& texture2DManager);
 
     void Render(DirectX11& dx11, ID3D11DeviceContext* context);

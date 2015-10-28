@@ -230,7 +230,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
 
     // Terrain
     heightField = make_unique<HeightField>(Vec3f{-1.0f, 0.8f, 0.0f});
-    heightField->AddVertices(device, pipelineStateObjectManager, texture2DManager);
+    heightField->AddVertices(device, deviceContext, pipelineStateObjectManager, texture2DManager);
 
     sphere = make_unique<Sphere>();
     sphere->GenerateVerts(*device, pipelineStateObjectManager);

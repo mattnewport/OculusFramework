@@ -63,12 +63,7 @@ public:
         });
         gtif = {GTIFNew(tif.get()), GTIFFree};
         if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
-        GTIFPrint(gtif.get(),
-                  [](char* s, void*) {
-                      OutputDebugStringA(s);
-                      return 0;
-                  },
-                  nullptr);
+        logGeoTiffInfo();
 
         if (!GTIFGetDefn(gtif.get(), &gtifDefinition))
             throw runtime_error{"Unable to read geotiff definition"};
@@ -124,6 +119,15 @@ public:
         return getHeightsView()[idx];
     }
 
+    void logGeoTiffInfo() {
+        GTIFPrint(gtif.get(),
+                  [](char* s, void*) {
+                      OutputDebugStringA(s);
+                      return 0;
+                  },
+                  nullptr);
+    }
+
 private:
     static std::vector<uint16_t> readHeightData(TIFF* t, int sz) {
         auto res = vector<uint16_t>(sz);
@@ -146,7 +150,7 @@ private:
     GTIFDefn gtifDefinition = {};
 };
 
-void HeightField::AddVertices(ID3D11Device* device,
+void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context,
                               PipelineStateObjectManager& pipelineStateObjectManager,
                               Texture2DManager& texture2DManager) {
     auto geoTiff = GeoTiff{R"(data\cdem_dem_150528_015119.tif)"};
@@ -176,7 +180,7 @@ void HeightField::AddVertices(ID3D11Device* device,
 
     loadShapeFile();
     for (const auto& feature : topographicFeatures) {
-        topographicFeatureLabels.emplace_back(device, feature.label.c_str());
+        topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
         const auto& label = topographicFeatureLabels.back();
         const auto labelPixelPos = geoTiff.latLongToPix(feature.latLong.x(), feature.latLong.y());
         const auto labelHeight =
@@ -293,8 +297,7 @@ struct DBFFieldInfo {
 void HeightField::loadShapeFile() {
     const auto shapeHandle = unique_ptr<SHPInfo, void (*)(SHPHandle)>{
         SHPOpen(
-            R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\canvec_150528_015119_shp\to_1580009_0.shp)",
-            "rb"),
+            R"(data\canvec_150528_015119_shp\to_1580009_0.shp)", "rb"),
         SHPClose};
 
     auto numEntities = 0;
@@ -314,9 +317,10 @@ void HeightField::loadShapeFile() {
         shapes.emplace_back(SHPReadObject(shapeHandle.get(), i), SHPDestroyObject);
     }
 
-    const auto dbfHandle = unique_ptr<DBFInfo, void (*)(DBFHandle)>{DBFOpen(
-        R"(E:\Users\Matt\Documents\Dropbox2\Dropbox\Projects\OculusFramework\OculusFramework\data\canvec_150528_015119_shp\to_1580009_0.dbf)",
-        "rb"), DBFClose};
+    const auto dbfHandle = unique_ptr<DBFInfo, void (*)(DBFHandle)>{
+        DBFOpen(
+            R"(data\canvec_150528_015119_shp\to_1580009_0.dbf)", "rb"),
+        DBFClose};
     const auto dbfFieldCount = DBFGetFieldCount(dbfHandle.get());
     const auto dbfRecordCount = DBFGetRecordCount(dbfHandle.get());
     assert(dbfRecordCount == numEntities);
