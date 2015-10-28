@@ -6,6 +6,7 @@
 #include "vector.h"
 #include "matrix.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -40,8 +41,14 @@ struct HeightField {
     ID3D11ShaderResourceViewPtr normalsSRV;
     float scale = 1e-4f;
 
+    struct LabelVertex;
     std::vector<LabeledPoint> topographicFeatures;
     std::vector<Label> topographicFeatureLabels;
+    std::vector<LabelVertex> labelsVertices;
+    std::vector<uint16_t> labelsIndices;
+    ID3D11BufferPtr labelsVertexBuffer;
+    ID3D11BufferPtr labelsIndexBuffer;
+    PipelineStateObjectManager::ResourceHandle labelsPipelineStateObject;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
@@ -65,3 +72,14 @@ struct HeightField::Vertex {
 static const auto HeightFieldVertexInputElementDescs = {
     MAKE_INPUT_ELEMENT_DESC(HeightField::Vertex, position),
     MAKE_INPUT_ELEMENT_DESC(HeightField::Vertex, texcoord)};
+
+struct HeightField::LabelVertex {
+    mathlib::Vec3f position;
+    std::uint32_t color;
+    mathlib::Vec2f texcoord;
+};
+static const auto HeightFieldLabelVertexInputElementDescs = {
+    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, position),
+    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, color),
+    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, texcoord) };
+

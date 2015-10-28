@@ -79,6 +79,10 @@ constexpr DXGI_FORMAT getDXGIFormat<float>() {
 }
 
 template <>
+inline DXGI_FORMAT getDXGIFormat<std::uint32_t>() {
+    return DXGI_FORMAT_R8G8B8A8_UNORM;
+}
+template <>
 constexpr DXGI_FORMAT getDXGIFormat<mathlib::Vec2f>() {
     return DXGI_FORMAT_R32G32_FLOAT;
 }
