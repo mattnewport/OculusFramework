@@ -14,6 +14,7 @@ void ThrowOnFailure(HRESULT hr) {
     if (FAILED(hr)) {
         _com_error err{hr};
         OutputDebugString(err.ErrorMessage());
+        OutputDebugString(L"\n");
         throw std::runtime_error{"Failed HRESULT"};
     }
 }
@@ -197,8 +198,8 @@ size_t hashHelper(const CD3D11_DEPTH_STENCIL_DESC& x) {
 // Helpers for calling various DXGI and D3D Create functions
 IDXGIFactory1Ptr CreateDXGIFactory1() {
     IDXGIFactory1Ptr res;
-    ThrowOnFailure(CreateDXGIFactory1(__uuidof(IDXGIFactory1),
-        reinterpret_cast<void**>(res.ReleaseAndGetAddressOf())));
+    ThrowOnFailure(
+        CreateDXGIFactory1(__uuidof(res), reinterpret_cast<void**>(res.ReleaseAndGetAddressOf())));
     return res;
 }
 

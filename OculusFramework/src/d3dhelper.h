@@ -58,7 +58,7 @@ constexpr auto IsDebugBuild() {
 inline void SetDebugObjectName(IUnknown* resource, gsl::cstring_view<> name) {
 #if !defined(NO_D3D11_DEBUG_NAME) && (defined(_DEBUG) || defined(PROFILE))
     ID3D11DeviceChildPtr deviceChild;
-    resource->QueryInterface(__uuidof(ID3D11DeviceChild),
+    resource->QueryInterface(__uuidof(deviceChild),
                              reinterpret_cast<void**>(deviceChild.ReleaseAndGetAddressOf()));
     if (deviceChild && name)
         deviceChild->SetPrivateData(WKPDID_D3DDebugObjectName, name.bytes(), name.data());
@@ -447,13 +447,13 @@ inline auto D3D11CreateDevice(IDXGIAdapter* adapter) {
     return res;
 }
 
-inline auto D3D11CreateDeviceAndSwapChain(IDXGIAdapter* adapter,
-                                          const DXGI_SWAP_CHAIN_DESC& scDesc) {
+inline auto D3D11CreateDeviceAndSwapChain(IDXGIAdapter* adapter, const DXGI_SWAP_CHAIN_DESC& scDesc,
+                                          UINT flags = 0) {
     std::tuple<IDXGISwapChainPtr, ID3D11DevicePtr, ID3D11DeviceContextPtr> res;
     const auto driverType = adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
     ThrowOnFailure(D3D11CreateDeviceAndSwapChain(
-        adapter, driverType, nullptr, IsDebugBuild() ? D3D11_CREATE_DEVICE_DEBUG : 0u, nullptr, 0,
-        D3D11_SDK_VERSION, &scDesc, &std::get<0>(res), &std::get<1>(res), nullptr,
+        adapter, driverType, nullptr, (IsDebugBuild() ? D3D11_CREATE_DEVICE_DEBUG : 0u) | flags,
+        nullptr, 0, D3D11_SDK_VERSION, &scDesc, &std::get<0>(res), &std::get<1>(res), nullptr,
         &std::get<2>(res)));
     return res;
 }
@@ -632,7 +632,7 @@ void RSSetViewports(const Context& context, gsl::array_view<const D3D11_VIEWPORT
 
 inline auto GetBuffer(IDXGISwapChain* swapChain, unsigned buffer) {
     ID3D11Texture2DPtr res;
-    ThrowOnFailure(swapChain->GetBuffer(buffer, __uuidof(ID3D11Texture2D),
+    ThrowOnFailure(swapChain->GetBuffer(buffer, __uuidof(res),
                                         reinterpret_cast<void**>(res.ReleaseAndGetAddressOf())));
     return res;
 }

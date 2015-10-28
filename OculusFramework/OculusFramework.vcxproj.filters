@@ -99,6 +99,9 @@
     <ClInclude Include="src\util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\label.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\d3dhelper.cpp">
@@ -154,6 +157,9 @@
     </ClCompile>
     <ClCompile Include="src\imgui\imgui_impl_dx11.cpp">
       <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\label.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

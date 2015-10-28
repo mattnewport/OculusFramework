@@ -1,5 +1,6 @@
 #pragma once
 
+#include "label.h"
 #include "Win32_DX11AppUtil.h"
 
 #include "vector.h"
@@ -40,6 +41,7 @@ struct HeightField {
     float scale = 1e-4f;
 
     std::vector<LabeledPoint> topographicFeatures;
+    std::vector<Label> topographicFeatureLabels;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {

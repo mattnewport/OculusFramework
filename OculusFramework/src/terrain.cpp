@@ -244,6 +244,7 @@ void HeightField::AddVertices(ID3D11Device* device,
                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 
     loadShapeFile();
+    topographicFeatureLabels.emplace_back(device, topographicFeatures[0].label.c_str());
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
@@ -374,5 +375,8 @@ void HeightField::loadShapeFile() {
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
+        ImVec2 imageSize{ 256.0f, 64.0f };
+        ImGui::Image(reinterpret_cast<ImTextureID>(topographicFeatureLabels[0].srv()), imageSize,
+                     {0.0f, 0.0f}, {imageSize.x / 512.0f, imageSize.y / 512.0f});
     }
 }

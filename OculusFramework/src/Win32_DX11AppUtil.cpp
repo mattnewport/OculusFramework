@@ -150,19 +150,21 @@ bool DirectX11::InitWindowAndDevice(ovrRecti vp, const LUID* pLuid) {
         }();
 
         std::tie(SwapChain, Device, Context) =
-            D3D11CreateDeviceAndSwapChain(Adapter.Get(), {
-                                                             {UINT(RenderTargetSize.w),
-                                                              UINT(RenderTargetSize.h),
-                                                              {},  // Refresh rate
-                                                              DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
-                                                             {1u, 0u},  // SampleDesc Count, Quality
-                                                             DXGI_USAGE_RENDER_TARGET_OUTPUT,
-                                                             2u,  // BufferCount
-                                                             Window,
-                                                             TRUE,  // Windowed
-                                                             DXGI_SWAP_EFFECT_SEQUENTIAL,
-                                                             0u  // Flags
-                                                         });
+            D3D11CreateDeviceAndSwapChain(Adapter.Get(),
+                                          {
+                                              {UINT(RenderTargetSize.w),
+                                               UINT(RenderTargetSize.h),
+                                               {},  // Refresh rate
+                                               DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
+                                              {1u, 0u},  // SampleDesc Count, Quality
+                                              DXGI_USAGE_RENDER_TARGET_OUTPUT,
+                                              2u,  // BufferCount
+                                              Window,
+                                              TRUE,  // Windowed
+                                              DXGI_SWAP_EFFECT_SEQUENTIAL,
+                                              0u  // Flags
+                                          },
+                                          D3D11_CREATE_DEVICE_BGRA_SUPPORT);
 
         SetDebugObjectName(Device.Get(), "DirectX11::Device");
         SetDebugObjectName(Context.Get(), "DirectX11::Context");
