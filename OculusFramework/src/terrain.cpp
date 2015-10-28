@@ -35,12 +35,6 @@ using namespace std;
 
 using namespace mathlib;
 
-static const char* CSVFileOverride(const char* pszInput) {
-    static char szPath[1024];
-    sprintf_s(szPath, "%s\\%s", "..\\libgeotiff-1.4.0\\csv", pszInput);
-    return szPath;
-}
-
 class GeoTiff {
 public:
     GeoTiff(const char* filename) {
@@ -78,6 +72,8 @@ public:
             }
         }();
 
+        SetCSVFilenameHook(CSVFileOverride);
+
         gtif = {GTIFNew(tif.get()), GTIFFree};
         if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
         auto print = [](char* s, void*) {
@@ -91,9 +87,12 @@ public:
         assert(gtifDefinition.Model == ModelTypeGeographic);
     }
 
-    auto getWidth() const { return tifWidth; }
-    auto getHeight() const { return tifHeight; }
+    auto getTiffWidth() const { return tifWidth; }
+    auto getTiffHeight() const { return tifHeight; }
     const auto& getHeights() const { return heights; }
+    auto getHeightsView() const {
+        return gsl::as_array_view(heights.data(), gsl::dim<>(tifHeight), gsl::dim<>(tifWidth));
+    }
     const auto& getGtifDefinition() const { return gtifDefinition; }
     auto pixToLatLong(int x, int y) const {
         double longitude = x;
@@ -120,8 +119,19 @@ public:
         geod_inverse(&geodesic, a.x(), a.y(), b.x(), b.y(), &dist, nullptr, nullptr);
         return static_cast<float>(dist);
     }
-
+    auto getHeightAt(gsl::index<2> idx, int xOff, int yOff) {
+        idx[0] = clamp(int(idx[0]) + yOff, 0, int(tifHeight) - 1);
+        idx[1] = clamp(int(idx[1]) + xOff, 0, int(tifWidth) - 1);
+        return getHeightsView()[idx];
+    }
+    
 private:
+    static const char* CSVFileOverride(const char* pszInput) {
+        static char szPath[1024];
+        sprintf_s(szPath, "%s\\%s", "..\\libgeotiff-1.4.0\\csv", pszInput);
+        return szPath;
+    }
+
     int tifWidth = 0;
     int tifHeight = 0;
     vector<uint16_t> heights;
@@ -135,52 +145,38 @@ void HeightField::AddVertices(ID3D11Device* device,
                               Texture2DManager& texture2DManager) {
     auto geoTiff = GeoTiff{R"(data\cdem_dem_150528_015119.tif)"};
     const auto& heights = geoTiff.getHeights();
-    const auto tifWidth = geoTiff.getWidth();
-    const auto tifHeight = geoTiff.getHeight();
 
-    [this, device, &heights, tifWidth, tifHeight] {
-        heightsTex =
-            CreateTexture2D(device, Texture2DDesc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(tifWidth),
-                                                  static_cast<UINT>(tifHeight)}
-                                        .mipLevels(1),
-                            {heights.data(), tifWidth * sizeof(heights[0])});
-        heightsSRV = CreateShaderResourceView(device, heightsTex.Get());
-    }();
-
-    SetCSVFilenameHook(CSVFileOverride);
+    heightsTex = CreateTexture2D(
+        device, Texture2DDesc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(geoTiff.getTiffWidth()),
+                              static_cast<UINT>(geoTiff.getTiffHeight())}
+                    .mipLevels(1),
+        {heights.data(), geoTiff.getTiffWidth() * sizeof(heights[0])});
+    heightsSRV = CreateShaderResourceView(device, heightsTex.Get());
 
     const auto topLeft = geoTiff.pixToLatLong(0, 0);
-    const auto topRight = geoTiff.pixToLatLong(tifWidth, 0);
-    const auto bottomLeft = geoTiff.pixToLatLong(0, tifHeight);
+    const auto topRight = geoTiff.pixToLatLong(geoTiff.getTiffWidth(), 0);
+    const auto bottomLeft = geoTiff.pixToLatLong(0, geoTiff.getTiffHeight());
 
-    const auto width = tifWidth;
+    const auto width = geoTiff.getTiffWidth();
     const auto widthM = geoTiff.latLongDist(topLeft, topRight);
-    const auto height = tifHeight;
+    const auto height = geoTiff.getTiffHeight();
     const auto heightM = geoTiff.latLongDist(topLeft, bottomLeft);
     const auto gridStepX = widthM / width;
     const auto gridStepY = heightM / height;
 
-    auto heightsView = gsl::as_array_view(heights.data(), gsl::dim<>(height), gsl::dim<>(width));
-    auto getHeight = [
-        heightsView,
-        w = heightsView.bounds().index_bounds()[1],
-        h = heightsView.bounds().index_bounds()[0]
-    ](auto idx, int xOff, int yOff) {
-        idx[0] = clamp(int(idx[0]) + yOff, 0, int(h) - 1);
-        idx[1] = clamp(int(idx[1]) + xOff, 0, int(w) - 1);
-        return heightsView[idx];
-    };
+    auto heightsView = geoTiff.getHeightsView();
 
-    [this, device, width, height, &heights, gridStepX, gridStepY, &getHeight] {
-
+    [this, device, &heights, gridStepX, gridStepY, &geoTiff] {
+        const auto width = geoTiff.getTiffWidth();
+        const auto height = geoTiff.getTiffHeight();
         vector<Vec2f> normals(width * height);
         auto normalsView =
             gsl::as_array_view(normals.data(), gsl::dim<>(height), gsl::dim<>(width));
         for (auto idx : normalsView.bounds()) {
             const auto normal =
-                normalize(Vec3f{2.0f * gridStepY * (getHeight(idx, -1, 0) - getHeight(idx, 1, 0)),
+                normalize(Vec3f{2.0f * gridStepY * (geoTiff.getHeightAt(idx, -1, 0) - geoTiff.getHeightAt(idx, 1, 0)),
                                 4.0f * gridStepX * gridStepY,
-                                2.0f * gridStepX * (getHeight(idx, 0, -1) - getHeight(idx, 0, 1))});
+                                2.0f * gridStepX * (geoTiff.getHeightAt(idx, 0, -1) - geoTiff.getHeightAt(idx, 0, 1))});
             normalsView[idx] = normal.xz();
         }
 
@@ -270,23 +266,34 @@ void HeightField::AddVertices(ID3D11Device* device,
                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 
     loadShapeFile();
-    topographicFeatureLabels.emplace_back(device, topographicFeatures[0].label.c_str());
-    const auto labelPixelPos =
-        geoTiff.latLongToPix(topographicFeatures[0].latLong.x(), topographicFeatures[0].latLong.y());
-    const auto labelHeight = float(getHeight(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0, 0)) - 1000.0f;
-    const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{ topographicFeatures[0].latLong.x(), topLeft.y() });
-    const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{ topLeft.x(), topographicFeatures[0].latLong.y() });
-    const auto labelSize = Vec2f{ topographicFeatureLabels[0].getWidth(), topographicFeatureLabels[0].getHeight() } * 20.0f;
-    labelsVertices.push_back({ Vec3f{labelX, float(labelHeight), labelZ}, 0xffffffff, Vec2f{1.0f, 1.0f} });
-    labelsVertices.push_back({ Vec3f{labelX + labelSize.x(), labelHeight, labelZ}, 0xffffffff, Vec2f{0.0f, 1.0f} });
-    labelsVertices.push_back({ Vec3f{ labelX + labelSize.x(), labelHeight + labelSize.y(), labelZ }, 0xffffffff, Vec2f{ 0.0f, 0.0f } });
-    labelsVertices.push_back({ Vec3f{ labelX, labelHeight + labelSize.y(), labelZ }, 0xffffffff, Vec2f{ 1.0f, 0.0f } });
-    labelsIndices.push_back(0);
-    labelsIndices.push_back(1);
-    labelsIndices.push_back(2);
-    labelsIndices.push_back(0);
-    labelsIndices.push_back(2);
-    labelsIndices.push_back(3);
+    for (const auto& feature : topographicFeatures) {
+        topographicFeatureLabels.emplace_back(device, feature.label.c_str());
+        const auto& label = topographicFeatureLabels.back();
+        const auto labelPixelPos = geoTiff.latLongToPix(feature.latLong.x(), feature.latLong.y());
+        const auto labelHeight =
+            float(geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0,
+                                      0)) -
+            1000.0f;
+        const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
+        const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
+        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 20.0f;
+        const auto baseVertexIdx = uint16_t(labelsVertices.size());
+        labelsVertices.push_back(
+            {Vec3f{labelX, float(labelHeight), labelZ}, 0xffffffff, Vec2f{1.0f, 1.0f}});
+        labelsVertices.push_back(
+            {Vec3f{labelX + labelSize.x(), labelHeight, labelZ}, 0xffffffff, Vec2f{0.0f, 1.0f}});
+        labelsVertices.push_back(
+            {Vec3f{labelX + labelSize.x(), labelHeight + labelSize.y(), labelZ}, 0xffffffff,
+             Vec2f{0.0f, 0.0f}});
+        labelsVertices.push_back(
+            {Vec3f{labelX, labelHeight + labelSize.y(), labelZ}, 0xffffffff, Vec2f{1.0f, 0.0f}});
+        labelsIndices.push_back(baseVertexIdx + 0);
+        labelsIndices.push_back(baseVertexIdx + 1);
+        labelsIndices.push_back(baseVertexIdx + 2);
+        labelsIndices.push_back(baseVertexIdx + 0);
+        labelsIndices.push_back(baseVertexIdx + 2);
+        labelsIndices.push_back(baseVertexIdx + 3);
+    }
     labelsVertexBuffer = CreateBuffer(
         device,
         BufferDesc{labelsVertices.size() * sizeof(labelsVertices[0]), D3D11_BIND_VERTEX_BUFFER},
@@ -326,9 +333,11 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
 
     dx11.applyState(*context, *labelsPipelineStateObject.get());
     context->IASetIndexBuffer(labelsIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    PSSetShaderResources(context, materialSRVOffset, { topographicFeatureLabels[0].srv() });
     IASetVertexBuffers(context, 0, { labelsVertexBuffer.Get() }, { UINT(sizeof(LabelVertex)) });
-    context->DrawIndexed(labelsIndices.size(), 0, 0);
+    for (auto i = 0u; i < topographicFeatureLabels.size(); ++i) {
+        PSSetShaderResources(context, materialSRVOffset, { topographicFeatureLabels[i].srv() });
+        context->DrawIndexed(6, i * 6, 0);
+    }
 }
 
 auto shapeTypeToString(int shapeType) {
