@@ -7,8 +7,10 @@ void main(in float4 Position : POSITION, in float4 Color : COLOR0, in float2 Tex
     float4 wp = mul(object.world, Position);
     TexCoord1 *= 0.0001f;
     wp.y += TexCoord1.y;
+    float3 camForward = camera.view[2].xyz;
+    float3 worldRight = normalize(cross(-camForward, float3(0, 1, 0)));
+    wp.xz += worldRight.xz * TexCoord1.x;
     float4 vp = mul(camera.view, wp);
-    vp.x += TexCoord1.x;
     oPosition = mul(camera.proj, vp);
     oTexCoord = TexCoord0;
     oColor = Color;

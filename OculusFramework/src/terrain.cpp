@@ -184,23 +184,36 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
         topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
         const auto& label = topographicFeatureLabels.back();
         const auto labelPixelPos = geoTiff.latLongToPix(feature.latLong.x(), feature.latLong.y());
-        const auto labelHeight =
-            float(geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0,
-                                      0)) -
-            1000.0f;
+        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 15.0f;
+        const auto radius = to<int>(0.5f * std::max(labelSize.x() / geoTiff.getGridStepMetersX(),
+                                                    labelSize.x() / geoTiff.getGridStepMetersY()));
+        const auto top = labelPixelPos.y() - radius;
+        const auto left = labelPixelPos.x() - radius;
+        const auto bottom = labelPixelPos.y() + radius;
+        const auto right = labelPixelPos.x() + radius;
+        auto labelHeight = float(
+            geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0, 0));
+        for (int y = top; y < bottom; ++y) {
+            for (int x = left; x < right; ++x) {
+                labelHeight = std::max(labelHeight,
+                                       float(geoTiff.getHeightAt(gsl::index<2, int>{x, y}, 0, 0)));
+            }
+        }
+        labelHeight -= 1000.0f;
         const auto topLeft = geoTiff.topLeftLatLong();
         const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
         const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
         const auto labelPos = Vec3f{labelX, labelHeight, labelZ};
         const auto labelColor = 0xffffffffu;
-        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 20.0f;
         const auto baseVertexIdx = uint16_t(labelsVertices.size());
         labelsVertices.push_back(
-            {labelPos, labelColor, Vec2f{1.0f, 1.0f}, Vec2f{labelSize.x(), 0.0f}});
-        labelsVertices.push_back({labelPos, labelColor, Vec2f{0.0f, 1.0f}, Vec2f{0.0f, 0.0f}});
+            {labelPos, labelColor, Vec2f{1.0f, 1.0f}, Vec2f{0.5f * labelSize.x(), 0.0f}});
         labelsVertices.push_back(
-            {labelPos, labelColor, Vec2f{0.0f, 0.0f}, Vec2f{0.0f, labelSize.y()}});
-        labelsVertices.push_back({labelPos, labelColor, Vec2f{1.0f, 0.0f}, labelSize});
+            {labelPos, labelColor, Vec2f{0.0f, 1.0f}, Vec2f{-0.5f * labelSize.x(), 0.0f}});
+        labelsVertices.push_back(
+            {labelPos, labelColor, Vec2f{0.0f, 0.0f}, Vec2f{-0.5f * labelSize.x(), labelSize.y()}});
+        labelsVertices.push_back(
+            {labelPos, labelColor, Vec2f{1.0f, 0.0f}, Vec2f{0.5f * labelSize.x(), labelSize.y()}});
         labelsIndices.push_back(baseVertexIdx + 0);
         labelsIndices.push_back(baseVertexIdx + 1);
         labelsIndices.push_back(baseVertexIdx + 2);

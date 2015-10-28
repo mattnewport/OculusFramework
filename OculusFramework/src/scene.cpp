@@ -296,8 +296,6 @@ void Scene::Render(ID3D11DeviceContext* context, ShaderFill* fill, ID3D11Buffer*
     context->IASetInputLayout(pipelineStateObject.get()->inputLayout.get());
     context->IASetIndexBuffer(indices, DXGI_FORMAT_R16_UINT, 0);
 
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
     if (fill && fill->OneTexture) {
         PSSetShaderResources(context, materialSRVOffset,
                              {fill->OneTexture->TexSv.Get()});
