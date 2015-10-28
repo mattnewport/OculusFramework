@@ -2,6 +2,7 @@
 
 #include "pipelinestateobject.h"
 #include "scene.h"
+#include "util.h"
 
 #include "imgui/imgui.h"
 
@@ -12,6 +13,8 @@
 #include <string>
 
 extern LRESULT ImGui_ImplDX11_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+using namespace util;
 
 using namespace std;
 
@@ -152,8 +155,8 @@ bool DirectX11::InitWindowAndDevice(ovrRecti vp, const LUID* pLuid) {
         std::tie(SwapChain, Device, Context) =
             D3D11CreateDeviceAndSwapChain(Adapter.Get(),
                                           {
-                                              {UINT(RenderTargetSize.w),
-                                               UINT(RenderTargetSize.h),
+                                              {to<UINT>(RenderTargetSize.w),
+                                               to<UINT>(RenderTargetSize.h),
                                                {},  // Refresh rate
                                                DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
                                               {1u, 0u},  // SampleDesc Count, Quality

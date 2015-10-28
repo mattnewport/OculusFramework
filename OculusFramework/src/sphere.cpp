@@ -10,6 +10,7 @@
 #include "../commonstructs.hlsli"
 
 using namespace mathlib;
+using namespace util;
 
 using namespace std;
 
@@ -137,7 +138,7 @@ void Sphere::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
 
     context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R16_UINT, 0);
 
-    IASetVertexBuffers(context, 0, {vb.Get()}, {UINT(sizeof(Vertex))});
+    IASetVertexBuffers(context, 0, {vb.Get()}, {to<UINT>(sizeof(Vertex))});
 
     context->DrawIndexed(indexCount, 0, 0);
 }

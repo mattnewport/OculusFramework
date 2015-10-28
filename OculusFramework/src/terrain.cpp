@@ -34,6 +34,7 @@
 using namespace std;
 
 using namespace mathlib;
+using namespace util;
 
 class GeoTiff {
 public:
@@ -240,15 +241,15 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
-        IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {UINT(sizeof(Vertex))});
+        IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
     }
 
     dx11.applyState(*context, *labelsPipelineStateObject.get());
     context->IASetIndexBuffer(labelsIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    IASetVertexBuffers(context, 0, { labelsVertexBuffer.Get() }, { UINT(sizeof(LabelVertex)) });
+    IASetVertexBuffers(context, 0, {labelsVertexBuffer.Get()}, {to<UINT>(sizeof(LabelVertex))});
     for (auto i = 0u; i < topographicFeatureLabels.size(); ++i) {
-        PSSetShaderResources(context, materialSRVOffset, { topographicFeatureLabels[i].srv() });
+        PSSetShaderResources(context, materialSRVOffset, {topographicFeatureLabels[i].srv()});
         context->DrawIndexed(6, i * 6, 0);
     }
 }

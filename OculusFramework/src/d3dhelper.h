@@ -1,6 +1,8 @@
 #pragma once
 
 #include "hashhelpers.h"
+#include "util.h"
+
 #include "vector.h"
 
 #include <cstddef>
@@ -425,7 +427,7 @@ public:
 
         IDXGIFactory1Ptr dxgiFactory_;
         IDXGIAdapter1Ptr adapter_;
-        UINT iAdapter_ = UINT(-1);
+        UINT iAdapter_ = 0xffff'ffffu;
     };
 
     EnumIDXGIAdapters(IDXGIFactory1Ptr dxgiFactory) : dxgiFactory_{dxgiFactory} {}
@@ -575,66 +577,68 @@ private:
 
 // Helpers for calling ID3D11DeviceContext Set functions with containers (auto deduce size)
 template <typename Context>
-void IASetVertexBuffers(const Context& context, unsigned startSlot,
+void IASetVertexBuffers(const Context& context, std::uint32_t startSlot,
                         gsl::array_view<ID3D11Buffer* const> buffers,
                         gsl::array_view<const UINT> strides, gsl::array_view<const UINT> offsets) {
-    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::data(buffers),
+    context->IASetVertexBuffers(startSlot, util::to<UINT>(std::size(buffers)), std::data(buffers),
                                 std::data(strides), std::data(offsets));
 };
 
 template <typename Context>
-void IASetVertexBuffers(const Context& context, unsigned startSlot,
+void IASetVertexBuffers(const Context& context, std::uint32_t startSlot,
                         gsl::array_view<ID3D11Buffer* const> buffers,
                         gsl::array_view<const UINT> strides) {
     UINT offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT] = {};
-    context->IASetVertexBuffers(UINT(startSlot), UINT(std::size(buffers)), std::data(buffers),
+    context->IASetVertexBuffers(startSlot, util::to<UINT>(std::size(buffers)), std::data(buffers),
                                 std::data(strides), std::data(offsets));
 };
 
 template <typename Context>
-void PSSetConstantBuffers(const Context& context, unsigned startSlot,
+void PSSetConstantBuffers(const Context& context, std::uint32_t startSlot,
                           gsl::array_view<ID3D11Buffer* const> buffers) {
-    context->PSSetConstantBuffers(startSlot, std::size(buffers), std::data(buffers));
+    context->PSSetConstantBuffers(startSlot, util::to<UINT>(std::size(buffers)),
+                                  std::data(buffers));
 }
 
 template <typename Context>
-void VSSetConstantBuffers(const Context& context, unsigned startSlot,
+void VSSetConstantBuffers(const Context& context, std::uint32_t startSlot,
                           gsl::array_view<ID3D11Buffer* const> buffers) {
-    context->VSSetConstantBuffers(startSlot, std::size(buffers), std::data(buffers));
+    context->VSSetConstantBuffers(startSlot, util::to<UINT>(std::size(buffers)),
+                                  std::data(buffers));
 }
 
 template <typename Context>
-void PSSetShaderResources(const Context& context, unsigned startSlot,
+void PSSetShaderResources(const Context& context, std::uint32_t startSlot,
                           gsl::array_view<ID3D11ShaderResourceView* const> srvs) {
-    context->PSSetShaderResources(UINT(startSlot), std::size(srvs), std::data(srvs));
+    context->PSSetShaderResources(startSlot, util::to<UINT>(std::size(srvs)), std::data(srvs));
 }
 
 template <typename Context>
-void VSSetShaderResources(const Context& context, unsigned startSlot,
+void VSSetShaderResources(const Context& context, std::uint32_t startSlot,
                           gsl::array_view<ID3D11ShaderResourceView* const> srvs) {
-    context->VSSetShaderResources(UINT(startSlot), std::size(srvs), std::data(srvs));
+    context->VSSetShaderResources(startSlot, util::to<UINT>(std::size(srvs)), std::data(srvs));
 }
 
 template <typename Context>
-void PSSetSamplers(const Context& context, unsigned startSlot,
+void PSSetSamplers(const Context& context, std::uint32_t startSlot,
                    gsl::array_view<ID3D11SamplerState* const> samplers) {
-    context->PSSetSamplers(UINT(startSlot), std::size(samplers), std::data(samplers));
+    context->PSSetSamplers(startSlot, util::to<UINT>(std::size(samplers)), std::data(samplers));
 }
 
 template <typename Context>
 void OMSetRenderTargets(const Context& context, gsl::array_view<ID3D11RenderTargetView* const> rtvs,
                         ID3D11DepthStencilView* dsv = nullptr) {
-    context->OMSetRenderTargets(std::size(rtvs), std::data(rtvs), dsv);
+    context->OMSetRenderTargets(util::to<UINT>(std::size(rtvs)), std::data(rtvs), dsv);
 }
 
 template <typename Context>
 void RSSetViewports(const Context& context, gsl::array_view<const D3D11_VIEWPORT> vps) {
-    context->RSSetViewports(std::size(vps), std::data(vps));
+    context->RSSetViewports(util::to<UINT>(std::size(vps)), std::data(vps));
 }
 
 // Misc helpers
 
-inline auto GetBuffer(IDXGISwapChain* swapChain, unsigned buffer) {
+inline auto GetBuffer(IDXGISwapChain* swapChain, std::uint32_t buffer) {
     ID3D11Texture2DPtr res;
     ThrowOnFailure(swapChain->GetBuffer(buffer, __uuidof(res),
                                         reinterpret_cast<void**>(res.ReleaseAndGetAddressOf())));
@@ -642,4 +646,3 @@ inline auto GetBuffer(IDXGISwapChain* swapChain, unsigned buffer) {
 }
 
 constexpr auto roundUpConstantBufferSize(size_t size) { return (1 + (size / 16)) * 16; };
-

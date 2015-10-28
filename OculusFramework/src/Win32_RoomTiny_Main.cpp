@@ -35,6 +35,7 @@ limitations under the License.
 #include "pipelinestateobject.h"
 #include "scene.h"
 #include "libovrwrapper.h"
+#include "util.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -54,6 +55,7 @@ limitations under the License.
 
 #include <Xinput.h>
 
+using namespace util;
 using namespace mathlib;
 using namespace libovrwrapper;
 using namespace std;
@@ -223,7 +225,7 @@ struct ImGuiHelper {
         // Create a render target for IMGUI
         auto tex =
             CreateTexture2D(DX11.Device.Get(),
-                            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(width), UINT(height)}
+                            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, to<UINT>(width), to<UINT>(height)}
                                 .mipLevels(1)
                                 .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
                             "ImGuiHelper::tex");
@@ -330,9 +332,9 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
     // Create a mirror texture to see on the monitor.
     auto mirrorTexture = hmd->createMirrorTextureD3D11(
-        DX11.Device.Get(),
-        Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, UINT(windowRect.Size.w), UINT(windowRect.Size.h)}
-            .mipLevels(1));
+        DX11.Device.Get(), Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, to<UINT>(windowRect.Size.w),
+                                         to<UINT>(windowRect.Size.h)}
+                               .mipLevels(1));
 
     // Create a render target for IMGUI
     ImGuiHelper imguiHelper{

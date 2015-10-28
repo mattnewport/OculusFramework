@@ -211,6 +211,6 @@ void EnumIDXGIAdapters::Iterator::enumCurrentAdapter() {
     if (dxgiFactory_->EnumAdapters1(iAdapter_, &adapter_) == DXGI_ERROR_NOT_FOUND) {
         dxgiFactory_.Reset();
         adapter_.Reset();
-        iAdapter_ = UINT(-1);
+        iAdapter_ = 0xffff'ffffu;
     }
 }
