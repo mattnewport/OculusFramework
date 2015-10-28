@@ -37,53 +37,41 @@ using namespace mathlib;
 
 class GeoTiff {
 public:
+    template <typename T>
+    T getTiffField(ttag_t tag) {
+        auto res = T{};
+        if (TIFFGetField(tif.get(), tag, &res) != 1)
+            throw runtime_error{"Failed to read TIFF field."};
+        return res;
+    }
+
     GeoTiff(const char* filename) {
+        // Open filename as a TIFF and read height data
         tif = {XTIFFOpen(filename, "r"), XTIFFClose};
-        if (!tif) throw runtime_error{ "Failed to load terrain elevation .tif" };
-        tifWidth = static_cast<int>([this] {
-            uint32_t width = 0;
-            TIFFGetField(tif.get(), TIFFTAG_IMAGEWIDTH, &width);
-            return width;
-        }());
-        tifHeight = static_cast<int>([this] {
-            uint32_t length = 0;
-            TIFFGetField(tif.get(), TIFFTAG_IMAGELENGTH, &length);
-            return length;
-        }());
-        const auto tifBitsPerSample = [this] {
-            uint32_t bps = 0;
-            TIFFGetField(tif.get(), TIFFTAG_BITSPERSAMPLE, &bps);
-            return bps;
-        }();
-        const auto tifSamplesPerPixel = [this] {
-            uint16_t samplesPerPixel = 0;
-            TIFFGetField(tif.get(), TIFFTAG_SAMPLESPERPIXEL, &samplesPerPixel);
-            return samplesPerPixel;
-        }();
-        assert(tifBitsPerSample == 16 && tifSamplesPerPixel == 1);
-        heights = vector<uint16_t>(tifWidth * tifHeight);
-        [this] {
-            const auto stripCount = TIFFNumberOfStrips(tif.get());
-            const auto stripSize = TIFFStripSize(tif.get());
-            auto offset = 0;
-            for (tstrip_t strip = 0; strip < stripCount; ++strip) {
-                offset +=
-                    TIFFReadEncodedStrip(tif.get(), strip, &heights[offset / sizeof(heights[0])], -1);
-            }
-        }();
+        if (!tif) throw runtime_error{"Failed to load terrain elevation .tif"};
+        tifWidth = static_cast<int>(getTiffField<uint32_t>(TIFFTAG_IMAGEWIDTH));
+        tifHeight = static_cast<int>(getTiffField<uint32_t>(TIFFTAG_IMAGELENGTH));
+        assert(getTiffField<uint32_t>(TIFFTAG_BITSPERSAMPLE) == 16 &&
+               getTiffField<uint32_t>(TIFFTAG_SAMPLESPERPIXEL) == 1);
+        heights = readHeightData(tif.get(), tifWidth * tifHeight);
 
-        SetCSVFilenameHook(CSVFileOverride);
-
+        // View TIFF as a GeoTIFF and calculate geo coordinates
+        SetCSVFilenameHook([](const char* pszInput) -> const char* {
+            static char szPath[1024];
+            sprintf_s(szPath, "%s\\%s", "..\\libgeotiff-1.4.0\\csv", pszInput);
+            return szPath;
+        });
         gtif = {GTIFNew(tif.get()), GTIFFree};
         if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
-        auto print = [](char* s, void*) {
-            OutputDebugStringA(s);
-            return 0;
-        };
-        GTIFPrint(gtif.get(), print, nullptr);
+        GTIFPrint(gtif.get(),
+                  [](char* s, void*) {
+                      OutputDebugStringA(s);
+                      return 0;
+                  },
+                  nullptr);
 
         if (!GTIFGetDefn(gtif.get(), &gtifDefinition))
-            throw runtime_error{ "Unable to read geotiff definition" };
+            throw runtime_error{"Unable to read geotiff definition"};
         assert(gtifDefinition.Model == ModelTypeGeographic);
 
         const auto topLeft = topLeftLatLong();
@@ -108,16 +96,14 @@ public:
         double longitude = x;
         double latitude = y;
         if (!GTIFImageToPCS(gtif.get(), &longitude, &latitude))
-            throw runtime_error{ "Error converting pixel coordinates to lat/long." };
-        return { static_cast<float>(latitude), static_cast<float>(longitude) };
+            throw runtime_error{"Error converting pixel coordinates to lat/long."};
+        return {static_cast<float>(latitude), static_cast<float>(longitude)};
     }
-    Vec2f topLeftLatLong() const {
-        return pixToLatLong(0, 0);
-    }
+    Vec2f topLeftLatLong() const { return pixToLatLong(0, 0); }
     Vec2i latLongToPix(double latitude, double longitude) const {
         if (!GTIFPCSToImage(gtif.get(), &longitude, &latitude))
-            throw runtime_error{ "Error converting pixel coordinates to lat/long." };
-        return { static_cast<int>(latitude), static_cast<int>(longitude) };
+            throw runtime_error{"Error converting pixel coordinates to lat/long."};
+        return {static_cast<int>(latitude), static_cast<int>(longitude)};
     }
 
     float latLongDist(const Vec2f& a, const Vec2f& b) const {
@@ -137,12 +123,17 @@ public:
         idx[1] = clamp(int(idx[1]) + xOff, 0, int(tifWidth) - 1);
         return getHeightsView()[idx];
     }
-    
+
 private:
-    static const char* CSVFileOverride(const char* pszInput) {
-        static char szPath[1024];
-        sprintf_s(szPath, "%s\\%s", "..\\libgeotiff-1.4.0\\csv", pszInput);
-        return szPath;
+    static std::vector<uint16_t> readHeightData(TIFF* t, int sz) {
+        auto res = vector<uint16_t>(sz);
+        const auto stripCount = TIFFNumberOfStrips(t);
+        const auto stripSize = TIFFStripSize(t);
+        auto offset = 0;
+        for (tstrip_t strip = 0; strip < stripCount; ++strip) {
+            offset += TIFFReadEncodedStrip(t, strip, &res[offset / sizeof(res[0])], -1);
+        }
+        return res;
     }
 
     int tifWidth = 0;
