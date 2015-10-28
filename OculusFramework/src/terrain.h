@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 
+class GeoTiff;
+
 struct HeightField {
     struct Color {
         unsigned char R, G, B, A;
@@ -63,6 +65,10 @@ struct HeightField {
     void loadShapeFile();
 
     void showGui();
+
+private:
+    void generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff);
+    void generateHeightFieldGeometry(ID3D11Device* device, const GeoTiff& geoTiff);
 };
 
 struct HeightField::Vertex {
