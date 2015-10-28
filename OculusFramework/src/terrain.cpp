@@ -41,43 +41,102 @@ static const char* CSVFileOverride(const char* pszInput) {
     return szPath;
 }
 
+class GeoTiff {
+public:
+    GeoTiff(const char* filename) {
+        tif = {XTIFFOpen(filename, "r"), XTIFFClose};
+        if (!tif) throw runtime_error{ "Failed to load terrain elevation .tif" };
+        tifWidth = static_cast<int>([this] {
+            uint32_t width = 0;
+            TIFFGetField(tif.get(), TIFFTAG_IMAGEWIDTH, &width);
+            return width;
+        }());
+        tifHeight = static_cast<int>([this] {
+            uint32_t length = 0;
+            TIFFGetField(tif.get(), TIFFTAG_IMAGELENGTH, &length);
+            return length;
+        }());
+        const auto tifBitsPerSample = [this] {
+            uint32_t bps = 0;
+            TIFFGetField(tif.get(), TIFFTAG_BITSPERSAMPLE, &bps);
+            return bps;
+        }();
+        const auto tifSamplesPerPixel = [this] {
+            uint16_t samplesPerPixel = 0;
+            TIFFGetField(tif.get(), TIFFTAG_SAMPLESPERPIXEL, &samplesPerPixel);
+            return samplesPerPixel;
+        }();
+        assert(tifBitsPerSample == 16 && tifSamplesPerPixel == 1);
+        heights = vector<uint16_t>(tifWidth * tifHeight);
+        [this] {
+            const auto stripCount = TIFFNumberOfStrips(tif.get());
+            const auto stripSize = TIFFStripSize(tif.get());
+            auto offset = 0;
+            for (tstrip_t strip = 0; strip < stripCount; ++strip) {
+                offset +=
+                    TIFFReadEncodedStrip(tif.get(), strip, &heights[offset / sizeof(heights[0])], -1);
+            }
+        }();
+
+        gtif = {GTIFNew(tif.get()), GTIFFree};
+        if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
+        auto print = [](char* s, void*) {
+            OutputDebugStringA(s);
+            return 0;
+        };
+        GTIFPrint(gtif.get(), print, nullptr);
+
+        if (!GTIFGetDefn(gtif.get(), &gtifDefinition))
+            throw runtime_error{ "Unable to read geotiff definition" };
+        assert(gtifDefinition.Model == ModelTypeGeographic);
+    }
+
+    auto getWidth() const { return tifWidth; }
+    auto getHeight() const { return tifHeight; }
+    const auto& getHeights() const { return heights; }
+    const auto& getGtifDefinition() const { return gtifDefinition; }
+    auto pixToLatLong(int x, int y) const {
+        double longitude = x;
+        double latitude = y;
+        if (!GTIFImageToPCS(gtif.get(), &longitude, &latitude))
+            throw runtime_error{ "Error converting pixel coordinates to lat/long." };
+        return Vec2f{ static_cast<float>(latitude), static_cast<float>(longitude) };
+    }
+    auto latLongToPix(double latitude, double longitude) const {
+        if (!GTIFPCSToImage(gtif.get(), &longitude, &latitude))
+            throw runtime_error{ "Error converting pixel coordinates to lat/long." };
+        return Vec2i{ static_cast<int>(latitude), static_cast<int>(longitude) };
+    }
+
+    auto latLongDist(const Vec2f& a, const Vec2f& b) {
+        const auto geodesic = [this] {
+            auto ret = geod_geodesic{};
+            const auto flattening =
+                (gtifDefinition.SemiMajor - gtifDefinition.SemiMinor) / gtifDefinition.SemiMajor;
+            geod_init(&ret, gtifDefinition.SemiMajor, flattening);
+            return ret;
+        }();
+        auto dist = 0.0;
+        geod_inverse(&geodesic, a.x(), a.y(), b.x(), b.y(), &dist, nullptr, nullptr);
+        return static_cast<float>(dist);
+    }
+
+private:
+    int tifWidth = 0;
+    int tifHeight = 0;
+    vector<uint16_t> heights;
+    unique_ptr<TIFF, void (*)(TIFF*)> tif{nullptr, XTIFFClose};
+    unique_ptr<GTIF, void (*)(GTIF*)> gtif{nullptr, GTIFFree};
+    GTIFDefn gtifDefinition = {};
+};
+
 void HeightField::AddVertices(ID3D11Device* device,
                               PipelineStateObjectManager& pipelineStateObjectManager,
                               Texture2DManager& texture2DManager) {
-    auto tif = unique_ptr<TIFF, void (*)(TIFF*)>{
-        XTIFFOpen(R"(data\cdem_dem_150528_015119.tif)", "r"), [](TIFF* tiff) { XTIFFClose(tiff); }};
-    if (!tif) throw runtime_error{"Failed to load terrain elevation .tif"};
-    const auto tifWidth = static_cast<int>([&tif] {
-        uint32_t width = 0;
-        TIFFGetField(tif.get(), TIFFTAG_IMAGEWIDTH, &width);
-        return width;
-    }());
-    const auto tifHeight = static_cast<int>([&tif] {
-        uint32_t length = 0;
-        TIFFGetField(tif.get(), TIFFTAG_IMAGELENGTH, &length);
-        return length;
-    }());
-    const auto tifBitsPerSample = [&tif] {
-        uint32_t bps = 0;
-        TIFFGetField(tif.get(), TIFFTAG_BITSPERSAMPLE, &bps);
-        return bps;
-    }();
-    const auto tifSamplesPerPixel = [&tif] {
-        uint16_t samplesPerPixel = 0;
-        TIFFGetField(tif.get(), TIFFTAG_SAMPLESPERPIXEL, &samplesPerPixel);
-        return samplesPerPixel;
-    }();
-    assert(tifBitsPerSample == 16 && tifSamplesPerPixel == 1);
-    auto heights = vector<uint16_t>(tifWidth * tifHeight);
-    [&tif, &heights] {
-        const auto stripCount = TIFFNumberOfStrips(tif.get());
-        const auto stripSize = TIFFStripSize(tif.get());
-        auto offset = 0;
-        for (tstrip_t strip = 0; strip < stripCount; ++strip) {
-            offset +=
-                TIFFReadEncodedStrip(tif.get(), strip, &heights[offset / sizeof(heights[0])], -1);
-        }
-    }();
+    auto geoTiff = GeoTiff{R"(data\cdem_dem_150528_015119.tif)"};
+    const auto& heights = geoTiff.getHeights();
+    const auto tifWidth = geoTiff.getWidth();
+    const auto tifHeight = geoTiff.getHeight();
 
     [this, device, &heights, tifWidth, tifHeight] {
         heightsTex =
@@ -90,53 +149,14 @@ void HeightField::AddVertices(ID3D11Device* device,
 
     SetCSVFilenameHook(CSVFileOverride);
 
-    auto gtif =
-        unique_ptr<GTIF, void (*)(GTIF*)>{GTIFNew(tif.get()), [](GTIF* gtif) { GTIFFree(gtif); }};
-    if (!gtif) throw runtime_error{"Failed to create geotiff for terrain elevation .tif"};
-    auto print = [](char* s, void*) {
-        OutputDebugStringA(s);
-        return 0;
-    };
-    GTIFPrint(gtif.get(), print, nullptr);
-
-    auto definition = GTIFDefn{};
-    if (!GTIFGetDefn(gtif.get(), &definition))
-        throw runtime_error{"Unable to read geotiff definition"};
-    assert(definition.Model == ModelTypeGeographic);
-    auto pixToLatLong = [&gtif](int x, int y) {
-        double longitude = x;
-        double latitude = y;
-        if (!GTIFImageToPCS(gtif.get(), &longitude, &latitude))
-            throw runtime_error{"Error converting pixel coordinates to lat/long."};
-        return Vec2f{static_cast<float>(latitude), static_cast<float>(longitude)};
-    };
-    auto latLongToPix = [&gtif](double latitude, double longitude) {
-        if (!GTIFPCSToImage(gtif.get(), &longitude, &latitude))
-            throw runtime_error{ "Error converting pixel coordinates to lat/long." };
-        return Vec2i{ static_cast<int>(latitude), static_cast<int>(longitude) };
-    };
-
-    const auto topLeft = pixToLatLong(0, 0);
-    const auto topRight = pixToLatLong(tifWidth, 0);
-    const auto bottomLeft = pixToLatLong(0, tifHeight);
-
-    const auto latLongDist = [&definition](const Vec2f& a, const Vec2f& b) {
-        const auto geodesic = [&definition] {
-            auto ret = geod_geodesic{};
-            const auto flattening =
-                (definition.SemiMajor - definition.SemiMinor) / definition.SemiMajor;
-            geod_init(&ret, definition.SemiMajor, flattening);
-            return ret;
-        }();
-        auto dist = 0.0;
-        geod_inverse(&geodesic, a.x(), a.y(), b.x(), b.y(), &dist, nullptr, nullptr);
-        return static_cast<float>(dist);
-    };
+    const auto topLeft = geoTiff.pixToLatLong(0, 0);
+    const auto topRight = geoTiff.pixToLatLong(tifWidth, 0);
+    const auto bottomLeft = geoTiff.pixToLatLong(0, tifHeight);
 
     const auto width = tifWidth;
-    const auto widthM = latLongDist(topLeft, topRight);
+    const auto widthM = geoTiff.latLongDist(topLeft, topRight);
     const auto height = tifHeight;
-    const auto heightM = latLongDist(topLeft, bottomLeft);
+    const auto heightM = geoTiff.latLongDist(topLeft, bottomLeft);
     const auto gridStepX = widthM / width;
     const auto gridStepY = heightM / height;
 
@@ -252,10 +272,10 @@ void HeightField::AddVertices(ID3D11Device* device,
     loadShapeFile();
     topographicFeatureLabels.emplace_back(device, topographicFeatures[0].label.c_str());
     const auto labelPixelPos =
-        latLongToPix(topographicFeatures[0].latLong.x(), topographicFeatures[0].latLong.y());
+        geoTiff.latLongToPix(topographicFeatures[0].latLong.x(), topographicFeatures[0].latLong.y());
     const auto labelHeight = float(getHeight(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0, 0)) - 1000.0f;
-    const auto labelZ = latLongDist(topLeft, Vec2f{ topographicFeatures[0].latLong.x(), topLeft.y() });
-    const auto labelX = latLongDist(topLeft, Vec2f{ topLeft.x(), topographicFeatures[0].latLong.y() });
+    const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{ topographicFeatures[0].latLong.x(), topLeft.y() });
+    const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{ topLeft.x(), topographicFeatures[0].latLong.y() });
     const auto labelSize = Vec2f{ topographicFeatureLabels[0].getWidth(), topographicFeatureLabels[0].getHeight() } * 20.0f;
     labelsVertices.push_back({ Vec3f{labelX, float(labelHeight), labelZ}, 0xffffffff, Vec2f{1.0f, 1.0f} });
     labelsVertices.push_back({ Vec3f{labelX + labelSize.x(), labelHeight, labelZ}, 0xffffffff, Vec2f{0.0f, 1.0f} });
