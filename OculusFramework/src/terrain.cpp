@@ -271,18 +271,20 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         context->DrawIndexed(Indices.size(), 0, 0);
     }
 
-    dx11.applyState(*context, *labelsPipelineStateObject.get());
-    context->IASetIndexBuffer(labelsIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    IASetVertexBuffers(context, 0, {labelsVertexBuffer.Get()}, {to<UINT>(sizeof(LabelVertex))});
-    for (auto i = 0u; i < topographicFeatureLabels.size(); ++i) {
-        PSSetShaderResources(context, materialSRVOffset, {topographicFeatureLabels[i].srv()});
-        context->DrawIndexed(6, i * 6, 0);
-    }
+    if (renderLabels) {
+        dx11.applyState(*context, *labelsPipelineStateObject.get());
+        context->IASetIndexBuffer(labelsIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+        IASetVertexBuffers(context, 0, {labelsVertexBuffer.Get()}, {to<UINT>(sizeof(LabelVertex))});
+        for (auto i = 0u; i < topographicFeatureLabels.size(); ++i) {
+            PSSetShaderResources(context, materialSRVOffset, {topographicFeatureLabels[i].srv()});
+            context->DrawIndexed(6, i * 6, 0);
+        }
 
-    dx11.applyState(*context, *labelFlagpolePso.get());
-    IASetVertexBuffers(context, 0, {labelFlagpolesVertexBuffer.Get()},
-                       {to<UINT>(sizeof(LabelFlagpoleVertex))});
-    context->Draw(labelFlagpoleVertices.size(), 0);
+        dx11.applyState(*context, *labelFlagpolePso.get());
+        IASetVertexBuffers(context, 0, {labelFlagpolesVertexBuffer.Get()},
+                           {to<UINT>(sizeof(LabelFlagpoleVertex))});
+        context->Draw(labelFlagpoleVertices.size(), 0);
+    }
 }
 
 auto shapeTypeToString(int shapeType) {
@@ -391,6 +393,7 @@ void HeightField::loadShapeFile() {
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
+        ImGui::Checkbox("Show topographic feature labels", &renderLabels);
     }
 }
 

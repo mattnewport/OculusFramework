@@ -55,6 +55,7 @@ struct HeightField {
     std::vector<LabelFlagpoleVertex> labelFlagpoleVertices;
     ID3D11BufferPtr labelFlagpolesVertexBuffer;
     PipelineStateObjectManager::ResourceHandle labelFlagpolePso;
+    bool renderLabels = true;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
