@@ -51,6 +51,10 @@ struct HeightField {
     ID3D11BufferPtr labelsVertexBuffer;
     ID3D11BufferPtr labelsIndexBuffer;
     PipelineStateObjectManager::ResourceHandle labelsPipelineStateObject;
+    struct LabelFlagpoleVertex;
+    std::vector<LabelFlagpoleVertex> labelFlagpoleVertices;
+    ID3D11BufferPtr labelFlagpolesVertexBuffer;
+    PipelineStateObjectManager::ResourceHandle labelFlagpolePso;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
@@ -91,5 +95,12 @@ static const auto HeightFieldLabelVertexInputElementDescs = {
     MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, color),
     MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, texcoord),
     MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, labelSize, "texcoord", 1)
+};
+
+struct HeightField::LabelFlagpoleVertex {
+    mathlib::Vec3f position;
+};
+static const auto HeightFieldLabelFlagpoleVertexInputElementDescs = {
+    MAKE_INPUT_ELEMENT_DESC(HeightField::LabelVertex, position)
 };
 

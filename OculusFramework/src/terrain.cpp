@@ -184,7 +184,7 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
         topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
         const auto& label = topographicFeatureLabels.back();
         const auto labelPixelPos = geoTiff.latLongToPix(feature.latLong.x(), feature.latLong.y());
-        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 15.0f;
+        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 20.0f;
         const auto radius = to<int>(0.5f * std::max(labelSize.x() / geoTiff.getGridStepMetersX(),
                                                     labelSize.x() / geoTiff.getGridStepMetersY()));
         const auto top = labelPixelPos.y() - radius;
@@ -193,6 +193,10 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
         const auto right = labelPixelPos.x() + radius;
         auto labelHeight = float(
             geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0, 0));
+        const auto topLeft = geoTiff.topLeftLatLong();
+        const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
+        const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
+        labelFlagpoleVertices.push_back({Vec3f{labelX, labelHeight - 1000.0f, labelZ}});
         for (int y = top; y < bottom; ++y) {
             for (int x = left; x < right; ++x) {
                 labelHeight = std::max(labelHeight,
@@ -200,9 +204,7 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
             }
         }
         labelHeight -= 1000.0f;
-        const auto topLeft = geoTiff.topLeftLatLong();
-        const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
-        const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
+        labelFlagpoleVertices.push_back({Vec3f{labelX, labelHeight, labelZ}});
         const auto labelPos = Vec3f{labelX, labelHeight, labelZ};
         const auto labelColor = 0xffffffffu;
         const auto baseVertexIdx = uint16_t(labelsVertices.size());
@@ -229,12 +231,23 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
         device,
         BufferDesc{labelsIndices.size() * sizeof(labelsIndices[0]), D3D11_BIND_INDEX_BUFFER},
         {labelsIndices.data()});
+    labelFlagpolesVertexBuffer = CreateBuffer(
+        device, BufferDesc{labelFlagpoleVertices.size() * sizeof(labelFlagpoleVertices[0]),
+                           D3D11_BIND_VERTEX_BUFFER},
+        {labelFlagpoleVertices.data()});
 
     PipelineStateObjectDesc labelsDesc;
     labelsDesc.vertexShader = "labelvs.hlsl";
     labelsDesc.pixelShader = "labelps.hlsl";
     labelsDesc.inputElementDescs = HeightFieldLabelVertexInputElementDescs;
     labelsPipelineStateObject = pipelineStateObjectManager.get(labelsDesc);
+
+    PipelineStateObjectDesc labelFlagpolesDesc;
+    labelFlagpolesDesc.vertexShader = "labelflagpolevs.hlsl";
+    labelFlagpolesDesc.pixelShader = "labelflagpoleps.hlsl";
+    labelFlagpolesDesc.inputElementDescs = HeightFieldLabelFlagpoleVertexInputElementDescs;
+    labelFlagpolesDesc.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+    labelFlagpolePso = pipelineStateObjectManager.get(labelFlagpolesDesc);
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
@@ -265,6 +278,11 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         PSSetShaderResources(context, materialSRVOffset, {topographicFeatureLabels[i].srv()});
         context->DrawIndexed(6, i * 6, 0);
     }
+
+    dx11.applyState(*context, *labelFlagpolePso.get());
+    IASetVertexBuffers(context, 0, {labelFlagpolesVertexBuffer.Get()},
+                       {to<UINT>(sizeof(LabelFlagpoleVertex))});
+    context->Draw(labelFlagpoleVertices.size(), 0);
 }
 
 auto shapeTypeToString(int shapeType) {
@@ -373,11 +391,6 @@ void HeightField::loadShapeFile() {
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
-        const auto imageSize =
-            ImVec2{topographicFeatureLabels[0].getWidth(), topographicFeatureLabels[0].getHeight()};
-        const auto uvs = topographicFeatureLabels[0].getUvs();
-        ImGui::Image(reinterpret_cast<ImTextureID>(topographicFeatureLabels[0].srv()), imageSize,
-                     {uvs.first.x(), uvs.first.y()}, {uvs.second.x(), uvs.second.y()});
     }
 }
 

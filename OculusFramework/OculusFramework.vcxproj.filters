@@ -220,6 +220,12 @@
     <FxCompile Include="labelps.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+    <FxCompile Include="labelflagpoleps.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="labelflagpolevs.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.hlsli">
