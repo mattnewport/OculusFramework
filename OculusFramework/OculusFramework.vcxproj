@@ -150,6 +150,7 @@
     <ClCompile Include="src\scene.cpp" />
     <ClCompile Include="src\sphere.cpp" />
     <ClCompile Include="src\terrain.cpp" />
+    <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\Win32_DX11AppUtil.cpp" />
     <ClCompile Include="src\Win32_RoomTiny_Main.cpp" />
   </ItemGroup>

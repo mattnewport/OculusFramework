@@ -375,8 +375,10 @@ void HeightField::loadShapeFile() {
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
-        ImVec2 imageSize{ 256.0f, 64.0f };
+        const auto imageSize =
+            ImVec2{topographicFeatureLabels[0].getWidth(), topographicFeatureLabels[0].getHeight()};
+        const auto uvs = topographicFeatureLabels[0].getUvs();
         ImGui::Image(reinterpret_cast<ImTextureID>(topographicFeatureLabels[0].srv()), imageSize,
-                     {0.0f, 0.0f}, {imageSize.x / 512.0f, imageSize.y / 512.0f});
+                     {uvs.first.x(), uvs.first.y()}, {uvs.second.x(), uvs.second.y()});
     }
 }
