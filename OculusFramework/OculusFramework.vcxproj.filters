@@ -226,6 +226,12 @@
     <FxCompile Include="labelflagpolevs.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+    <FxCompile Include="simple2dvs.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="simple2dps.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.hlsli">

@@ -20,6 +20,16 @@ namespace util {
 template <typename To, typename From>
 constexpr To to(From);
 
+template<>
+constexpr float to<float, double>(double x) noexcept {
+    return static_cast<float>(x);
+}
+
+template<>
+constexpr float to<float, int>(int x) noexcept {
+    return static_cast<float>(x);
+}
+
 template <>
 constexpr int to<int, std::size_t>(std::size_t x) noexcept {
     return x > static_cast<std::size_t>(std::numeric_limits<int>::max())

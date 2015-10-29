@@ -26,6 +26,7 @@
 #include "hlslmacros.h"
 #include "../commonstructs.hlsli"
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -151,12 +152,14 @@ private:
     GTIFDefn gtifDefinition = {};
 };
 
-void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context,
+void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                               PipelineStateObjectManager& pipelineStateObjectManager,
                               Texture2DManager& texture2DManager) {
     auto geoTiff = GeoTiff{R"(data\cdem_dem_150528_015119.tif)"};
     const auto& heights = geoTiff.getHeights();
 
+    heightFieldWidth = geoTiff.getTiffWidth();
+    heightFieldHeight = geoTiff.getTiffHeight();
     heightsTex = CreateTexture2D(
         device, Texture2DDesc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(geoTiff.getTiffWidth()),
                               static_cast<UINT>(geoTiff.getTiffHeight())}
@@ -248,6 +251,9 @@ void HeightField::AddVertices(ID3D11Device* device, ID3D11DeviceContext* context
     labelFlagpolesDesc.inputElementDescs = HeightFieldLabelFlagpoleVertexInputElementDescs;
     labelFlagpolesDesc.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
     labelFlagpolePso = pipelineStateObjectManager.get(labelFlagpolesDesc);
+
+    loadCreeksShapeFile(geoTiff);
+    generateCreeksTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
@@ -265,7 +271,7 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
     context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get()});
+    PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
@@ -305,17 +311,17 @@ auto shapeTypeToString(int shapeType) {
 auto toString(DBFFieldType fieldType) {
     switch (fieldType) {
         case FTString:
-            return "FTString";
+            return "FTString"s;
         case FTInteger:
-            return "FTInteger";
+            return "FTInteger"s;
         case FTDouble:
-            return "FTDouble";
+            return "FTDouble"s;
         case FTLogical:
-            return "FTLogical";
+            return "FTLogical"s;
         case FTInvalid:
-            return "FTInvalid";
+            return "FTInvalid"s;
         default:
-            return "Unrecognized";
+            return "Unrecognized"s;
     }
 }
 
@@ -388,6 +394,127 @@ void HeightField::loadShapeFile() {
     }
 
     OutputDebugStringA(info.str().c_str());
+}
+
+void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
+    const auto shapeHandle = unique_ptr<SHPInfo, void(*)(SHPHandle)>{
+        SHPOpen(
+        R"(data\canvec_150528_015119_shp\hd_1470009_1.shp)", "rb"),
+        SHPClose };
+
+    auto numEntities = 0;
+    auto shapeType = 0;
+    auto minBounds = Vector<double, 4>{};
+    auto maxBounds = Vector<double, 4>{};
+    SHPGetInfo(shapeHandle.get(), &numEntities, &shapeType, minBounds.data(), maxBounds.data());
+    stringstream info;
+    info << "numEntities: " << numEntities << ", "
+        << "shapeType: " << shapeTypeToString(shapeType) << ", minBounds: " << minBounds
+        << ", maxBounds: " << maxBounds << '\n';
+
+    using ShpObjectPtr = unique_ptr<SHPObject, void(*)(SHPObject*)>;
+    vector<ShpObjectPtr> shapes;
+    shapes.reserve(numEntities);
+    for (int i = 0; i < numEntities; ++i) {
+        shapes.emplace_back(SHPReadObject(shapeHandle.get(), i), SHPDestroyObject);
+    }
+
+    const auto dbfHandle = unique_ptr<DBFInfo, void(*)(DBFHandle)>{
+        DBFOpen(
+        R"(data\canvec_150528_015119_shp\hd_1470009_1.dbf)", "rb"),
+        DBFClose };
+    const auto dbfFieldCount = DBFGetFieldCount(dbfHandle.get());
+    const auto dbfRecordCount = DBFGetRecordCount(dbfHandle.get());
+    assert(dbfRecordCount == numEntities);
+    unordered_map<string, DBFFieldInfo> dbfFieldInfos;
+    for (int i = 0; i < dbfFieldCount; ++i) {
+        auto fieldInfo = DBFFieldInfo{};
+        fieldInfo.type = DBFGetFieldInfo(dbfHandle.get(), i, fieldInfo.name, &fieldInfo.width, &fieldInfo.decimals);
+        dbfFieldInfos[fieldInfo.name] = fieldInfo;
+        info << "DBF Field " << i << ": " << toString(fieldInfo.type) << ", " << fieldInfo.name
+            << ", width = " << fieldInfo.width << ", decimals = " << fieldInfo.decimals << '\n';
+    }
+
+    auto dbfReadString = [dbf = dbfHandle.get(), &dbfFieldInfos](int shapeId, const char* fieldName) {
+        const auto fieldIndex = DBFGetFieldIndex(dbf, fieldName);
+        assert(dbfFieldInfos[fieldName].type == FTString);
+        const auto fieldChars = DBFReadStringAttribute(dbf, shapeId, fieldIndex);
+        return string{ fieldChars };
+    };
+
+    for (const auto& s : shapes) {
+        const auto nameen = dbfReadString(s->nShapeId, "nameen");
+        auto arc = Arc{nameen, {vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}};
+        for (size_t i = 0; i < arc.latLongs.size(); ++i) {
+            arc.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
+            const auto pixelPos = geoTiff.latLongToPix(arc.latLongs[i].x(), arc.latLongs[i].y());
+            arc.pixPositions[i] = Vec2f{ float(pixelPos.y()), float(pixelPos.x()) };
+        }
+        creeks.push_back(arc);
+    }
+
+    OutputDebugStringA(info.str().c_str());
+}
+
+void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
+                                        ID3D11DeviceContext* context,
+                                        PipelineStateObjectManager& pipelineStateObjectManager) {
+    ID3D11Texture2DPtr tex = CreateTexture2D(
+        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
+                              to<UINT>(heightFieldHeight)}
+                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
+                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
+        "HeightField::creeks texture");
+    creeksSrv = CreateShaderResourceView(device, tex.Get(), "HeightField::creeksSrv");
+    creeksRtv = CreateRenderTargetView(device, tex.Get(), "HeightField::creeks texture rtv");
+    renderCreeksTexture(dx11, device, context, pipelineStateObjectManager);
+}
+
+void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
+    ID3D11DeviceContext* context,
+    PipelineStateObjectManager& pipelineStateObjectManager) {
+    const auto longestArcLength =
+        std::max_element(begin(creeks), end(creeks), [](const auto& x, const auto& y) {
+        return x.latLongs.size() < y.latLongs.size();
+    })->latLongs.size();
+    ID3D11BufferPtr vb = CreateBuffer(
+        device,
+        BufferDesc{ longestArcLength * sizeof(Vec2f), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC }
+        .cpuAccessFlags(D3D11_CPU_ACCESS_WRITE),
+        __func__);
+    struct Vertex2D {
+        Vec2f position;
+    };
+    const auto Vertex2DInputElementDescs = { MAKE_INPUT_ELEMENT_DESC(Vertex2D, position) };
+    PipelineStateObjectDesc psod{};
+    psod.vertexShader = "simple2dvs.hlsl";
+    psod.pixelShader = "simple2dps.hlsl";
+    psod.inputElementDescs = Vertex2DInputElementDescs;
+    psod.depthStencilState = DepthStencilDesc{}.depthEnable(FALSE);
+    psod.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
+    auto pso = pipelineStateObjectManager.get(psod);
+    dx11.applyState(*context, *pso.get());
+    PSSetShaderResources(context, 0u, { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr });
+    OMSetRenderTargets(context, { creeksRtv.Get() });
+    RSSetViewports(context, { { 0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
+        0.0f, 1.0f } });
+    context->ClearRenderTargetView(creeksRtv.Get(), std::data({1.0f, 1.0f, 1.0f, 1.0f}));
+    for (const auto& c : creeks) {
+        IASetVertexBuffers(context, 0u, { nullptr }, { 0u });
+        {
+            MapHandle vbh{ context, vb.Get() };
+            std::transform(begin(c.pixPositions), end(c.pixPositions),
+                std::raw_storage_iterator<Vec2f*, Vec2f>{
+                reinterpret_cast<Vec2f*>(vbh.mappedSubresource().pData)},
+                [this](const auto& pp) {
+                    return 2.0f * Vec2f{pp.x() / heightFieldWidth, 1.0f - pp.y() / heightFieldHeight} - Vec2f{1.0f};
+                });
+        }
+        IASetVertexBuffers(context, 0u, { vb.Get() }, { to<UINT>(sizeof(Vertex2D)) });
+        context->Draw(c.latLongs.size(), 0);
+    }
+    OMSetRenderTargets(context, { nullptr });
+    context->GenerateMips(creeksSrv.Get());
 }
 
 void HeightField::showGui() {

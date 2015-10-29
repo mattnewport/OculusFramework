@@ -57,24 +57,40 @@ struct HeightField {
     PipelineStateObjectManager::ResourceHandle labelFlagpolePso;
     bool renderLabels = true;
 
+    struct Arc {
+        std::string name;
+        std::vector<mathlib::Vec2f> latLongs;
+        std::vector<mathlib::Vec2f> pixPositions;
+    };
+    std::vector<Arc> creeks;
+    ID3D11ShaderResourceViewPtr creeksSrv;
+    ID3D11RenderTargetViewPtr creeksRtv;
+
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {
         return Mat = mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) * translationMat4f(Pos);
     }
 
-    void AddVertices(ID3D11Device* device, ID3D11DeviceContext* context,
+    void AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                      PipelineStateObjectManager& pipelineStateObjectManager,
                      Texture2DManager& texture2DManager);
 
     void Render(DirectX11& dx11, ID3D11DeviceContext* context);
-
-    void loadShapeFile();
 
     void showGui();
 
 private:
     void generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff);
     void generateHeightFieldGeometry(ID3D11Device* device, const GeoTiff& geoTiff);
+    void loadShapeFile();
+    void loadCreeksShapeFile(const GeoTiff& geoTiff);
+    void generateCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
+                               PipelineStateObjectManager& pipelineStateObjectManager);
+    void renderCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
+                             PipelineStateObjectManager& pipelineStateObjectManager);
+
+    int heightFieldWidth = 0;
+    int heightFieldHeight = 0;
 };
 
 struct HeightField::Vertex {

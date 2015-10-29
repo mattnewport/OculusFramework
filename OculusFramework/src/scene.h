@@ -72,7 +72,7 @@ struct Scene {
 
     void Add(std::unique_ptr<Model>&& n) { Models.emplace_back(move(n)); }
 
-    Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+    Scene(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
           PipelineStateObjectManager& pipelineStateObjectManager,
           Texture2DManager& texture2DManager);
 

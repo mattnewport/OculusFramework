@@ -344,7 +344,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     const auto EyeRenderDesc = hmd->getRenderDesc();
 
     // Create the room model
-    Scene roomScene(DX11.Device.Get(), DX11.Context.Get(), *DX11.pipelineStateObjectManager,
+    Scene roomScene(DX11, DX11.Device.Get(), DX11.Context.Get(), *DX11.pipelineStateObjectManager,
                     DX11.texture2DManager);
 
     float Yaw(3.141592f);  // Horizontal rotation of the player

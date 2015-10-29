@@ -2,11 +2,12 @@
 
 Texture2D Texture : register(t2);
 Texture2D Normals : register(t3);
+Texture2D Creeks : register(t4);
 
 float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
             in float2 TexCoord : TEXCOORD0, in float3 worldPos : TEXCOORD1, in float3 viewDir : TEXCOORD2) : SV_Target
 {
-    float4 diffuse = Texture.Sample(StandardTexture, TexCoord) * .66;
+    float4 diffuse = Creeks.Sample(StandardTexture, TexCoord) * .66;
     float2 normalTex = Normals.Sample(StandardTexture, TexCoord).xy;
     float3 normalFromTex = float3(normalTex.x, sqrt(saturate(1.0f - normalTex.x * normalTex.x - normalTex.y * normalTex.y)), normalTex.y);
 

@@ -114,7 +114,7 @@ inline DXGI_FORMAT getDXGIFormat<Model::Color>() {
     return DXGI_FORMAT_R8G8B8A8_UNORM;
 }
 
-Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
+Scene::Scene(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
              PipelineStateObjectManager& pipelineStateObjectManager,
              Texture2DManager& texture2DManager) {
     // Construct textures
@@ -230,7 +230,7 @@ Scene::Scene(ID3D11Device* device, ID3D11DeviceContext* deviceContext,
 
     // Terrain
     heightField = make_unique<HeightField>(Vec3f{-1.0f, 0.8f, 0.0f});
-    heightField->AddVertices(device, deviceContext, pipelineStateObjectManager, texture2DManager);
+    heightField->AddVertices(dx11, device, deviceContext, pipelineStateObjectManager, texture2DManager);
 
     sphere = make_unique<Sphere>();
     sphere->GenerateVerts(*device, pipelineStateObjectManager);
