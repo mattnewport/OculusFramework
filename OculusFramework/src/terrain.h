@@ -46,6 +46,11 @@ private:
                                PipelineStateObjectManager& pipelineStateObjectManager);
     void renderCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                              PipelineStateObjectManager& pipelineStateObjectManager);
+    void loadLakesShapeFile(const GeoTiff& geoTiff);
+    void generateLakesTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
+                              PipelineStateObjectManager& pipelineStateObjectManager);
+    void renderLakesTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
+                            PipelineStateObjectManager& pipelineStateObjectManager);
 
     struct LabeledPoint {
         mathlib::Vec2f latLong;
@@ -89,6 +94,18 @@ private:
     std::vector<Arc> creeks;
     ID3D11Texture2DPtr creeksTex;
     ID3D11ShaderResourceViewPtr creeksSrv;
+
+    struct Polygon {
+        std::string laknameen;
+        std::string rivnameen;
+        std::vector<mathlib::Vec2f> latLongs;
+        std::vector<mathlib::Vec2f> pixPositions;
+        std::vector<int> partStarts;
+        std::vector<int> partTypes;
+    };
+    std::vector<Polygon> lakes;
+    ID3D11Texture2DPtr lakesTex;
+    ID3D11ShaderResourceViewPtr lakesSrv;
 
     int heightFieldWidth = 0;
     int heightFieldHeight = 0;
