@@ -63,8 +63,8 @@ struct HeightField {
         std::vector<mathlib::Vec2f> pixPositions;
     };
     std::vector<Arc> creeks;
+    ID3D11Texture2DPtr creeksTex;
     ID3D11ShaderResourceViewPtr creeksSrv;
-    ID3D11RenderTargetViewPtr creeksRtv;
 
     HeightField(const mathlib::Vec3f& arg_pos) : Pos{arg_pos}, Rot{0.0f} {}
     const mathlib::Mat4f& GetMatrix() {

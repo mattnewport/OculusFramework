@@ -343,6 +343,51 @@ struct SamplerDesc : public CD3D11_SAMPLER_DESC {
     }
 };
 
+struct RasterizerDesc : CD3D11_RASTERIZER_DESC {
+    using CD3D11_RASTERIZER_DESC::CD3D11_RASTERIZER_DESC;
+    RasterizerDesc() : CD3D11_RASTERIZER_DESC{D3D11_DEFAULT} {}
+    auto& fillMode(D3D11_FILL_MODE x) {
+        FillMode = x;
+        return *this;
+    }
+    auto& cullMode(D3D11_CULL_MODE x) {
+        CullMode = x;
+        return *this;
+    }
+    auto& frontCounterClockwise(BOOL x) {
+        FrontCounterClockwise = x;
+        return *this;
+    }
+    auto& depthBias(INT x) {
+        DepthBias = x;
+        return *this;
+    }
+    auto& depthBiasClamp(FLOAT x) {
+        DepthBiasClamp = x;
+        return *this;
+    }
+    auto& slopeScaledDepthBias(FLOAT x) {
+        SlopeScaledDepthBias = x;
+        return *this;
+    }
+    auto& depthClipEnable(BOOL x) {
+        DepthClipEnable = x;
+        return *this;
+    }
+    auto& scissorEnable(BOOL x) {
+        ScissorEnable = x;
+        return *this;
+    }
+    auto& multisampleEnable(BOOL x) {
+        MultisampleEnable = x;
+        return *this;
+    }
+    auto& antialiasedLineEnable(BOOL x) {
+        AntialiasedLineEnable = x;
+        return *this;
+    }
+};
+
 // Helper operators
 
 bool operator==(const D3D11_INPUT_ELEMENT_DESC& x, const D3D11_INPUT_ELEMENT_DESC& y);

@@ -460,20 +460,28 @@ void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
 void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
                                         ID3D11DeviceContext* context,
                                         PipelineStateObjectManager& pipelineStateObjectManager) {
-    ID3D11Texture2DPtr tex = CreateTexture2D(
+    creeksTex = CreateTexture2D(
         device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
                               to<UINT>(heightFieldHeight)}
                     .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
                     .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "HeightField::creeks texture");
-    creeksSrv = CreateShaderResourceView(device, tex.Get(), "HeightField::creeksSrv");
-    creeksRtv = CreateRenderTargetView(device, tex.Get(), "HeightField::creeks texture rtv");
+    creeksSrv = CreateShaderResourceView(device, creeksTex.Get(), "HeightField::creeksSrv");
     renderCreeksTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
 void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     ID3D11DeviceContext* context,
     PipelineStateObjectManager& pipelineStateObjectManager) {
+    ID3D11Texture2DPtr tex = CreateTexture2D(
+        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
+                              to<UINT>(heightFieldHeight)}
+                    .bindFlags(D3D11_BIND_RENDER_TARGET)
+                    .mipLevels(1)
+                    .sampleDesc({8, 0}),
+        "HeightField::creeks render target texture");
+    ID3D11RenderTargetViewPtr creeksRtv =
+        CreateRenderTargetView(device, tex.Get(), "HeightField::creeks texture rtv");
     const auto longestArcLength =
         std::max_element(begin(creeks), end(creeks), [](const auto& x, const auto& y) {
         return x.latLongs.size() < y.latLongs.size();
@@ -492,6 +500,7 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     psod.pixelShader = "simple2dps.hlsl";
     psod.inputElementDescs = Vertex2DInputElementDescs;
     psod.depthStencilState = DepthStencilDesc{}.depthEnable(FALSE);
+    psod.rasterizerState = RasterizerDesc{}.multisampleEnable(TRUE).antialiasedLineEnable(TRUE);
     psod.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
     auto pso = pipelineStateObjectManager.get(psod);
     dx11.applyState(*context, *pso.get());
@@ -515,6 +524,7 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
         context->Draw(c.latLongs.size(), 0);
     }
     OMSetRenderTargets(context, { nullptr });
+    context->ResolveSubresource(creeksTex.Get(), 0, tex.Get(), 0, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     context->GenerateMips(creeksSrv.Get());
 }
 
