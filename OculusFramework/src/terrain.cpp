@@ -135,7 +135,6 @@ private:
     static std::vector<uint16_t> readHeightData(TIFF* t, int sz) {
         auto res = vector<uint16_t>(sz);
         const auto stripCount = TIFFNumberOfStrips(t);
-        const auto stripSize = TIFFStripSize(t);
         auto offset = 0;
         for (tstrip_t strip = 0; strip < stripCount; ++strip) {
             offset += TIFFReadEncodedStrip(t, strip, &res[offset / sizeof(res[0])], -1);
@@ -183,76 +182,8 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
         device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 
-    loadShapeFile();
-    for (const auto& feature : topographicFeatures) {
-        topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
-        const auto& label = topographicFeatureLabels.back();
-        const auto labelPixelPos =
-            Vec2i{geoTiff.latLongToPixXY(feature.latLong.x(), feature.latLong.y())};
-        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 20.0f;
-        const auto radius = to<int>(0.5f * std::max(labelSize.x() / geoTiff.getGridStepMetersX(),
-                                                    labelSize.x() / geoTiff.getGridStepMetersY()));
-        const auto top = labelPixelPos.y() - radius;
-        const auto left = labelPixelPos.x() - radius;
-        const auto bottom = labelPixelPos.y() + radius;
-        const auto right = labelPixelPos.x() + radius;
-        auto labelHeight = float(
-            geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.y(), labelPixelPos.x()}, 0, 0));
-        const auto topLeft = geoTiff.topLeftLatLong();
-        const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
-        const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
-        labelFlagpoleVertices.push_back({Vec3f{labelX, labelHeight - 1000.0f, labelZ}});
-        for (int y = top; y < bottom; ++y) {
-            for (int x = left; x < right; ++x) {
-                labelHeight = std::max(labelHeight,
-                                       float(geoTiff.getHeightAt(gsl::index<2, int>{y, x}, 0, 0)));
-            }
-        }
-        labelHeight -= 1000.0f;
-        labelFlagpoleVertices.push_back({Vec3f{labelX, labelHeight, labelZ}});
-        const auto labelPos = Vec3f{labelX, labelHeight, labelZ};
-        const auto labelColor = 0xffffffffu;
-        const auto baseVertexIdx = uint16_t(labelsVertices.size());
-        labelsVertices.push_back(
-            {labelPos, labelColor, Vec2f{1.0f, 1.0f}, Vec2f{0.5f * labelSize.x(), 0.0f}});
-        labelsVertices.push_back(
-            {labelPos, labelColor, Vec2f{0.0f, 1.0f}, Vec2f{-0.5f * labelSize.x(), 0.0f}});
-        labelsVertices.push_back(
-            {labelPos, labelColor, Vec2f{0.0f, 0.0f}, Vec2f{-0.5f * labelSize.x(), labelSize.y()}});
-        labelsVertices.push_back(
-            {labelPos, labelColor, Vec2f{1.0f, 0.0f}, Vec2f{0.5f * labelSize.x(), labelSize.y()}});
-        labelsIndices.push_back(baseVertexIdx + 0);
-        labelsIndices.push_back(baseVertexIdx + 1);
-        labelsIndices.push_back(baseVertexIdx + 2);
-        labelsIndices.push_back(baseVertexIdx + 0);
-        labelsIndices.push_back(baseVertexIdx + 2);
-        labelsIndices.push_back(baseVertexIdx + 3);
-    }
-    labelsVertexBuffer = CreateBuffer(
-        device,
-        BufferDesc{labelsVertices.size() * sizeof(labelsVertices[0]), D3D11_BIND_VERTEX_BUFFER},
-        {labelsVertices.data()});
-    labelsIndexBuffer = CreateBuffer(
-        device,
-        BufferDesc{labelsIndices.size() * sizeof(labelsIndices[0]), D3D11_BIND_INDEX_BUFFER},
-        {labelsIndices.data()});
-    labelFlagpolesVertexBuffer = CreateBuffer(
-        device, BufferDesc{labelFlagpoleVertices.size() * sizeof(labelFlagpoleVertices[0]),
-                           D3D11_BIND_VERTEX_BUFFER},
-        {labelFlagpoleVertices.data()});
-
-    PipelineStateObjectDesc labelsDesc;
-    labelsDesc.vertexShader = "labelvs.hlsl";
-    labelsDesc.pixelShader = "labelps.hlsl";
-    labelsDesc.inputElementDescs = HeightFieldLabelVertexInputElementDescs;
-    labelsPipelineStateObject = pipelineStateObjectManager.get(labelsDesc);
-
-    PipelineStateObjectDesc labelFlagpolesDesc;
-    labelFlagpolesDesc.vertexShader = "labelflagpolevs.hlsl";
-    labelFlagpolesDesc.pixelShader = "labelflagpoleps.hlsl";
-    labelFlagpolesDesc.inputElementDescs = HeightFieldLabelFlagpoleVertexInputElementDescs;
-    labelFlagpolesDesc.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-    labelFlagpolePso = pipelineStateObjectManager.get(labelFlagpolesDesc);
+    loadTopographicFeaturesShapeFile();
+    generateLabels(geoTiff, device, context, pipelineStateObjectManager);
 
     loadCreeksShapeFile(geoTiff);
     generateCreeksTexture(dx11, device, context, pipelineStateObjectManager);
@@ -292,38 +223,6 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         IASetVertexBuffers(context, 0, {labelFlagpolesVertexBuffer.Get()},
                            {to<UINT>(sizeof(LabelFlagpoleVertex))});
         context->Draw(labelFlagpoleVertices.size(), 0);
-    }
-}
-
-auto shapeTypeToString(int shapeType) {
-    switch (shapeType) {
-        case SHPT_POINT:
-            return "SHPT_POINT"s;
-        case SHPT_ARC:
-            return "SHPT_ARC"s;
-        case SHPT_POLYGON:
-            return "SHPT_POLYGON"s;
-        case SHPT_MULTIPOINT:
-            return "SHPT_MULTIPOINT"s;
-        default:
-            return to_string(shapeType);
-    }
-}
-
-auto toString(DBFFieldType fieldType) {
-    switch (fieldType) {
-        case FTString:
-            return "FTString"s;
-        case FTInteger:
-            return "FTInteger"s;
-        case FTDouble:
-            return "FTDouble"s;
-        case FTLogical:
-            return "FTLogical"s;
-        case FTInvalid:
-            return "FTInvalid"s;
-        default:
-            return "Unrecognized"s;
     }
 }
 
@@ -380,7 +279,7 @@ private:
     unordered_map<string, DBFFieldInfo> fieldInfos;
 };
 
-void HeightField::loadShapeFile() {
+void HeightField::loadTopographicFeaturesShapeFile() {
     auto shapeFile = ShapeFile{R"(data\canvec_150528_015119_shp\to_1580009_0.shp)"};
 
     for (const auto& shape : shapeFile.getShapes()) {
@@ -389,6 +288,77 @@ void HeightField::loadShapeFile() {
         const auto latitude = float(*shape->padfY);
         topographicFeatures.push_back({Vec2f{latitude, longitude}, nameen});
     }
+}
+
+void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
+                                 ID3D11DeviceContext* context,
+                                 PipelineStateObjectManager& pipelineStateObjectManager) {
+    for (const auto& feature : topographicFeatures) {
+        topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
+        const auto& label = topographicFeatureLabels.back();
+        const auto labelPixelPos =
+            Vec2i{ geoTiff.latLongToPixXY(feature.latLong.x(), feature.latLong.y()) };
+        const auto labelSize = Vec2f{ label.getWidth(), label.getHeight() } *20.0f;
+        const auto radius = to<int>(0.5f * std::max(labelSize.x() / geoTiff.getGridStepMetersX(),
+            labelSize.x() / geoTiff.getGridStepMetersY()));
+        const auto top = labelPixelPos.y() - radius;
+        const auto left = labelPixelPos.x() - radius;
+        const auto bottom = labelPixelPos.y() + radius;
+        const auto right = labelPixelPos.x() + radius;
+        auto labelHeight = float(
+            geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.y(), labelPixelPos.x()}, 0, 0));
+        const auto topLeft = geoTiff.topLeftLatLong();
+        const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{ topLeft.x(), feature.latLong.y() });
+        const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{ feature.latLong.x(), topLeft.y() });
+        labelFlagpoleVertices.push_back({ Vec3f{ labelX, labelHeight - 1000.0f, labelZ } });
+        for (int y = top; y < bottom; ++y) {
+            for (int x = left; x < right; ++x) {
+                labelHeight = std::max(labelHeight,
+                    float(geoTiff.getHeightAt(gsl::index<2, int>{y, x}, 0, 0)));
+            }
+        }
+        labelHeight -= 1000.0f;
+        labelFlagpoleVertices.push_back({ Vec3f{ labelX, labelHeight, labelZ } });
+        const auto labelPos = Vec3f{ labelX, labelHeight, labelZ };
+        const auto labelColor = 0xffffffffu;
+        const auto baseVertexIdx = uint16_t(labelsVertices.size());
+        labelsVertices.push_back(
+        { labelPos, labelColor, Vec2f{ 1.0f, 1.0f }, Vec2f{ 0.5f * labelSize.x(), 0.0f } });
+        labelsVertices.push_back(
+        { labelPos, labelColor, Vec2f{ 0.0f, 1.0f }, Vec2f{ -0.5f * labelSize.x(), 0.0f } });
+        labelsVertices.push_back(
+        { labelPos, labelColor, Vec2f{ 0.0f, 0.0f }, Vec2f{ -0.5f * labelSize.x(), labelSize.y() } });
+        labelsVertices.push_back(
+        { labelPos, labelColor, Vec2f{ 1.0f, 0.0f }, Vec2f{ 0.5f * labelSize.x(), labelSize.y() } });
+        uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
+        for (auto& idx : indices) idx += baseVertexIdx;
+        labelsIndices.insert(end(labelsIndices), begin(indices), end(indices));
+    }
+    labelsVertexBuffer = CreateBuffer(
+        device,
+        BufferDesc{ labelsVertices.size() * sizeof(labelsVertices[0]), D3D11_BIND_VERTEX_BUFFER },
+        { labelsVertices.data() });
+    labelsIndexBuffer = CreateBuffer(
+        device,
+        BufferDesc{ labelsIndices.size() * sizeof(labelsIndices[0]), D3D11_BIND_INDEX_BUFFER },
+        { labelsIndices.data() });
+    labelFlagpolesVertexBuffer = CreateBuffer(
+        device, BufferDesc{ labelFlagpoleVertices.size() * sizeof(labelFlagpoleVertices[0]),
+        D3D11_BIND_VERTEX_BUFFER },
+        { labelFlagpoleVertices.data() });
+
+    PipelineStateObjectDesc labelsDesc;
+    labelsDesc.vertexShader = "labelvs.hlsl";
+    labelsDesc.pixelShader = "labelps.hlsl";
+    labelsDesc.inputElementDescs = HeightFieldLabelVertexInputElementDescs;
+    labelsPipelineStateObject = pipelineStateObjectManager.get(labelsDesc);
+
+    PipelineStateObjectDesc labelFlagpolesDesc;
+    labelFlagpolesDesc.vertexShader = "labelflagpolevs.hlsl";
+    labelFlagpolesDesc.pixelShader = "labelflagpoleps.hlsl";
+    labelFlagpolesDesc.inputElementDescs = HeightFieldLabelFlagpoleVertexInputElementDescs;
+    labelFlagpolesDesc.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+    labelFlagpolePso = pipelineStateObjectManager.get(labelFlagpolesDesc);
 }
 
 void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
