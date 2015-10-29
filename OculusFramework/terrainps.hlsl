@@ -19,7 +19,7 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
     float4 base = float4(0.66, 0.66, 0.66, 1.0);
     float creeks = Creeks.Sample(StandardTexture, TexCoord).r * terrainParameters.hydroLayerAlphas.b;
     float2 lakes = Lakes.Sample(StandardTexture, TexCoord).rg * terrainParameters.hydroLayerAlphas.rg;
-    float4 diffuse = lerp(lerp(lerp(base, float4(0.65f, 0.75f, 0.98f, 1.0f), creeks), float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g);
+    float4 diffuse = lerp(lerp(lerp(base, float4(0.45f, 0.55f, 0.78f, 1.0f), creeks), float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g);
 
     float2 normalTex = Normals.Sample(StandardTexture, TexCoord).xy;
     float3 normalFromTex = float3(normalTex.x, sqrt(saturate(1.0f - normalTex.x * normalTex.x - normalTex.y * normalTex.y)), normalTex.y);

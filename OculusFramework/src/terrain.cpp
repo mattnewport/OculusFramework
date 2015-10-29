@@ -582,9 +582,11 @@ void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
         ImGui::Checkbox("Show topographic feature labels", &renderLabels);
+        static bool showLakeOutlines = true;
+        ImGui::Checkbox("Show lake outlines", &showLakeOutlines);
+        terrainParameters.hydroLayerAlphas.x() = showLakeOutlines ? 1.0f : 0.0f;
         static bool showLakes = true;
         ImGui::Checkbox("Show lakes", &showLakes);
-        terrainParameters.hydroLayerAlphas.x() = showLakes ? 1.0f : 0.0f;
         terrainParameters.hydroLayerAlphas.y() = showLakes ? 1.0f : 0.0f;
         static bool showCreeks = true;
         ImGui::Checkbox("Show creeks", &showCreeks);
