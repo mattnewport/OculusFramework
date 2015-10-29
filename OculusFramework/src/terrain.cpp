@@ -72,8 +72,8 @@ public:
         assert(gtifDefinition.Model == ModelTypeGeographic);
 
         const auto topLeft = topLeftLatLong();
-        const auto topRight = pixToLatLong(tifWidth, 0);
-        const auto bottomLeft = pixToLatLong(0, tifHeight);
+        const auto topRight = pixXYToLatLong(tifWidth, 0);
+        const auto bottomLeft = pixXYToLatLong(0, tifHeight);
         widthMeters = latLongDist(topLeft, topRight);
         heightMeters = latLongDist(topLeft, bottomLeft);
     }
@@ -89,18 +89,18 @@ public:
         return gsl::as_array_view(heights.data(), gsl::dim<>(tifHeight), gsl::dim<>(tifWidth));
     }
     const auto& getGtifDefinition() const { return gtifDefinition; }
-    Vec2f pixToLatLong(int x, int y) const {
+    Vec2f pixXYToLatLong(int x, int y) const {
         double longitude = x;
         double latitude = y;
         if (!GTIFImageToPCS(gtif.get(), &longitude, &latitude))
             throw runtime_error{"Error converting pixel coordinates to lat/long."};
         return {static_cast<float>(latitude), static_cast<float>(longitude)};
     }
-    Vec2f topLeftLatLong() const { return pixToLatLong(0, 0); }
-    Vec2i latLongToPix(double latitude, double longitude) const {
+    Vec2f topLeftLatLong() const { return pixXYToLatLong(0, 0); }
+    Vec2f latLongToPixXY(double latitude, double longitude) const {
         if (!GTIFPCSToImage(gtif.get(), &longitude, &latitude))
             throw runtime_error{"Error converting pixel coordinates to lat/long."};
-        return {static_cast<int>(latitude), static_cast<int>(longitude)};
+        return {to<float>(longitude), to<float>(latitude)};
     }
 
     float latLongDist(const Vec2f& a, const Vec2f& b) const {
@@ -186,7 +186,8 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
     for (const auto& feature : topographicFeatures) {
         topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
         const auto& label = topographicFeatureLabels.back();
-        const auto labelPixelPos = geoTiff.latLongToPix(feature.latLong.x(), feature.latLong.y());
+        const auto labelPixelPos =
+            Vec2i{geoTiff.latLongToPixXY(feature.latLong.x(), feature.latLong.y())};
         const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 20.0f;
         const auto radius = to<int>(0.5f * std::max(labelSize.x() / geoTiff.getGridStepMetersX(),
                                                     labelSize.x() / geoTiff.getGridStepMetersY()));
@@ -195,7 +196,7 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
         const auto bottom = labelPixelPos.y() + radius;
         const auto right = labelPixelPos.x() + radius;
         auto labelHeight = float(
-            geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.x(), labelPixelPos.y()}, 0, 0));
+            geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.y(), labelPixelPos.x()}, 0, 0));
         const auto topLeft = geoTiff.topLeftLatLong();
         const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()});
         const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()});
@@ -203,7 +204,7 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
         for (int y = top; y < bottom; ++y) {
             for (int x = left; x < right; ++x) {
                 labelHeight = std::max(labelHeight,
-                                       float(geoTiff.getHeightAt(gsl::index<2, int>{x, y}, 0, 0)));
+                                       float(geoTiff.getHeightAt(gsl::index<2, int>{y, x}, 0, 0)));
             }
         }
         labelHeight -= 1000.0f;
@@ -447,8 +448,8 @@ void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
         auto arc = Arc{nameen, {vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}};
         for (size_t i = 0; i < arc.latLongs.size(); ++i) {
             arc.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
-            const auto pixelPos = geoTiff.latLongToPix(arc.latLongs[i].x(), arc.latLongs[i].y());
-            arc.pixPositions[i] = Vec2f{ float(pixelPos.y()), float(pixelPos.x()) };
+            const auto pixelPos = geoTiff.latLongToPixXY(arc.latLongs[i].x(), arc.latLongs[i].y());
+            arc.pixPositions[i] = Vec2f{ pixelPos };
         }
         creeks.push_back(arc);
     }
