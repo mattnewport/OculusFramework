@@ -27,6 +27,7 @@
 #include "../commonstructs.hlsli"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -326,135 +327,83 @@ auto toString(DBFFieldType fieldType) {
     }
 }
 
-struct DBFFieldInfo {
-    int index = 0;
-    DBFFieldType type = FTInvalid;
-    char name[12] = {};
-    int width = 0;
-    int decimals = 0;
-};
+class ShapeFile {
+public:
+    struct DBFFieldInfo {
+        int index = 0;
+        DBFFieldType type = FTInvalid;
+        char name[12] = {};
+        int width = 0;
+        int decimals = 0;
+    };
 
-void HeightField::loadShapeFile() {
-    const auto shapeHandle = unique_ptr<SHPInfo, void (*)(SHPHandle)>{
-        SHPOpen(
-            R"(data\canvec_150528_015119_shp\to_1580009_0.shp)", "rb"),
-        SHPClose};
+    ShapeFile(const char* filename) {
+        shapeHandle = {SHPOpen(filename, "rb"), SHPClose};
+        if (!shapeHandle) throw runtime_error{"Failed to open shapefile."};
+        auto numEntities = 0;
+        auto shapeType = 0;
+        auto minBounds = Vector<double, 4>{};
+        auto maxBounds = Vector<double, 4>{};
+        SHPGetInfo(shapeHandle.get(), &numEntities, &shapeType, minBounds.data(), maxBounds.data());
+        shapes.reserve(numEntities);
+        for (int i = 0; i < numEntities; ++i) {
+            shapes.emplace_back(SHPReadObject(shapeHandle.get(), i), SHPDestroyObject);
+        }
 
-    auto numEntities = 0;
-    auto shapeType = 0;
-    auto minBounds = Vector<double, 4>{};
-    auto maxBounds = Vector<double, 4>{};
-    SHPGetInfo(shapeHandle.get(), &numEntities, &shapeType, minBounds.data(), maxBounds.data());
-    stringstream info;
-    info << "numEntities: " << numEntities << ", "
-         << "shapeType: " << shapeTypeToString(shapeType) << ", minBounds: " << minBounds
-         << ", maxBounds: " << maxBounds << '\n';
-
-    using ShpObjectPtr = unique_ptr<SHPObject, void(*)(SHPObject*)>;
-    vector<ShpObjectPtr> shapes;
-    shapes.reserve(numEntities);
-    for (int i = 0; i < numEntities; ++i) {
-        shapes.emplace_back(SHPReadObject(shapeHandle.get(), i), SHPDestroyObject);
+        dbfHandle = {DBFOpen(filename, "rb"), DBFClose};
+        const auto dbfFieldCount = DBFGetFieldCount(dbfHandle.get());
+        const auto dbfRecordCount = DBFGetRecordCount(dbfHandle.get());
+        assert(dbfRecordCount == numEntities);
+        for (int i = 0; i < dbfFieldCount; ++i) {
+            auto fieldInfo = ShapeFile::DBFFieldInfo{};
+            fieldInfo.type = DBFGetFieldInfo(dbfHandle.get(), i, fieldInfo.name, &fieldInfo.width,
+                                             &fieldInfo.decimals);
+            fieldInfos[fieldInfo.name] = fieldInfo;
+        }
     }
 
-    const auto dbfHandle = unique_ptr<DBFInfo, void (*)(DBFHandle)>{
-        DBFOpen(
-            R"(data\canvec_150528_015119_shp\to_1580009_0.dbf)", "rb"),
-        DBFClose};
-    const auto dbfFieldCount = DBFGetFieldCount(dbfHandle.get());
-    const auto dbfRecordCount = DBFGetRecordCount(dbfHandle.get());
-    assert(dbfRecordCount == numEntities);
-    unordered_map<string, DBFFieldInfo> dbfFieldInfos;
-    for (int i = 0; i < dbfFieldCount; ++i) {
-        auto fieldInfo = DBFFieldInfo{};
-        fieldInfo.type = DBFGetFieldInfo(dbfHandle.get(), i, fieldInfo.name, &fieldInfo.width, &fieldInfo.decimals);
-        dbfFieldInfos[fieldInfo.name] = fieldInfo;
-        info << "DBF Field " << i << ": " << toString(fieldInfo.type) << ", " << fieldInfo.name
-             << ", width = " << fieldInfo.width << ", decimals = " << fieldInfo.decimals << '\n';
-    }
-
-    auto dbfReadString = [dbf = dbfHandle.get(), &dbfFieldInfos](int shapeId, const char* fieldName) {
-        const auto fieldIndex = DBFGetFieldIndex(dbf, fieldName);
-        assert(dbfFieldInfos[fieldName].type == FTString);
-        const auto fieldChars = DBFReadStringAttribute(dbf, shapeId, fieldIndex);
+    auto readString(int shapeId, const char* fieldName) {
+        assert(to<size_t>(shapeId) < shapes.size());
+        assert(fieldInfos[fieldName].type == FTString);
+        const auto fieldIndex = DBFGetFieldIndex(dbfHandle.get(), fieldName);
+        const auto fieldChars = DBFReadStringAttribute(dbfHandle.get(), shapeId, fieldIndex);
         return string{fieldChars};
     };
 
-    for (const auto& up : shapes) {
-        const auto id = dbfReadString(up->nShapeId, "id");
-        const auto nameid = dbfReadString(up->nShapeId, "nameid");
-        const auto geonamedb = dbfReadString(up->nShapeId, "geonamedb");
-        const auto nameen = dbfReadString(up->nShapeId, "nameen");
-        info << shapeTypeToString(up->nSHPType) << ", nShapeId: " << up->nShapeId
-             << ", nParts: " << up->nParts << ", id: " << id << ", nameid: " << nameid
-             << ", geonamedb: " << geonamedb << ", nameen: " << nameen << '\n';
+    const auto& getShapes() { return shapes; }
 
-        const auto longitude = float(*up->padfX);
-        const auto latitude = float(*up->padfY);
+private:
+    unique_ptr<SHPInfo, void (*)(SHPHandle)> shapeHandle = {nullptr, SHPClose};
+    using ShpObjectPtr = unique_ptr<SHPObject, void(*)(SHPObject*)>;
+    vector<ShpObjectPtr> shapes;
+    unique_ptr<DBFInfo, void (*)(DBFHandle)> dbfHandle{nullptr, DBFClose};
+    unordered_map<string, DBFFieldInfo> fieldInfos;
+};
+
+void HeightField::loadShapeFile() {
+    auto shapeFile = ShapeFile{R"(data\canvec_150528_015119_shp\to_1580009_0.shp)"};
+
+    for (const auto& shape : shapeFile.getShapes()) {
+        const auto nameen = shapeFile.readString(shape->nShapeId, "nameen");
+        const auto longitude = float(*shape->padfX);
+        const auto latitude = float(*shape->padfY);
         topographicFeatures.push_back({Vec2f{latitude, longitude}, nameen});
     }
-
-    OutputDebugStringA(info.str().c_str());
 }
 
 void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
-    const auto shapeHandle = unique_ptr<SHPInfo, void(*)(SHPHandle)>{
-        SHPOpen(
-        R"(data\canvec_150528_015119_shp\hd_1470009_1.shp)", "rb"),
-        SHPClose };
+    auto shapeFile = ShapeFile{R"(data\canvec_150528_015119_shp\hd_1470009_1.shp)"};
 
-    auto numEntities = 0;
-    auto shapeType = 0;
-    auto minBounds = Vector<double, 4>{};
-    auto maxBounds = Vector<double, 4>{};
-    SHPGetInfo(shapeHandle.get(), &numEntities, &shapeType, minBounds.data(), maxBounds.data());
-    stringstream info;
-    info << "numEntities: " << numEntities << ", "
-        << "shapeType: " << shapeTypeToString(shapeType) << ", minBounds: " << minBounds
-        << ", maxBounds: " << maxBounds << '\n';
-
-    using ShpObjectPtr = unique_ptr<SHPObject, void(*)(SHPObject*)>;
-    vector<ShpObjectPtr> shapes;
-    shapes.reserve(numEntities);
-    for (int i = 0; i < numEntities; ++i) {
-        shapes.emplace_back(SHPReadObject(shapeHandle.get(), i), SHPDestroyObject);
-    }
-
-    const auto dbfHandle = unique_ptr<DBFInfo, void(*)(DBFHandle)>{
-        DBFOpen(
-        R"(data\canvec_150528_015119_shp\hd_1470009_1.dbf)", "rb"),
-        DBFClose };
-    const auto dbfFieldCount = DBFGetFieldCount(dbfHandle.get());
-    const auto dbfRecordCount = DBFGetRecordCount(dbfHandle.get());
-    assert(dbfRecordCount == numEntities);
-    unordered_map<string, DBFFieldInfo> dbfFieldInfos;
-    for (int i = 0; i < dbfFieldCount; ++i) {
-        auto fieldInfo = DBFFieldInfo{};
-        fieldInfo.type = DBFGetFieldInfo(dbfHandle.get(), i, fieldInfo.name, &fieldInfo.width, &fieldInfo.decimals);
-        dbfFieldInfos[fieldInfo.name] = fieldInfo;
-        info << "DBF Field " << i << ": " << toString(fieldInfo.type) << ", " << fieldInfo.name
-            << ", width = " << fieldInfo.width << ", decimals = " << fieldInfo.decimals << '\n';
-    }
-
-    auto dbfReadString = [dbf = dbfHandle.get(), &dbfFieldInfos](int shapeId, const char* fieldName) {
-        const auto fieldIndex = DBFGetFieldIndex(dbf, fieldName);
-        assert(dbfFieldInfos[fieldName].type == FTString);
-        const auto fieldChars = DBFReadStringAttribute(dbf, shapeId, fieldIndex);
-        return string{ fieldChars };
-    };
-
-    for (const auto& s : shapes) {
-        const auto nameen = dbfReadString(s->nShapeId, "nameen");
+    for (const auto& s : shapeFile.getShapes()) {
+        const auto nameen = shapeFile.readString(s->nShapeId, "nameen");
         auto arc = Arc{nameen, {vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}};
         for (size_t i = 0; i < arc.latLongs.size(); ++i) {
             arc.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
             const auto pixelPos = geoTiff.latLongToPixXY(arc.latLongs[i].x(), arc.latLongs[i].y());
-            arc.pixPositions[i] = Vec2f{ pixelPos };
+            arc.pixPositions[i] = Vec2f{pixelPos};
         }
         creeks.push_back(arc);
     }
-
-    OutputDebugStringA(info.str().c_str());
 }
 
 void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
