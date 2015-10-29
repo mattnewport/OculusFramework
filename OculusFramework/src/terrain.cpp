@@ -212,7 +212,7 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
     context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get(), lakesSrv.Get()});
+    PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesSrv.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
@@ -439,7 +439,7 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     OMSetRenderTargets(context, { creeksRtv.Get() });
     RSSetViewports(context, { { 0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
         0.0f, 1.0f } });
-    context->ClearRenderTargetView(creeksRtv.Get(), std::data({1.0f, 1.0f, 1.0f, 1.0f}));
+    context->ClearRenderTargetView(creeksRtv.Get(), std::data({0.0f, 0.0f, 0.0f, 0.0f}));
     for (const auto& c : creeks) {
         IASetVertexBuffers(context, 0u, { nullptr }, { 0u });
         {
@@ -501,15 +501,15 @@ void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
     ThrowOnFailure(d2d1Factory->CreateDxgiSurfaceRenderTarget(dxgiSurface1.Get(), props,
         d2d1Rt.ReleaseAndGetAddressOf()));
     ID2D1SolidColorBrushPtr brush;
-    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black),
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White),
         brush.ReleaseAndGetAddressOf()));
     ID2D1SolidColorBrushPtr fillBrush;
-    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray),
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::LightGray),
         fillBrush.ReleaseAndGetAddressOf()));
 
     d2d1Rt->BeginDraw();
     d2d1Rt->SetTransform(D2D1::IdentityMatrix());
-    d2d1Rt->Clear(D2D1::ColorF{ D2D1::ColorF::White });
+    d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
     for (const auto& c : lakes) {
         const auto numParts = to<int>(c.partStarts.size());
         ID2D1PathGeometryPtr pathGeometry;
