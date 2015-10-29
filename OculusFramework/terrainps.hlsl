@@ -1,5 +1,13 @@
 #include "lighting.hlsli"
 
+struct TerrainParameters {
+    float4 hydroLayerAlphas;
+};
+
+cbuffer TerrainConstantBuffer : register(b3) {
+    TerrainParameters terrainParameters;
+}
+
 Texture2D Texture : register(t2);
 Texture2D Normals : register(t3);
 Texture2D Creeks : register(t4);
@@ -9,10 +17,9 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
             in float2 TexCoord : TEXCOORD0, in float3 worldPos : TEXCOORD1, in float3 viewDir : TEXCOORD2) : SV_Target
 {
     float4 base = float4(0.66, 0.66, 0.66, 1.0);
-    float creeks = Creeks.Sample(StandardTexture, TexCoord).x;
-    float lakes = Lakes.Sample(StandardTexture, TexCoord).x;
-    float4 diffuse = lerp(lerp(base, float4(0.65f, 0.75f, 0.98f, 1.0f), creeks), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes);
-    diffuse = creeks;// lerp(base, float4(0.65f, 0.75f, 0.98f, 1.0f), lakes);
+    float creeks = Creeks.Sample(StandardTexture, TexCoord).r * terrainParameters.hydroLayerAlphas.b;
+    float2 lakes = Lakes.Sample(StandardTexture, TexCoord).rg * terrainParameters.hydroLayerAlphas.rg;
+    float4 diffuse = lerp(lerp(lerp(base, float4(0.65f, 0.75f, 0.98f, 1.0f), creeks), float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g);
 
     float2 normalTex = Normals.Sample(StandardTexture, TexCoord).xy;
     float3 normalFromTex = float3(normalTex.x, sqrt(saturate(1.0f - normalTex.x * normalTex.x - normalTex.y * normalTex.y)), normalTex.y);

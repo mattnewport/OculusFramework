@@ -195,6 +195,13 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
 
     loadLakesShapeFile(geoTiff);
     generateLakesTexture(dx11, device, context, pipelineStateObjectManager);
+
+    terrainParametersConstantBuffer = CreateBuffer(
+        device,
+        BufferDesc{ sizeof(TerrainParameters), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC }
+        .cpuAccessFlags(D3D11_CPU_ACCESS_WRITE),
+        "HeightField::terrainParametersConstantBuffer");
+    terrainParameters.hydroLayerAlphas = Vec4f{1.0f, 1.0f, 1.0f, 1.0f};
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
@@ -209,10 +216,18 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         memcpy(mapHandle.mappedSubresource().pData, &object, sizeof(object));
     }();
 
+    [this, &object, &dx11] {
+        auto mapHandle = MapHandle{ dx11.Context.Get(), terrainParametersConstantBuffer.Get(), 0,
+            D3D11_MAP_WRITE_DISCARD, 0 };
+        memcpy(mapHandle.mappedSubresource().pData, &terrainParameters, sizeof(terrainParameters));
+    }();
+
     VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
     context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    PSSetShaderResources(context, materialSRVOffset, {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesSrv.Get()});
+    PSSetConstantBuffers(context, 3, {terrainParametersConstantBuffer.Get()});
+    PSSetShaderResources(context, materialSRVOffset,
+                         {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesSrv.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
@@ -436,10 +451,10 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     auto pso = pipelineStateObjectManager.get(psod);
     dx11.applyState(*context, *pso.get());
     PSSetShaderResources(context, 0u, { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr });
+    context->ClearRenderTargetView(creeksRtv.Get(), std::data({0.0f, 0.0f, 0.0f, 0.0f}));
     OMSetRenderTargets(context, { creeksRtv.Get() });
     RSSetViewports(context, { { 0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
         0.0f, 1.0f } });
-    context->ClearRenderTargetView(creeksRtv.Get(), std::data({0.0f, 0.0f, 0.0f, 0.0f}));
     for (const auto& c : creeks) {
         IASetVertexBuffers(context, 0u, { nullptr }, { 0u });
         {
@@ -501,10 +516,10 @@ void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
     ThrowOnFailure(d2d1Factory->CreateDxgiSurfaceRenderTarget(dxgiSurface1.Get(), props,
         d2d1Rt.ReleaseAndGetAddressOf()));
     ID2D1SolidColorBrushPtr brush;
-    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White),
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red),
         brush.ReleaseAndGetAddressOf()));
     ID2D1SolidColorBrushPtr fillBrush;
-    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::LightGray),
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Lime),
         fillBrush.ReleaseAndGetAddressOf()));
 
     d2d1Rt->BeginDraw();
@@ -530,7 +545,7 @@ void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
             geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
         }
         geometrySink->Close();
-        d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 5.0f);
+        d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
         d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
     }
     d2d1Rt->EndDraw();
@@ -567,6 +582,13 @@ void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
         ImGui::Checkbox("Show topographic feature labels", &renderLabels);
+        static bool showLakes = true;
+        ImGui::Checkbox("Show lakes", &showLakes);
+        terrainParameters.hydroLayerAlphas.x() = showLakes ? 1.0f : 0.0f;
+        terrainParameters.hydroLayerAlphas.y() = showLakes ? 1.0f : 0.0f;
+        static bool showCreeks = true;
+        ImGui::Checkbox("Show creeks", &showCreeks);
+        terrainParameters.hydroLayerAlphas.z() = showCreeks ? 1.0f : 0.0f;
     }
 }
 

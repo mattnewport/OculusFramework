@@ -107,6 +107,11 @@ private:
     ID3D11Texture2DPtr lakesTex;
     ID3D11ShaderResourceViewPtr lakesSrv;
 
+    struct TerrainParameters {
+        mathlib::Vec4f hydroLayerAlphas;
+    } terrainParameters;
+    ID3D11BufferPtr terrainParametersConstantBuffer;
+
     int heightFieldWidth = 0;
     int heightFieldHeight = 0;
 };
