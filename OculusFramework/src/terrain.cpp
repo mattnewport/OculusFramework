@@ -27,16 +27,21 @@
 #include "../commonstructs.hlsli"
 
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <unordered_map>
 
+#include <d2d1.h>
+
 using namespace std;
 
 using namespace mathlib;
 using namespace util;
+
+using ID2D1FactoryPtr = Microsoft::WRL::ComPtr<ID2D1Factory>;
+using ID2D1PathGeometryPtr = Microsoft::WRL::ComPtr<ID2D1PathGeometry>;
+using ID2D1GeometrySinkPtr = Microsoft::WRL::ComPtr<ID2D1GeometrySink>;
 
 class GeoTiff {
 public:
@@ -411,6 +416,7 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
         std::max_element(begin(creeks), end(creeks), [](const auto& x, const auto& y) {
         return x.latLongs.size() < y.latLongs.size();
     })->latLongs.size();
+
     ID3D11BufferPtr vb = CreateBuffer(
         device,
         BufferDesc{ longestArcLength * sizeof(Vec2f), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC }
@@ -466,9 +472,9 @@ void HeightField::generateLakesTexture(DirectX11& dx11, ID3D11Device* device,
     renderLakesTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
-void HeightField::renderLakesTexture(DirectX11& dx11, ID3D11Device* device,
+void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
     ID3D11DeviceContext* context,
-    PipelineStateObjectManager& pipelineStateObjectManager) {
+    PipelineStateObjectManager& /*pipelineStateObjectManager*/) {
     ID3D11Texture2DPtr tex = CreateTexture2D(
         device, Texture2DDesc{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
         to<UINT>(heightFieldHeight) }
@@ -478,54 +484,56 @@ void HeightField::renderLakesTexture(DirectX11& dx11, ID3D11Device* device,
         "HeightField::lakes render target texture");
     ID3D11RenderTargetViewPtr lakesRtv =
         CreateRenderTargetView(device, tex.Get(), "HeightField::lakes texture rtv");
-    const auto longestArcLength =
-        std::max_element(begin(lakes), end(lakes), [](const auto& x, const auto& y) {
-        return x.latLongs.size() < y.latLongs.size();
-    })->latLongs.size();
-    ID3D11BufferPtr vb = CreateBuffer(
-        device,
-        BufferDesc{ longestArcLength * sizeof(Vec2f), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC }
-        .cpuAccessFlags(D3D11_CPU_ACCESS_WRITE),
-        __func__);
-    struct Vertex2D {
-        Vec2f position;
-    };
-    const auto Vertex2DInputElementDescs = { MAKE_INPUT_ELEMENT_DESC(Vertex2D, position) };
-    PipelineStateObjectDesc psod{};
-    psod.vertexShader = "simple2dvs.hlsl";
-    psod.pixelShader = "simple2dps.hlsl";
-    psod.inputElementDescs = Vertex2DInputElementDescs;
-    psod.depthStencilState = DepthStencilDesc{}.depthEnable(FALSE);
-    psod.rasterizerState = RasterizerDesc{}.multisampleEnable(TRUE).antialiasedLineEnable(TRUE);
-    psod.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
-    auto pso = pipelineStateObjectManager.get(psod);
-    dx11.applyState(*context, *pso.get());
-    PSSetShaderResources(context, 0u, { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr });
-    OMSetRenderTargets(context, { lakesRtv.Get() });
-    RSSetViewports(context, { { 0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
-        0.0f, 1.0f } });
-    context->ClearRenderTargetView(lakesRtv.Get(), std::data({ 1.0f, 1.0f, 1.0f, 1.0f }));
-    for (const auto& c : lakes) {
-        IASetVertexBuffers(context, 0u, { nullptr }, { 0u });
-        {
-            MapHandle vbh{ context, vb.Get() };
-            std::transform(begin(c.pixPositions), end(c.pixPositions),
-                std::raw_storage_iterator<Vec2f*, Vec2f>{
-                reinterpret_cast<Vec2f*>(vbh.mappedSubresource().pData)},
-                [this](const auto& pp) {
-                    return 2.0f * Vec2f{ pp.x() / heightFieldWidth, 1.0f - pp.y() / heightFieldHeight } -Vec2f{ 1.0f };
-                });
-        }
-        IASetVertexBuffers(context, 0u, { vb.Get() }, { to<UINT>(sizeof(Vertex2D)) });
 
+    IDXGIResource1Ptr dxgiResource1;
+    ThrowOnFailure(tex.As(&dxgiResource1));
+    IDXGISurface2Ptr dxgiSurface2;
+    ThrowOnFailure(dxgiResource1->CreateSubresourceSurface(0, dxgiSurface2.ReleaseAndGetAddressOf()));
+    IDXGISurface1Ptr dxgiSurface1;
+    ThrowOnFailure(dxgiSurface2.As(&dxgiSurface1));
+    const auto props = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_DEFAULT,
+        D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+
+    ID2D1FactoryPtr d2d1Factory;
+    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
+    ID2D1RenderTargetPtr d2d1Rt;
+    ThrowOnFailure(d2d1Factory->CreateDxgiSurfaceRenderTarget(dxgiSurface1.Get(), props,
+        d2d1Rt.ReleaseAndGetAddressOf()));
+    ID2D1SolidColorBrushPtr brush;
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black),
+        brush.ReleaseAndGetAddressOf()));
+    ID2D1SolidColorBrushPtr fillBrush;
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray),
+        fillBrush.ReleaseAndGetAddressOf()));
+
+    d2d1Rt->BeginDraw();
+    d2d1Rt->SetTransform(D2D1::IdentityMatrix());
+    d2d1Rt->Clear(D2D1::ColorF{ D2D1::ColorF::White });
+    for (const auto& c : lakes) {
         const auto numParts = to<int>(c.partStarts.size());
+        ID2D1PathGeometryPtr pathGeometry;
+        ThrowOnFailure(d2d1Factory->CreatePathGeometry(pathGeometry.ReleaseAndGetAddressOf()));
+        ID2D1GeometrySinkPtr geometrySink;
+        ThrowOnFailure(pathGeometry->Open(geometrySink.ReleaseAndGetAddressOf()));
         for (int i = 0; i < numParts; ++i) {
             const auto startIndex = c.partStarts[i];
-            const auto endIndex = i + 1 < numParts ? c.partStarts[i + 1] : c.pixPositions.size();
-            context->Draw(endIndex - startIndex, startIndex);
+            const auto startEndPoint = c.pixPositions[startIndex];
+            geometrySink->BeginFigure(D2D1::Point2F(startEndPoint.x(), startEndPoint.y()),
+                                      D2D1_FIGURE_BEGIN_FILLED);
+            const auto endIndex =
+                i + 1 < numParts ? c.partStarts[i + 1] : to<int>(c.pixPositions.size());
+            for (int j = startIndex + 1; j < endIndex; ++j) {
+                const auto point = c.pixPositions[j];
+                geometrySink->AddLine(D2D1::Point2F(point.x(), point.y()));
+            }
+            geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
         }
+        geometrySink->Close();
+        d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 5.0f);
+        d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
     }
-    OMSetRenderTargets(context, { nullptr });
+    d2d1Rt->EndDraw();
     context->ResolveSubresource(lakesTex.Get(), 0, tex.Get(), 0, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     context->GenerateMips(lakesSrv.Get());
 }

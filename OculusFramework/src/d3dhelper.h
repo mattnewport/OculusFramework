@@ -14,6 +14,7 @@
 #include <wrl/client.h>
 
 #include <d3d11_1.h>
+#include <dxgi1_2.h>
 #include <d3dcompiler.h>
 
 #pragma warning(push)
@@ -26,9 +27,9 @@ using ID3D11BufferPtr = Microsoft::WRL::ComPtr<ID3D11Buffer>;
 using ID3D11DebugPtr = Microsoft::WRL::ComPtr<ID3D11Debug>;
 using ID3D11DepthStencilStatePtr = Microsoft::WRL::ComPtr<ID3D11DepthStencilState>;
 using ID3D11DepthStencilViewPtr = Microsoft::WRL::ComPtr<ID3D11DepthStencilView>;
-using ID3D11DevicePtr = Microsoft::WRL::ComPtr<ID3D11Device>;
 using ID3D11DeviceChildPtr = Microsoft::WRL::ComPtr<ID3D11DeviceChild>;
 using ID3D11DeviceContextPtr = Microsoft::WRL::ComPtr<ID3D11DeviceContext>;
+using ID3D11DevicePtr = Microsoft::WRL::ComPtr<ID3D11Device>;
 using ID3D11InputLayoutPtr = Microsoft::WRL::ComPtr<ID3D11InputLayout>;
 using ID3D11PixelShaderPtr = Microsoft::WRL::ComPtr<ID3D11PixelShader>;
 using ID3D11RasterizerStatePtr = Microsoft::WRL::ComPtr<ID3D11RasterizerState>;
@@ -43,6 +44,8 @@ using ID3DBlobPtr = Microsoft::WRL::ComPtr<ID3DBlob>;
 using IDXGIAdapter1Ptr = Microsoft::WRL::ComPtr<IDXGIAdapter1>;
 using IDXGIDevice1Ptr = Microsoft::WRL::ComPtr<IDXGIDevice1>;
 using IDXGIFactory1Ptr = Microsoft::WRL::ComPtr<IDXGIFactory1>;
+using IDXGIResource1Ptr = Microsoft::WRL::ComPtr<IDXGIResource1>;
+using IDXGISurface2Ptr = Microsoft::WRL::ComPtr<IDXGISurface2>;
 using IDXGISwapChainPtr = Microsoft::WRL::ComPtr<IDXGISwapChain>;
 
 void ThrowOnFailure(HRESULT hr);

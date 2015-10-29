@@ -9,9 +9,6 @@
 using namespace std;
 using namespace util;
 
-using IDXGIResource1Ptr = Microsoft::WRL::ComPtr<IDXGIResource1>;
-using IDXGISurface2Ptr = Microsoft::WRL::ComPtr<IDXGISurface2>;
-
 Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* labelText) {
     IDWriteFactoryPtr dwriteFactory;
     ThrowOnFailure(
