@@ -35,9 +35,7 @@ Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* lab
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
     DrawToRenderTargetTexture(
         d2d1Factory.Get(), tex.Get(), [this, textLayout](ID2D1Factory*, ID2D1RenderTarget* d2d1Rt) {
-            ID2D1SolidColorBrushPtr brush;
-            ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black),
-                                                         brush.ReleaseAndGetAddressOf()));
+            auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Black));
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
             d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::White});
             d2d1Rt->DrawTextLayout({0.0f, 0.0f}, textLayout.Get(), brush.Get());

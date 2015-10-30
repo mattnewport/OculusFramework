@@ -513,21 +513,15 @@ void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
     DrawToRenderTargetTexture(d2d1Factory.Get(), renderTex.Get(), 
         [&lakes = this->lakes](ID2D1Factory* factory, ID2D1RenderTarget * d2d1Rt) {
-        ID2D1SolidColorBrushPtr brush;
-        ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red),
-                                                     brush.ReleaseAndGetAddressOf()));
-        ID2D1SolidColorBrushPtr fillBrush;
-        ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Lime),
-                                                     fillBrush.ReleaseAndGetAddressOf()));
+        auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Red));
+        auto fillBrush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Lime));
 
         d2d1Rt->SetTransform(D2D1::IdentityMatrix());
         d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
         for (const auto& c : lakes) {
             const auto numParts = to<int>(c.partStarts.size());
-            ID2D1PathGeometryPtr pathGeometry;
-            ThrowOnFailure(factory->CreatePathGeometry(pathGeometry.ReleaseAndGetAddressOf()));
-            ID2D1GeometrySinkPtr geometrySink;
-            ThrowOnFailure(pathGeometry->Open(geometrySink.ReleaseAndGetAddressOf()));
+            auto pathGeometry = CreatePathGeometry(factory);
+            auto geometrySink = Open(pathGeometry.Get());
             for (int i = 0; i < numParts; ++i) {
                 const auto startIndex = c.partStarts[i];
                 const auto startEndPoint = c.pixPositions[startIndex];

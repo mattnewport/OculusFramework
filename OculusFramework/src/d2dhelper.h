@@ -16,6 +16,24 @@ using IDWriteFactoryPtr = Microsoft::WRL::ComPtr<IDWriteFactory>;
 using IDWriteTextFormatPtr = Microsoft::WRL::ComPtr<IDWriteTextFormat>;
 using IDWriteTextLayoutPtr = Microsoft::WRL::ComPtr<IDWriteTextLayout>;
 
+inline auto CreateSolidColorBrush(ID2D1RenderTarget* d2d1Rt, const D2D1_COLOR_F& color) {
+    ID2D1SolidColorBrushPtr res;
+    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(color, res.ReleaseAndGetAddressOf()));
+    return res;
+}
+
+inline auto CreatePathGeometry(ID2D1Factory* factory) {
+    ID2D1PathGeometryPtr res;
+    ThrowOnFailure(factory->CreatePathGeometry(res.ReleaseAndGetAddressOf()));
+    return res;
+}
+
+inline auto Open(ID2D1PathGeometry* pathGeometry) {
+    ID2D1GeometrySinkPtr res;
+    ThrowOnFailure(pathGeometry->Open(&res));
+    return res;
+}
+
 inline void DrawToRenderTargetTexture(
     ID2D1Factory* d2d1Factory, ID3D11Texture2DPtr renderTargetTex,
     std::function<void(ID2D1Factory*, ID2D1RenderTarget*)> drawFunction) {
