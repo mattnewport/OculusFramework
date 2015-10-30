@@ -488,10 +488,10 @@ void HeightField::renderLakesTexture(ID3D11DeviceContext* context) {
             auto fillBrush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Lime));
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
             d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
+            auto pathGeometry = CreatePathGeometry(factory);
+            auto geometrySink = Open(pathGeometry.Get());
             for (const auto& c : lakes) {
                 const auto numParts = to<int>(c.partStarts.size());
-                auto pathGeometry = CreatePathGeometry(factory);
-                auto geometrySink = Open(pathGeometry.Get());
                 for (int i = 0; i < numParts; ++i) {
                     const auto startIndex = c.partStarts[i];
                     const auto startEndPoint = c.pixPositions[startIndex];
@@ -505,10 +505,10 @@ void HeightField::renderLakesTexture(ID3D11DeviceContext* context) {
                     }
                     geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
                 }
-                geometrySink->Close();
-                d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
-                d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
             }
+            geometrySink->Close();
+            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
+            d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
         });
 
     context->GenerateMips(lakesSrv.Get());
