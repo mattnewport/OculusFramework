@@ -561,6 +561,21 @@ inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
     return res;
 }
 
+template <typename Vertex>
+inline auto CreateVertexBuffer(ID3D11Device* device, gsl::array_view<const Vertex> verts,
+                               gsl::cstring_view<> name = {}) {
+    return CreateBuffer(device, BufferDesc{verts.size() * sizeof(Vertex), D3D11_BIND_VERTEX_BUFFER},
+                        {verts.data()}, name);
+}
+
+template <typename Index>
+inline auto CreateIndexBuffer(ID3D11Device* device, gsl::array_view<const Index> indices,
+                              gsl::cstring_view<> name = {}) {
+    static_assert(std::is_same<Index, uint32_t>{} || std::is_same<Index, uint16_t>{}, "");
+    return CreateBuffer(device, BufferDesc{indices.size() * sizeof(Index), D3D11_BIND_INDEX_BUFFER},
+                        {indices.data()}, name);
+}
+
 inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource,
                                      const D3D11_SHADER_RESOURCE_VIEW_DESC& desc,
                                      gsl::cstring_view<> name = {}) {

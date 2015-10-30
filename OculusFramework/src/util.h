@@ -74,4 +74,10 @@ constexpr int to<int, double>(double x) noexcept {
 
 std::string narrow(gsl::cwstring_view<> x);
 std::wstring widen(gsl::cstring_view<> x);
+
+template<typename Cont>
+constexpr auto const_array_view(const Cont& cont) {
+    return gsl::array_view<const typename Cont::value_type>{gsl::as_array_view(cont)};
+}
+
 }

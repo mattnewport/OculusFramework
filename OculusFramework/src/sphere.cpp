@@ -103,13 +103,8 @@ void Sphere::GenerateVerts(ID3D11Device& device,
     indexCount = indices.size();
 
     // Generate buffers
-    vb =
-        CreateBuffer(&device, BufferDesc{verts.size() * sizeof(verts[0]), D3D11_BIND_VERTEX_BUFFER},
-                     D3D11_SUBRESOURCE_DATA{verts.data()});
-
-    ib = CreateBuffer(&device,
-                      BufferDesc{indices.size() * sizeof(indices[0]), D3D11_BIND_INDEX_BUFFER},
-                      D3D11_SUBRESOURCE_DATA{indices.data()});
+    vb = CreateVertexBuffer(&device, const_array_view(verts));
+    ib = CreateIndexBuffer(&device, const_array_view(indices));
 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "spherevs.hlsl";

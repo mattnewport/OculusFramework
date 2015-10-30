@@ -384,18 +384,10 @@ void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
         for (auto& idx : indices) idx += baseVertexIdx;
         labelsIndices.insert(end(labelsIndices), begin(indices), end(indices));
     }
-    labelsVertexBuffer = CreateBuffer(
-        device,
-        BufferDesc{labelsVertices.size() * sizeof(labelsVertices[0]), D3D11_BIND_VERTEX_BUFFER},
-        {labelsVertices.data()});
-    labelsIndexBuffer = CreateBuffer(
-        device,
-        BufferDesc{labelsIndices.size() * sizeof(labelsIndices[0]), D3D11_BIND_INDEX_BUFFER},
-        {labelsIndices.data()});
-    labelFlagpolesVertexBuffer = CreateBuffer(
-        device, BufferDesc{labelFlagpoleVertices.size() * sizeof(labelFlagpoleVertices[0]),
-                           D3D11_BIND_VERTEX_BUFFER},
-        {labelFlagpoleVertices.data()});
+    labelsVertexBuffer = CreateVertexBuffer(device, const_array_view(labelsVertices));
+    labelsIndexBuffer = CreateIndexBuffer(device, const_array_view(labelsIndices));
+    labelFlagpolesVertexBuffer =
+        CreateVertexBuffer(device, const_array_view(labelFlagpoleVertices));
 
     PipelineStateObjectDesc labelsDesc;
     labelsDesc.vertexShader = "labelvs.hlsl";
@@ -693,9 +685,7 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
         const auto br = uint16_t(tr + (blockSize + 1));
         Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
     }
-    IndexBuffer = CreateBuffer(
-        device, BufferDesc{Indices.size() * sizeof(Indices[0]), D3D11_BIND_INDEX_BUFFER},
-        {Indices.data()});
+    IndexBuffer = CreateIndexBuffer(device, const_array_view(Indices));
 
     const auto uvStepX = 1.0f / geoTiff.getTiffWidth();
     const auto uvStepY = 1.0f / geoTiff.getTiffHeight();
@@ -716,9 +706,7 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                         {(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY}};
                 }
             }
-            VertexBuffers.push_back(CreateBuffer(
-                device, BufferDesc{vertices.size() * sizeof(vertices[0]), D3D11_BIND_VERTEX_BUFFER},
-                {vertices.data()}));
+            VertexBuffers.push_back(CreateVertexBuffer(device, const_array_view(vertices)));
         }
     }
 }

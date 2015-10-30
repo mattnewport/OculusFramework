@@ -16,14 +16,11 @@
 using namespace std;
 
 using namespace mathlib;
+using namespace util;
 
 void Model::AllocateBuffers(ID3D11Device* device) {
-    VertexBuffer = CreateBuffer(
-        device, BufferDesc{Vertices.size() * sizeof(Vertices[0]), D3D11_BIND_VERTEX_BUFFER},
-        {Vertices.data()});
-    IndexBuffer = CreateBuffer(
-        device, BufferDesc{Indices.size() * sizeof(Indices[0]), D3D11_BIND_INDEX_BUFFER},
-        {Indices.data()});
+    VertexBuffer = CreateVertexBuffer(device, const_array_view(Vertices));
+    IndexBuffer = CreateIndexBuffer(device, const_array_view(Indices));
 
     objectConstantBuffer = CreateBuffer(
         device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
