@@ -405,6 +405,10 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
                 Yaw += -0.04f * rs.x();
                 pos += Vec4f{0.05f * ls.x(), 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
+                roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
+                                                        0.00002f * gp.bLeftTrigger);
+                roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() -
+                                                        0.00002f * gp.bRightTrigger);
             }
         }
 

@@ -3,6 +3,7 @@
 #include "label.h"
 #include "Win32_DX11AppUtil.h"
 
+#include "mathconstants.h"
 #include "vector.h"
 #include "matrix.h"
 
@@ -32,9 +33,17 @@ struct HeightField {
 
     void showGui();
 
+    float getRotationAngle() const { return rotationAngle; }
+    void setRotationAngle(float x) {
+        rotationAngle = x < 0.0f ? x + 2.0f * mathlib::pif
+                                 : x > 2.0f * mathlib::pif ? x - 2.0f * mathlib::pif : x;
+    }
+
 private:
     const mathlib::Mat4f& GetMatrix() {
-        return Mat = midElevationOffset * mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) *
+        using namespace mathlib;
+        Rot = QuaternionFromAxisAngle<float>(basisVector<Vec3f>(Y), rotationAngle);
+        return Mat = midElevationOffset * scaleMat4f(scale) * Mat4FromQuat(Rot) *
                      translationMat4f(Pos);
     }
     void generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff);
@@ -62,6 +71,7 @@ private:
     mathlib::Quatf Rot;
     mathlib::Mat4f Mat;
     mathlib::Mat4f midElevationOffset = mathlib::identityMatrix<mathlib::Mat4f>();
+    float rotationAngle = 0.0f;
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
