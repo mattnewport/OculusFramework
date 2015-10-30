@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 class GeoTiff;
 
@@ -70,9 +71,12 @@ private:
     void renderLakesTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                             PipelineStateObjectManager& pipelineStateObjectManager);
 
+    std::unordered_map<int, std::string> initConciscodeNameMap();
+
     struct LabeledPoint {
         mathlib::Vec2f latLong;
         std::string label;
+        int conciscode;
     };
 
     mathlib::Vec3f Pos;
@@ -105,6 +109,8 @@ private:
     ID3D11BufferPtr labelFlagpolesVertexBuffer;
     PipelineStateObjectManager::ResourceHandle labelFlagpolePso;
     bool renderLabels = true;
+    std::unordered_map<int, std::string> conciscodeNameMap = initConciscodeNameMap();
+    std::unordered_map<int, bool> displayedConciscodes;
 
     struct Arc {
         std::string name;

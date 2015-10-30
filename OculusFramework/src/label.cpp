@@ -18,7 +18,7 @@ Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* lab
     IDWriteTextFormatPtr textFormat;
     ThrowOnFailure(dwriteFactory->CreateTextFormat(
         L"Calibri", nullptr, DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL, 24.0f, L"en-us", textFormat.ReleaseAndGetAddressOf()));
+        DWRITE_FONT_STRETCH_NORMAL, 36.0f, L"en-us", textFormat.ReleaseAndGetAddressOf()));
     const auto text = widen(gsl::ensure_z(labelText));
     IDWriteTextLayoutPtr textLayout;
     ThrowOnFailure(dwriteFactory->CreateTextLayout(text.c_str(), text.size(), textFormat.Get(),

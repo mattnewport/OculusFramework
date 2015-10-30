@@ -62,6 +62,14 @@ constexpr int to<int, float>(float x) noexcept {
                : x < std::numeric_limits<int>::min() ? throw std::invalid_argument{""}
                                                      : static_cast<uint32_t>(x);
 }
+
+template <>
+constexpr int to<int, double>(double x) noexcept {
+    return x > std::numeric_limits<int>::max()
+               ? throw std::invalid_argument{""}
+               : x < std::numeric_limits<int>::min() ? throw std::invalid_argument{""}
+                                                     : static_cast<uint32_t>(x);
+}
 #pragma warning(pop)
 
 std::string narrow(gsl::cwstring_view<> x);

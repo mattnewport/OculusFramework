@@ -248,8 +248,10 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         context->IASetIndexBuffer(labelsIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
         IASetVertexBuffers(context, 0, {labelsVertexBuffer.Get()}, {to<UINT>(sizeof(LabelVertex))});
         for (auto i = 0u; i < topographicFeatureLabels.size(); ++i) {
-            PSSetShaderResources(context, materialSRVOffset, {topographicFeatureLabels[i].srv()});
-            context->DrawIndexed(6, i * 6, 0);
+            if (displayedConciscodes[topographicFeatures[i].conciscode]) {
+                PSSetShaderResources(context, materialSRVOffset, { topographicFeatureLabels[i].srv() });
+                context->DrawIndexed(6, i * 6, 0);
+            }
         }
 
         dx11.applyState(*context, *labelFlagpolePso.get());
@@ -303,6 +305,15 @@ public:
         return string{fieldChars};
     };
 
+    auto readDouble(int shapeId, const char* fieldName) {
+        assert(to<size_t>(shapeId) < shapes.size());
+        assert(fieldInfos.find(fieldName) != end(fieldInfos) &&
+               fieldInfos[fieldName].type == FTDouble);
+        const auto fieldIndex = DBFGetFieldIndex(dbfHandle.get(), fieldName);
+        const auto fieldValue = DBFReadDoubleAttribute(dbfHandle.get(), shapeId, fieldIndex);
+        return fieldValue;
+    }
+
     const auto& getShapes() { return shapes; }
 
 private:
@@ -320,7 +331,9 @@ void HeightField::loadTopographicFeaturesShapeFile() {
         const auto nameen = shapeFile.readString(shape->nShapeId, "nameen");
         const auto longitude = float(*shape->padfX);
         const auto latitude = float(*shape->padfY);
-        topographicFeatures.push_back({Vec2f{latitude, longitude}, nameen});
+        const auto conciscode = to<int>(shapeFile.readDouble(shape->nShapeId, "conciscode"));
+        displayedConciscodes[conciscode] = true;
+        topographicFeatures.push_back({Vec2f{latitude, longitude}, nameen, conciscode});
     }
 }
 
@@ -331,10 +344,10 @@ void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
         topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
         const auto& label = topographicFeatureLabels.back();
         const auto labelPixelPos =
-            Vec2i{ geoTiff.latLongToPixXY(feature.latLong.x(), feature.latLong.y()) };
-        const auto labelSize = Vec2f{ label.getWidth(), label.getHeight() } *20.0f;
+            Vec2i{geoTiff.latLongToPixXY(feature.latLong.x(), feature.latLong.y())};
+        const auto labelSize = Vec2f{label.getWidth(), label.getHeight()} * 15.0f;
         const auto radius = to<int>(0.5f * std::max(labelSize.x() / geoTiff.getGridStepMetersX(),
-            labelSize.x() / geoTiff.getGridStepMetersY()));
+                                                    labelSize.x() / geoTiff.getGridStepMetersY()));
         const auto top = labelPixelPos.y() - radius;
         const auto left = labelPixelPos.x() - radius;
         const auto bottom = labelPixelPos.y() + radius;
@@ -352,37 +365,37 @@ void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
         for (int y = top; y < bottom; ++y) {
             for (int x = left; x < right; ++x) {
                 labelHeight = std::max(labelHeight,
-                    float(geoTiff.getHeightAt(gsl::index<2, int>{y, x}, 0, 0)));
+                                       float(geoTiff.getHeightAt(gsl::index<2, int>{y, x}, 0, 0)));
             }
         }
-        labelFlagpoleVertices.push_back({ Vec3f{ labelX, labelHeight, labelZ } });
-        const auto labelPos = Vec3f{ labelX, labelHeight, labelZ };
+        labelFlagpoleVertices.push_back({Vec3f{labelX, labelHeight, labelZ}});
+        const auto labelPos = Vec3f{labelX, labelHeight, labelZ};
         const auto labelColor = 0xffffffffu;
         const auto baseVertexIdx = uint16_t(labelsVertices.size());
         labelsVertices.push_back(
-        { labelPos, labelColor, Vec2f{ 1.0f, 1.0f }, Vec2f{ 0.5f * labelSize.x(), 0.0f } });
+            {labelPos, labelColor, Vec2f{1.0f, 1.0f}, Vec2f{0.5f * labelSize.x(), 0.0f}});
         labelsVertices.push_back(
-        { labelPos, labelColor, Vec2f{ 0.0f, 1.0f }, Vec2f{ -0.5f * labelSize.x(), 0.0f } });
+            {labelPos, labelColor, Vec2f{0.0f, 1.0f}, Vec2f{-0.5f * labelSize.x(), 0.0f}});
         labelsVertices.push_back(
-        { labelPos, labelColor, Vec2f{ 0.0f, 0.0f }, Vec2f{ -0.5f * labelSize.x(), labelSize.y() } });
+            {labelPos, labelColor, Vec2f{0.0f, 0.0f}, Vec2f{-0.5f * labelSize.x(), labelSize.y()}});
         labelsVertices.push_back(
-        { labelPos, labelColor, Vec2f{ 1.0f, 0.0f }, Vec2f{ 0.5f * labelSize.x(), labelSize.y() } });
-        uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
+            {labelPos, labelColor, Vec2f{1.0f, 0.0f}, Vec2f{0.5f * labelSize.x(), labelSize.y()}});
+        uint16_t indices[] = {0, 1, 2, 0, 2, 3};
         for (auto& idx : indices) idx += baseVertexIdx;
         labelsIndices.insert(end(labelsIndices), begin(indices), end(indices));
     }
     labelsVertexBuffer = CreateBuffer(
         device,
-        BufferDesc{ labelsVertices.size() * sizeof(labelsVertices[0]), D3D11_BIND_VERTEX_BUFFER },
-        { labelsVertices.data() });
+        BufferDesc{labelsVertices.size() * sizeof(labelsVertices[0]), D3D11_BIND_VERTEX_BUFFER},
+        {labelsVertices.data()});
     labelsIndexBuffer = CreateBuffer(
         device,
-        BufferDesc{ labelsIndices.size() * sizeof(labelsIndices[0]), D3D11_BIND_INDEX_BUFFER },
-        { labelsIndices.data() });
+        BufferDesc{labelsIndices.size() * sizeof(labelsIndices[0]), D3D11_BIND_INDEX_BUFFER},
+        {labelsIndices.data()});
     labelFlagpolesVertexBuffer = CreateBuffer(
-        device, BufferDesc{ labelFlagpoleVertices.size() * sizeof(labelFlagpoleVertices[0]),
-        D3D11_BIND_VERTEX_BUFFER },
-        { labelFlagpoleVertices.data() });
+        device, BufferDesc{labelFlagpoleVertices.size() * sizeof(labelFlagpoleVertices[0]),
+                           D3D11_BIND_VERTEX_BUFFER},
+        {labelFlagpoleVertices.data()});
 
     PipelineStateObjectDesc labelsDesc;
     labelsDesc.vertexShader = "labelvs.hlsl";
@@ -607,6 +620,11 @@ void HeightField::showGui() {
         static bool showContours = false;
         ImGui::Checkbox("Show contours", &showContours);
         terrainParameters.contours = showContours ? 1.0f : 0.0f;
+        if (ImGui::CollapsingHeader("Topographic features")) {
+            for (auto& code : displayedConciscodes) {
+                ImGui::Checkbox(conciscodeNameMap[code.first].c_str(), &code.second);
+            }
+        }
     }
 }
 
@@ -703,4 +721,57 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 {vertices.data()}));
         }
     }
+}
+
+std::unordered_map<int, std::string> HeightField::initConciscodeNameMap() {
+    return std::unordered_map<int, string>{
+        {5, "Province"},
+        {7, "Territory"},
+        {10, "City"},
+        {20, "Town"},
+        {30, "Village"},
+        {40, "Hamlet"},
+        {45, "District municipality"},
+        {50, "Other municipal/district area - major agglomeration"},
+        {60, "Other municipal/district area - miscellaneous"},
+        {80, "Unincorporated area"},
+        {90, "Indian Reserve"},
+        {100, "Geographical area"},
+        {110, "Conservation area"},
+        {115, "Military area"},
+        {120, "River"},
+        {130, "River feature"},
+        {140, "Falls"},
+        {150, "Lake"},
+        {160, "Spring"},
+        {170, "Sea"},
+        {180, "Sea"},
+        {190, "Undersea feature"},
+        {200, "Channel"},
+        {210, "Rapids"},
+        {220, "Bay"},
+        {230, "Cape"},
+        {240, "Beach"},
+        {250, "Shoal"},
+        {260, "Island"},
+        {270, "Cliff"},
+        {280, "Mountain"},
+        {290, "Valley"},
+        {300, "Plain"},
+        {310, "Cave"},
+        {320, "Crater"},
+        {330, "Glacier"},
+        {340, "Forest"},
+        {350, "Low vegetation"},
+        {370, "Miscellaneous"},
+        {380, "Railway feature"},
+        {390, "Road feature"},
+        {400, "Air navigation feature"},
+        {410, "Marine navigation feature"},
+        {420, "Hydraulic construction"},
+        {430, "Recreational site"},
+        {440, "Natural resources site"},
+        {450, "Miscellaneous campsite"},
+        {460, "Miscellaneous site"},
+    };
 }

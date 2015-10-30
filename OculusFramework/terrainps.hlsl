@@ -17,7 +17,7 @@ Texture2D Lakes : register(t5);
 float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
             in float2 TexCoord : TEXCOORD0, in float3 worldPos : TEXCOORD1, in float3 viewDir : TEXCOORD2, in float3 objectPos : TEXCOORD3) : SV_Target
 {
-    float4 base = float4(0.66, 0.66, 0.66, 1.0);
+    float4 base = float4(0.66, 0.6, 0.6, 1.0);
     float creeks = Creeks.Sample(StandardTexture, TexCoord).r * terrainParameters.hydroLayerAlphas.b;
     float2 lakes = Lakes.Sample(StandardTexture, TexCoord).rg * terrainParameters.hydroLayerAlphas.rg;
     float4 diffuse = lerp(lerp(lerp(base, float4(0.45f, 0.55f, 0.78f, 1.0f), creeks), float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g);
@@ -25,7 +25,7 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
         float contour = objectPos.y / 100;
         contour = 0.1 - abs(round(contour) - contour);
         contour = smoothstep(0, 0.1, contour) * abs(1.5 - Position.z);
-        diffuse = lerp(diffuse, float4(0.05f, 0.05f, 0.05f, 1.0f), contour);
+        diffuse = lerp(diffuse, float4(0.5f, 0.15f, 0.05f, 1.0f), contour);
     }
 
     float2 normalTex = Normals.Sample(StandardTexture, TexCoord).xy;
