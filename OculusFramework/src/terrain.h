@@ -33,6 +33,11 @@ struct HeightField {
 
     void showGui();
 
+    bool toggleRenderLabels() { return renderLabels = !renderLabels; }
+
+    void setPosition(const mathlib::Vec3f& x) { Pos = x; }
+    auto getPosition() const { return Pos; }
+
     float getRotationAngle() const { return rotationAngle; }
     void setRotationAngle(float x) {
         rotationAngle = x < 0.0f ? x + 2.0f * mathlib::pif

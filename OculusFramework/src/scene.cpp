@@ -200,9 +200,6 @@ Scene::Scene(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* deviceC
                             Model::Color(128, 128, 128));  // Right Bars
     }
 
-    for (float f = 3.0f; f <= 6.6f; f += 0.4f)
-        m->AddSolidColorBox(-3, 0.0f, f, -2.9f, 1.3f, f + 0.1f, Model::Color(64, 64, 64));  // Posts
-
     m->AllocateBuffers(device);
 
     Add(move(m));

@@ -347,8 +347,8 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     Scene roomScene(DX11, DX11.Device.Get(), DX11.Context.Get(), *DX11.pipelineStateObjectManager,
                     DX11.texture2DManager);
 
-    float Yaw(3.141592f);  // Horizontal rotation of the player
-    Vec4f pos{0.0f, 1.6f, -5.0f, 1.0f};
+    auto playerYaw = 0.0f;
+    auto pos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
 
     // MAIN LOOP
     // =========
@@ -368,12 +368,12 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         }
 
         // Keyboard inputs to adjust player orientation
-        if (DX11.Key[VK_LEFT]) Yaw += 0.02f;
-        if (DX11.Key[VK_RIGHT]) Yaw -= 0.02f;
+        if (DX11.Key[VK_LEFT]) playerYaw += 0.02f;
+        if (DX11.Key[VK_RIGHT]) playerYaw -= 0.02f;
 
         // Keyboard inputs to adjust player position
         const auto speed = 1.0f;    // Can adjust the movement speed.
-        const auto rotationMat = rotationYMat4f(Yaw);
+        const auto rotationMat = rotationYMat4f(playerYaw);
         if (DX11.Key['W'] || DX11.Key[VK_UP])
             pos += Vec4f{0.0f, 0.0f, -0.05f, 0.0f} * speed * rotationMat;
         if (DX11.Key['S'] || DX11.Key[VK_DOWN])
@@ -384,7 +384,8 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         // gamepad inputs
         for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
             XINPUT_STATE state{};
-            if (SUCCEEDED(XInputGetState(i, &state))) {
+            const auto res = XInputGetState(i, &state);
+            if (res == ERROR_SUCCESS) {
                 auto handleDeadzone = [](float x, float y, float deadzone) {
                     const auto v = Vec2f{x, y};
                     const auto mag = magnitude(v);
@@ -402,9 +403,24 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                     handleDeadzone(gp.sThumbLX, gp.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
                 const auto rs =
                     handleDeadzone(gp.sThumbRX, gp.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+                const auto positionDelta = Vec3f{ls.x(), 0.0f, -ls.y()};
 
-                Yaw += -0.04f * rs.x();
-                pos += Vec4f{0.05f * ls.x(), 0.0f, -0.05f * ls.y(), 0.0f} * rotationMat;
+                static bool movePlayer = false;
+                static bool buttonBPressed = false;
+                if (gp.wButtons & XINPUT_GAMEPAD_B) {
+                    buttonBPressed = true;
+                } else if (buttonBPressed) {
+                    movePlayer = !movePlayer;
+                    buttonBPressed = false;
+                }
+                if (movePlayer) {
+                    playerYaw += -0.04f * rs.x();
+                    pos += Vec4f{positionDelta * 0.04f, 0.0f} * rotationMat;
+                } else {
+                    roomScene.heightField->setPosition(roomScene.heightField->getPosition() +
+                                                       positionDelta * 0.025f);
+                }
+
                 roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
                                                         0.00002f * gp.bLeftTrigger);
                 roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() -
@@ -415,6 +431,16 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                 else if (gp.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
                     roomScene.heightField->setTerrainScale(
                         roomScene.heightField->getTerrainScale() * (1 + 1e-2f));
+
+                static bool buttonAPressed = false;
+                if (gp.wButtons & XINPUT_GAMEPAD_A) {
+                    buttonAPressed = true;
+                } else if (buttonAPressed) {
+                    roomScene.heightField->toggleRenderLabels();
+                    buttonAPressed = false;
+                }
+
+                break; // only take input from the first connected pad
             }
         }
 
@@ -436,7 +462,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             const auto useEyePose = &eyePoses.first[eye];
 
             // Get view and projection matrices (note near Z to reduce eye strain)
-            const auto rollPitchYaw = rotationYMat4f(Yaw);
+            const auto rollPitchYaw = rotationYMat4f(playerYaw);
             const auto finalRollPitchYaw =
                 Mat4FromQuat(Quatf{&useEyePose->Orientation.x}) * rollPitchYaw;
             const auto finalUp = basisVector<Vec4f>(Y) * finalRollPitchYaw;
