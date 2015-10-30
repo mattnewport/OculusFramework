@@ -440,6 +440,14 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                     buttonAPressed = false;
                 }
 
+                static bool menuButtonPressed = false;
+                if (gp.wButtons & XINPUT_GAMEPAD_START) {
+                    menuButtonPressed = true;
+                } else if (menuButtonPressed) {
+                    imguiHelper.active = !imguiHelper.active;
+                    menuButtonPressed = false;
+                }
+
                 break; // only take input from the first connected pad
             }
         }
