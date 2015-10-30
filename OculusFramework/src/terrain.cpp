@@ -428,9 +428,8 @@ void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     renderCreeksTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
-void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
-    ID3D11DeviceContext* context,
-    PipelineStateObjectManager& pipelineStateObjectManager) {
+void HeightField::renderCreeksTexture(DirectX11&, ID3D11Device* device,
+                                      ID3D11DeviceContext* context, PipelineStateObjectManager&) {
     auto renderTex = CreateTexture2DAndRenderTargetView(
         device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
                               to<UINT>(heightFieldHeight)}
@@ -438,51 +437,34 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
                     .mipLevels(1)
                     .sampleDesc({8, 0}),
         "HeightField::creeks render target texture");
-    const auto longestArcLength =
-        std::max_element(begin(creeks), end(creeks), [](const auto& x, const auto& y) {
-            return x.latLongs.size() < y.latLongs.size();
-        })->latLongs.size();
 
-    ID3D11BufferPtr vb = CreateBuffer(
-        device,
-        BufferDesc{ longestArcLength * sizeof(Vec2f), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC }
-        .cpuAccessFlags(D3D11_CPU_ACCESS_WRITE),
-        __func__);
-    struct Vertex2D {
-        Vec2f position;
-    };
-    const auto Vertex2DInputElementDescs = { MAKE_INPUT_ELEMENT_DESC(Vertex2D, position) };
-    PipelineStateObjectDesc psod{};
-    psod.vertexShader = "simple2dvs.hlsl";
-    psod.pixelShader = "simple2dps.hlsl";
-    psod.inputElementDescs = Vertex2DInputElementDescs;
-    psod.depthStencilState = DepthStencilDesc{}.depthEnable(FALSE);
-    psod.rasterizerState = RasterizerDesc{}.multisampleEnable(TRUE).antialiasedLineEnable(TRUE);
-    psod.primitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
-    auto pso = pipelineStateObjectManager.get(psod);
-    dx11.applyState(*context, *pso.get());
-    PSSetShaderResources(context, 0u, { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr });
-    context->ClearRenderTargetView(get<1>(renderTex).Get(), std::data({0.0f, 0.0f, 0.0f, 0.0f}));
-    OMSetRenderTargets(context, {get<1>(renderTex).Get()});
-    RSSetViewports(context, {{0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
-                              0.0f, 1.0f}});
-    for (const auto& c : creeks) {
-        IASetVertexBuffers(context, 0u, { nullptr }, { 0u });
-        {
-            MapHandle vbh{ context, vb.Get() };
-            std::transform(begin(c.pixPositions), end(c.pixPositions),
-                std::raw_storage_iterator<Vec2f*, Vec2f>{
-                reinterpret_cast<Vec2f*>(vbh.mappedSubresource().pData)},
-                [this](const auto& pp) {
-                    return 2.0f * Vec2f{pp.x() / heightFieldWidth, 1.0f - pp.y() / heightFieldHeight} - Vec2f{1.0f};
-                });
+    ID2D1FactoryPtr d2d1Factory;
+    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
+    DrawToRenderTargetTexture(
+        d2d1Factory.Get(), creeksTex.Get(),
+        [&creeks = creeks, w = heightFieldWidth, h = heightFieldHeight](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
+        auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::White));
+        d2d1Rt->SetTransform(D2D1::IdentityMatrix());
+        d2d1Rt->Clear(D2D1::ColorF{ D2D1::ColorF::Black });
+        auto pathGeometry = CreatePathGeometry(factory);
+        auto geometrySink = Open(pathGeometry.Get());
+        for (const auto& c : creeks) {
+            bool first = true;
+            for (auto pp : c.pixPositions) {
+                auto point = D2D1::Point2F(pp.x(), pp.y());
+                if (first) {
+                    geometrySink->BeginFigure(point, D2D1_FIGURE_BEGIN_HOLLOW);
+                    first = false;
+                } else {
+                    geometrySink->AddLine(point);
+                }
+            }
+            geometrySink->EndFigure(D2D1_FIGURE_END_OPEN);
         }
-        IASetVertexBuffers(context, 0u, { vb.Get() }, { to<UINT>(sizeof(Vertex2D)) });
-        context->Draw(c.latLongs.size(), 0);
-    }
-    OMSetRenderTargets(context, { nullptr });
-    context->ResolveSubresource(creeksTex.Get(), 0, get<0>(renderTex).Get(), 0,
-                                DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+        geometrySink->Close();
+        d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 2.0f);
+    });
+
     context->GenerateMips(creeksSrv.Get());
 }
 
