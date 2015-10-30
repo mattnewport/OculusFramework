@@ -66,10 +66,8 @@ private:
     void renderCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                              PipelineStateObjectManager& pipelineStateObjectManager);
     void loadLakesShapeFile(const GeoTiff& geoTiff);
-    void generateLakesTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
-                              PipelineStateObjectManager& pipelineStateObjectManager);
-    void renderLakesTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
-                            PipelineStateObjectManager& pipelineStateObjectManager);
+    void generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context);
+    void renderLakesTexture(ID3D11DeviceContext* context);
 
     std::unordered_map<int, std::string> initConciscodeNameMap();
 
