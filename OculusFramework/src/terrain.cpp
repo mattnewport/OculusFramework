@@ -30,6 +30,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <tuple>
 #include <unordered_map>
 
 #include <d2d1.h>
@@ -62,6 +63,9 @@ public:
         assert(getTiffField<uint32_t>(TIFFTAG_BITSPERSAMPLE) == 16 &&
                getTiffField<uint32_t>(TIFFTAG_SAMPLESPERPIXEL) == 1);
         heights = readHeightData(tif.get(), tifWidth * tifHeight);
+        const auto minmax = minmax_element(begin(heights), end(heights));
+        minElevationMeters = *minmax.first;
+        maxElevationMeters = *minmax.second;
 
         // View TIFF as a GeoTIFF and calculate geo coordinates
         SetCSVFilenameHook([](const char* pszInput) -> const char* {
@@ -90,6 +94,8 @@ public:
     auto getTiffHeight() const { return tifHeight; }
     auto getHeightMeters() const { return heightMeters; }
     auto getGridStepMetersY() const { return heightMeters / tifHeight; }
+    auto getMinElevationMeters() const { return minElevationMeters; }
+    auto getMaxElevationMeters() const { return maxElevationMeters; }
     const auto& getHeights() const { return heights; }
     auto getHeightsView() const {
         return gsl::as_array_view(heights.data(), gsl::dim<>(tifHeight), gsl::dim<>(tifWidth));
@@ -151,6 +157,8 @@ private:
     int tifHeight = 0;
     float widthMeters = 0.0f;
     float heightMeters = 0.0f;
+    float minElevationMeters = 0.0f;
+    float maxElevationMeters = 0.0f;
     vector<uint16_t> heights;
     unique_ptr<TIFF, void (*)(TIFF*)> tif{nullptr, XTIFFClose};
     unique_ptr<GTIF, void (*)(GTIF*)> gtif{nullptr, GTIFFree};
@@ -171,6 +179,8 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
                     .mipLevels(1),
         {heights.data(), geoTiff.getTiffWidth() * sizeof(heights[0])});
     heightsSRV = CreateShaderResourceView(device, heightsTex.Get());
+    midElevationOffset = translationMat4f(
+        {0.0f, -0.5f * (geoTiff.getMaxElevationMeters() - geoTiff.getMinElevationMeters()), 0.0f});
 
     generateNormalMap(device, geoTiff);
     generateHeightFieldGeometry(device, geoTiff);
@@ -332,16 +342,19 @@ void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
         auto labelHeight = float(
             geoTiff.getHeightAt(gsl::index<2, int>{labelPixelPos.y(), labelPixelPos.x()}, 0, 0));
         const auto topLeft = geoTiff.topLeftLatLong();
-        const auto labelX = geoTiff.latLongDist(topLeft, Vec2f{ topLeft.x(), feature.latLong.y() });
-        const auto labelZ = geoTiff.latLongDist(topLeft, Vec2f{ feature.latLong.x(), topLeft.y() });
-        labelFlagpoleVertices.push_back({ Vec3f{ labelX, labelHeight - 1000.0f, labelZ } });
+        const auto xOffset = -0.5f * geoTiff.getWidthMeters();
+        const auto yOffset = -0.5f * geoTiff.getHeightMeters();
+        const auto labelX =
+            geoTiff.latLongDist(topLeft, Vec2f{topLeft.x(), feature.latLong.y()}) + xOffset;
+        const auto labelZ =
+            geoTiff.latLongDist(topLeft, Vec2f{feature.latLong.x(), topLeft.y()}) + yOffset;
+        labelFlagpoleVertices.push_back({Vec3f{labelX, labelHeight, labelZ}});
         for (int y = top; y < bottom; ++y) {
             for (int x = left; x < right; ++x) {
                 labelHeight = std::max(labelHeight,
                     float(geoTiff.getHeightAt(gsl::index<2, int>{y, x}, 0, 0)));
             }
         }
-        labelHeight -= 1000.0f;
         labelFlagpoleVertices.push_back({ Vec3f{ labelX, labelHeight, labelZ } });
         const auto labelPos = Vec3f{ labelX, labelHeight, labelZ };
         const auto labelColor = 0xffffffffu;
@@ -667,6 +680,8 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto uvStepY = 1.0f / geoTiff.getTiffHeight();
     const auto gridStepX = geoTiff.getGridStepMetersX();
     const auto gridStepY = geoTiff.getGridStepMetersY();
+    const auto xOffset = -0.5f * geoTiff.getWidthMeters();
+    const auto yOffset = -0.5f * geoTiff.getHeightMeters();
     auto vertices = vector<Vertex>(square(blockSize + 1));
     for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize) {
         for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize) {
@@ -676,7 +691,7 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                     const auto localX = min(x + blockX, geoTiff.getTiffWidth());
                     const auto localY = min(y + blockY, geoTiff.getTiffHeight());
                     vertices[destVertex++] = {
-                        {localX * gridStepX, localY * gridStepY},
+                        {localX * gridStepX + xOffset, localY * gridStepY + yOffset},
                         {(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY}};
                 }
             }

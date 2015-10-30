@@ -199,27 +199,6 @@ Scene::Scene(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* deviceC
         m->AddSolidColorBox(-f, 1.1f, 20.0f, -f - 0.1f, 0.0f, 20.1f,
                             Model::Color(128, 128, 128));  // Right Bars
     }
-    m->AddSolidColorBox(-1.8f, 0.8f, 1.0f, 0.0f, 0.7f, 0.0f, Model::Color(128, 128, 0));  // Table
-    m->AddSolidColorBox(-1.8f, 0.0f, 0.0f, -1.7f, 0.7f, 0.1f,
-                        Model::Color(128, 128, 0));  // Table Leg
-    m->AddSolidColorBox(-1.8f, 0.7f, 1.0f, -1.7f, 0.0f, 0.9f,
-                        Model::Color(128, 128, 0));  // Table Leg
-    m->AddSolidColorBox(0.0f, 0.0f, 1.0f, -0.1f, 0.7f, 0.9f,
-                        Model::Color(128, 128, 0));  // Table Leg
-    m->AddSolidColorBox(0.0f, 0.7f, 0.0f, -0.1f, 0.0f, 0.1f,
-                        Model::Color(128, 128, 0));  // Table Leg
-    m->AddSolidColorBox(-1.4f, 0.5f, -1.1f, -0.8f, 0.55f, -0.5f,
-                        Model::Color(44, 44, 128));  // Chair Set
-    m->AddSolidColorBox(-1.4f, 0.0f, -1.1f, -1.34f, 1.0f, -1.04f,
-                        Model::Color(44, 44, 128));  // Chair Leg 1
-    m->AddSolidColorBox(-1.4f, 0.5f, -0.5f, -1.34f, 0.0f, -0.56f,
-                        Model::Color(44, 44, 128));  // Chair Leg 2
-    m->AddSolidColorBox(-0.8f, 0.0f, -0.5f, -0.86f, 0.5f, -0.56f,
-                        Model::Color(44, 44, 128));  // Chair Leg 2
-    m->AddSolidColorBox(-0.8f, 1.0f, -1.1f, -0.86f, 0.0f, -1.04f,
-                        Model::Color(44, 44, 128));  // Chair Leg 2
-    m->AddSolidColorBox(-1.4f, 0.97f, -1.05f, -0.8f, 0.92f, -1.10f,
-                        Model::Color(44, 44, 128));  // Chair Back high bar
 
     for (float f = 3.0f; f <= 6.6f; f += 0.4f)
         m->AddSolidColorBox(-3, 0.0f, f, -2.9f, 1.3f, f + 0.1f, Model::Color(64, 64, 64));  // Posts
@@ -229,7 +208,7 @@ Scene::Scene(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* deviceC
     Add(move(m));
 
     // Terrain
-    heightField = make_unique<HeightField>(Vec3f{-1.0f, 0.8f, 0.0f});
+    heightField = make_unique<HeightField>(Vec3f{0.0f, 0.8f, 0.0f});
     heightField->AddVertices(dx11, device, deviceContext, pipelineStateObjectManager, texture2DManager);
 
     sphere = make_unique<Sphere>();

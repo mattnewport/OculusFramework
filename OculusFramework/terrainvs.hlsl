@@ -10,7 +10,7 @@ void main(in float2 Position : POSITION, in float2 TexCoord : TEXCOORD0,
     heightsTex.GetDimensions(heightsTexSize.x, heightsTexSize.y);
     int2 heightCoords = TexCoord * (heightsTexSize - int2(1, 1));
     float height = heightsTex.Load(int3(heightCoords, 0));
-    float4 pos = float4(Position.x, height - 1000, Position.y, 1.0f);
+    float4 pos = float4(Position.x, height, Position.y, 1.0f);
     float4 wp = mul(object.world, pos);
     oPosition = mul(camera.proj, mul(camera.view, wp));
     oTexCoord = TexCoord;

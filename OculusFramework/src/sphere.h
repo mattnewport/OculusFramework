@@ -22,8 +22,8 @@ public:
 
     const mathlib::Mat4f GetMatrix() {
         auto scale = mathlib::scaleMat4f(0.25f);
-        scale.row(3).y() = 1.0f;
-        return scale;
+        auto translate = mathlib::translationMat4f({4.0f, 1.0f, -4.0f});
+        return scale * translate;
     }
 
 private:

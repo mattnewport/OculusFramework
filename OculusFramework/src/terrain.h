@@ -34,7 +34,8 @@ struct HeightField {
 
 private:
     const mathlib::Mat4f& GetMatrix() {
-        return Mat = mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) * translationMat4f(Pos);
+        return Mat = midElevationOffset * mathlib::scaleMat4f(scale) * Mat4FromQuat(Rot) *
+                     translationMat4f(Pos);
     }
     void generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff);
     void generateHeightFieldGeometry(ID3D11Device* device, const GeoTiff& geoTiff);
@@ -60,6 +61,7 @@ private:
     mathlib::Vec3f Pos;
     mathlib::Quatf Rot;
     mathlib::Mat4f Mat;
+    mathlib::Mat4f midElevationOffset = mathlib::identityMatrix<mathlib::Mat4f>();
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
