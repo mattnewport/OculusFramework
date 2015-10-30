@@ -235,6 +235,7 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
     context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    PSSetConstantBuffers(context, objectConstantBufferOffset, { objectConstantBuffer.Get() });
     PSSetConstantBuffers(context, 3, {terrainParametersConstantBuffer.Get()});
     PSSetShaderResources(context, materialSRVOffset,
                          {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesSrv.Get()});

@@ -409,6 +409,12 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                                                         0.00002f * gp.bLeftTrigger);
                 roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() -
                                                         0.00002f * gp.bRightTrigger);
+                if (gp.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
+                    roomScene.heightField->setTerrainScale(
+                        roomScene.heightField->getTerrainScale() * (1 - 1e-2f));
+                else if (gp.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+                    roomScene.heightField->setTerrainScale(
+                        roomScene.heightField->getTerrainScale() * (1 + 1e-2f));
             }
         }
 

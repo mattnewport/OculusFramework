@@ -39,6 +39,9 @@ struct HeightField {
                                  : x > 2.0f * mathlib::pif ? x - 2.0f * mathlib::pif : x;
     }
 
+    float getTerrainScale() { return scale; }
+    void setTerrainScale(float x) { scale = mathlib::clamp(x, 1e-6f, 1e-2f); }
+
 private:
     const mathlib::Mat4f& GetMatrix() {
         using namespace mathlib;

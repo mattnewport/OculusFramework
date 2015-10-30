@@ -26,7 +26,7 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
 
     MicrofacetMaterialParams mat = makeMaterial(Color.xyz * diffuse.xyz, .04f, saturate(1.0f - dot(diffuse.xyz, float3(0.33f, 0.33f, 0.33f))));
 
-    float3 n = normalize(normalFromTex);
+    float3 n = normalize(mul(object.world, float4(normalFromTex, 0)).xyz);
     float3 v = normalize(viewDir);
 
     return float4(lightEnv(worldPos, mat, n, v), 1.0f);
