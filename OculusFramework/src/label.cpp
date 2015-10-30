@@ -28,12 +28,11 @@ Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* lab
     width = std::ceil(textMetrics.width);
     height = std::ceil(textMetrics.height);
 
-    tex = CreateTexture2D(device,
-                          Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM, to<UINT>(width), to<UINT>(height)}
-                              .bindFlags(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE)
-                              .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
-                          "Label::tex");
-    texSrv = CreateShaderResourceView(device, tex.Get(), "Label::texSrv");
+    tie(tex, texSrv) = CreateTexture2DAndShaderResourceView(
+        device, Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM, to<UINT>(width), to<UINT>(height)}
+                    .bindFlags(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE)
+                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
+        "Label::tex");
     IDXGIResource1Ptr dxgiResource1;
     ThrowOnFailure(tex.As(&dxgiResource1));
     IDXGISurface2Ptr dxgiSurface2;

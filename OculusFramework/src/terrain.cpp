@@ -173,12 +173,11 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
 
     heightFieldWidth = geoTiff.getTiffWidth();
     heightFieldHeight = geoTiff.getTiffHeight();
-    heightsTex = CreateTexture2D(
+    tie(heightsTex, heightsSRV) = CreateTexture2DAndShaderResourceView(
         device, Texture2DDesc{DXGI_FORMAT_R16_UINT, static_cast<UINT>(geoTiff.getTiffWidth()),
                               static_cast<UINT>(geoTiff.getTiffHeight())}
                     .mipLevels(1),
         {heights.data(), geoTiff.getTiffWidth() * sizeof(heights[0])});
-    heightsSRV = CreateShaderResourceView(device, heightsTex.Get());
     midElevationOffset = translationMat4f(
         {0.0f, -0.5f * (geoTiff.getMaxElevationMeters() - geoTiff.getMinElevationMeters()), 0.0f});
 
@@ -423,13 +422,12 @@ void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
 void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
                                         ID3D11DeviceContext* context,
                                         PipelineStateObjectManager& pipelineStateObjectManager) {
-    creeksTex = CreateTexture2D(
+    tie(creeksTex, creeksSrv) = CreateTexture2DAndShaderResourceView(
         device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
                               to<UINT>(heightFieldHeight)}
                     .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
                     .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "HeightField::creeks texture");
-    creeksSrv = CreateShaderResourceView(device, creeksTex.Get(), "HeightField::creeksSrv");
     renderCreeksTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
@@ -493,15 +491,14 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
 }
 
 void HeightField::generateLakesTexture(DirectX11& dx11, ID3D11Device* device,
-    ID3D11DeviceContext* context,
-    PipelineStateObjectManager& pipelineStateObjectManager) {
-    lakesTex = CreateTexture2D(
-        device, Texture2DDesc{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
-        to<UINT>(heightFieldHeight) }
-        .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
-        .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
+                                       ID3D11DeviceContext* context,
+                                       PipelineStateObjectManager& pipelineStateObjectManager) {
+    tie(lakesTex, lakesSrv) = CreateTexture2DAndShaderResourceView(
+        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
+                              to<UINT>(heightFieldHeight)}
+                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
+                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "HeightField::lakes texture");
-    lakesSrv = CreateShaderResourceView(device, lakesTex.Get(), "HeightField::lakesSrv");
     renderLakesTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
@@ -626,22 +623,20 @@ void HeightField::generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff
     const auto gridStepX = geoTiff.getGridStepMetersX();
     const auto gridStepY = geoTiff.getGridStepMetersY();
     vector<Vec2f> normals(width * height);
-    auto normalsView =
-        gsl::as_array_view(normals.data(), gsl::dim<>(height), gsl::dim<>(width));
+    auto normalsView = gsl::as_array_view(normals.data(), gsl::dim<>(height), gsl::dim<>(width));
     for (auto idx : normalsView.bounds()) {
-        const auto normal =
-            normalize(Vec3f{ 2.0f * gridStepY * (geoTiff.getHeightAt(idx, -1, 0) - geoTiff.getHeightAt(idx, 1, 0)),
-                4.0f * gridStepX * gridStepY,
-                2.0f * gridStepX * (geoTiff.getHeightAt(idx, 0, -1) - geoTiff.getHeightAt(idx, 0, 1)) });
+        const auto normal = normalize(Vec3f{
+            2.0f * gridStepY * (geoTiff.getHeightAt(idx, -1, 0) - geoTiff.getHeightAt(idx, 1, 0)),
+            4.0f * gridStepX * gridStepY,
+            2.0f * gridStepX * (geoTiff.getHeightAt(idx, 0, -1) - geoTiff.getHeightAt(idx, 0, 1))});
         normalsView[idx] = normal.xz();
     }
 
-    normalsTex = CreateTexture2D(
-        device, Texture2DDesc{ DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width),
-        static_cast<UINT>(height) }
-        .mipLevels(1),
-        { normals.data(), width * sizeof(normals[0]) });
-    normalsSRV = CreateShaderResourceView(device, normalsTex.Get());
+    tie(normalsTex, normalsSRV) = CreateTexture2DAndShaderResourceView(
+        device,
+        Texture2DDesc{DXGI_FORMAT_R32G32_FLOAT, static_cast<UINT>(width), static_cast<UINT>(height)}
+            .mipLevels(1),
+        {normals.data(), width * sizeof(normals[0])});
 }
 
 void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTiff& geoTiff) {

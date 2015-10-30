@@ -36,8 +36,7 @@ class SwapTextureSet {
         DummyTextureSet(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& texDesc) : dummyTexture{} {
             TextureSet =
                 std::make_unique<ovrSwapTextureSet>(ovrSwapTextureSet{&dummyTexture.Texture, 1, 0});
-            tex = CreateTexture2D(device, texDesc);
-            srv = CreateShaderResourceView(device, tex.Get());
+            std::tie(tex, srv) = CreateTexture2DAndShaderResourceView(device, texDesc);
             dummyTexture.D3D11.pTexture = tex.Get();
             dummyTexture.D3D11.pSRView = srv.Get();
         }

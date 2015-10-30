@@ -68,11 +68,9 @@ void Model::AddSolidColorBox(float x1, float y1, float z1, float x2, float y2, f
 Texture::Texture(const char* name_, ID3D11Device* device, ID3D11DeviceContext* deviceContext,
                  ovrSizei size, int mipLevels, unsigned char* data)
     : name(name_) {
-    Tex = CreateTexture2D(
+    tie(Tex, TexSv) = CreateTexture2DAndShaderResourceView(
         device, Texture2DDesc(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, size.w, size.h).mipLevels(mipLevels),
         "ImageBuffer::Tex - "s + name);
-
-    TexSv = CreateShaderResourceView(device, Tex.Get(), "ImageBuffer::TexSv - "s + name);
 
     if (data)  // Note data is trashed, as is width and height
     {
