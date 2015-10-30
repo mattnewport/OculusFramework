@@ -102,6 +102,9 @@
     <ClInclude Include="src\label.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\d2dhelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\d3dhelper.cpp">

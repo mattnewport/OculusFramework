@@ -46,6 +46,7 @@ using IDXGIAdapter1Ptr = Microsoft::WRL::ComPtr<IDXGIAdapter1>;
 using IDXGIDevice1Ptr = Microsoft::WRL::ComPtr<IDXGIDevice1>;
 using IDXGIFactory1Ptr = Microsoft::WRL::ComPtr<IDXGIFactory1>;
 using IDXGIResource1Ptr = Microsoft::WRL::ComPtr<IDXGIResource1>;
+using IDXGISurface1Ptr = Microsoft::WRL::ComPtr<IDXGISurface1>;
 using IDXGISurface2Ptr = Microsoft::WRL::ComPtr<IDXGISurface2>;
 using IDXGISwapChainPtr = Microsoft::WRL::ComPtr<IDXGISwapChain>;
 

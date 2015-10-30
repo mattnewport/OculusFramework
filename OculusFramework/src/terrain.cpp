@@ -1,5 +1,7 @@
 #include "terrain.h"
 
+#include "d2dhelper.h"
+#include "d3dhelper.h"
 #include "pipelinestateobject.h"
 
 #include "DDSTextureLoader.h"
@@ -33,16 +35,11 @@
 #include <tuple>
 #include <unordered_map>
 
-#include <d2d1.h>
 
 using namespace std;
 
 using namespace mathlib;
 using namespace util;
-
-using ID2D1FactoryPtr = Microsoft::WRL::ComPtr<ID2D1Factory>;
-using ID2D1PathGeometryPtr = Microsoft::WRL::ComPtr<ID2D1PathGeometry>;
-using ID2D1GeometrySinkPtr = Microsoft::WRL::ComPtr<ID2D1GeometrySink>;
 
 class GeoTiff {
 public:
@@ -512,55 +509,44 @@ void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
                     .sampleDesc({8, 0}),
         "HeightField::lakes render target texture");
 
-    IDXGIResource1Ptr dxgiResource1;
-    ThrowOnFailure(renderTex.As(&dxgiResource1));
-    IDXGISurface2Ptr dxgiSurface2;
-    ThrowOnFailure(dxgiResource1->CreateSubresourceSurface(0, dxgiSurface2.ReleaseAndGetAddressOf()));
-    IDXGISurface1Ptr dxgiSurface1;
-    ThrowOnFailure(dxgiSurface2.As(&dxgiSurface1));
-    const auto props = D2D1::RenderTargetProperties(
-        D2D1_RENDER_TARGET_TYPE_DEFAULT,
-        D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
-
     ID2D1FactoryPtr d2d1Factory;
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
-    ID2D1RenderTargetPtr d2d1Rt;
-    ThrowOnFailure(d2d1Factory->CreateDxgiSurfaceRenderTarget(dxgiSurface1.Get(), props,
-        d2d1Rt.ReleaseAndGetAddressOf()));
-    ID2D1SolidColorBrushPtr brush;
-    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red),
-        brush.ReleaseAndGetAddressOf()));
-    ID2D1SolidColorBrushPtr fillBrush;
-    ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Lime),
-        fillBrush.ReleaseAndGetAddressOf()));
+    DrawToRenderTargetTexture(d2d1Factory.Get(), renderTex.Get(), 
+        [&lakes = this->lakes](ID2D1Factory* factory, ID2D1RenderTarget * d2d1Rt) {
+        ID2D1SolidColorBrushPtr brush;
+        ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red),
+                                                     brush.ReleaseAndGetAddressOf()));
+        ID2D1SolidColorBrushPtr fillBrush;
+        ThrowOnFailure(d2d1Rt->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Lime),
+                                                     fillBrush.ReleaseAndGetAddressOf()));
 
-    d2d1Rt->BeginDraw();
-    d2d1Rt->SetTransform(D2D1::IdentityMatrix());
-    d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
-    for (const auto& c : lakes) {
-        const auto numParts = to<int>(c.partStarts.size());
-        ID2D1PathGeometryPtr pathGeometry;
-        ThrowOnFailure(d2d1Factory->CreatePathGeometry(pathGeometry.ReleaseAndGetAddressOf()));
-        ID2D1GeometrySinkPtr geometrySink;
-        ThrowOnFailure(pathGeometry->Open(geometrySink.ReleaseAndGetAddressOf()));
-        for (int i = 0; i < numParts; ++i) {
-            const auto startIndex = c.partStarts[i];
-            const auto startEndPoint = c.pixPositions[startIndex];
-            geometrySink->BeginFigure(D2D1::Point2F(startEndPoint.x(), startEndPoint.y()),
-                                      D2D1_FIGURE_BEGIN_FILLED);
-            const auto endIndex =
-                i + 1 < numParts ? c.partStarts[i + 1] : to<int>(c.pixPositions.size());
-            for (int j = startIndex + 1; j < endIndex; ++j) {
-                const auto point = c.pixPositions[j];
-                geometrySink->AddLine(D2D1::Point2F(point.x(), point.y()));
+        d2d1Rt->SetTransform(D2D1::IdentityMatrix());
+        d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
+        for (const auto& c : lakes) {
+            const auto numParts = to<int>(c.partStarts.size());
+            ID2D1PathGeometryPtr pathGeometry;
+            ThrowOnFailure(factory->CreatePathGeometry(pathGeometry.ReleaseAndGetAddressOf()));
+            ID2D1GeometrySinkPtr geometrySink;
+            ThrowOnFailure(pathGeometry->Open(geometrySink.ReleaseAndGetAddressOf()));
+            for (int i = 0; i < numParts; ++i) {
+                const auto startIndex = c.partStarts[i];
+                const auto startEndPoint = c.pixPositions[startIndex];
+                geometrySink->BeginFigure(D2D1::Point2F(startEndPoint.x(), startEndPoint.y()),
+                                          D2D1_FIGURE_BEGIN_FILLED);
+                const auto endIndex =
+                    i + 1 < numParts ? c.partStarts[i + 1] : to<int>(c.pixPositions.size());
+                for (int j = startIndex + 1; j < endIndex; ++j) {
+                    const auto point = c.pixPositions[j];
+                    geometrySink->AddLine(D2D1::Point2F(point.x(), point.y()));
+                }
+                geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
             }
-            geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
+            geometrySink->Close();
+            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
+            d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
         }
-        geometrySink->Close();
-        d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
-        d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
-    }
-    d2d1Rt->EndDraw();
+    });
+
     context->ResolveSubresource(lakesTex.Get(), 0, renderTex.Get(), 0,
                                 DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     context->GenerateMips(lakesSrv.Get());

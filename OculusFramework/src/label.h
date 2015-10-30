@@ -3,19 +3,9 @@
 #include "vector.h"
 
 #include "d3dhelper.h"
-
-#include <d2d1.h>
-#include <dwrite.h>
+#include "d2dhelper.h"
 
 #include <utility>
-
-using ID2D1FactoryPtr = Microsoft::WRL::ComPtr<ID2D1Factory>;
-using ID2D1RenderTargetPtr = Microsoft::WRL::ComPtr<ID2D1RenderTarget>;
-using IDXGISurface1Ptr = Microsoft::WRL::ComPtr<IDXGISurface1>;
-using IDWriteFactoryPtr = Microsoft::WRL::ComPtr<IDWriteFactory>;
-using IDWriteTextFormatPtr = Microsoft::WRL::ComPtr<IDWriteTextFormat>;
-using IDWriteTextLayoutPtr = Microsoft::WRL::ComPtr<IDWriteTextLayout>;
-using ID2D1SolidColorBrushPtr = Microsoft::WRL::ComPtr<ID2D1SolidColorBrush>;
 
 class Label {
 public:
