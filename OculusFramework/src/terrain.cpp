@@ -206,12 +206,11 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
     loadLakesShapeFile(geoTiff);
     generateLakesTexture(dx11, device, context, pipelineStateObjectManager);
 
-    terrainParametersConstantBuffer = CreateBuffer(
-        device,
-        BufferDesc{ sizeof(TerrainParameters), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC }
-        .cpuAccessFlags(D3D11_CPU_ACCESS_WRITE),
-        "HeightField::terrainParametersConstantBuffer");
-    terrainParameters.hydroLayerAlphas = Vec4f{1.0f, 1.0f, 1.0f, 1.0f};
+    terrainParametersConstantBuffer =
+        CreateBuffer(device, BufferDesc{roundUpConstantBufferSize(sizeof(TerrainParameters)),
+                                        D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC}
+                                 .cpuAccessFlags(D3D11_CPU_ACCESS_WRITE),
+                     "HeightField::terrainParametersConstantBuffer");
 }
 
 void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
@@ -605,6 +604,9 @@ void HeightField::showGui() {
         static bool showCreeks = true;
         ImGui::Checkbox("Show creeks", &showCreeks);
         terrainParameters.hydroLayerAlphas.z() = showCreeks ? 1.0f : 0.0f;
+        static bool showContours = false;
+        ImGui::Checkbox("Show contours", &showContours);
+        terrainParameters.contours = showContours ? 1.0f : 0.0f;
     }
 }
 

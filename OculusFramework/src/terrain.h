@@ -128,7 +128,8 @@ private:
     ID3D11ShaderResourceViewPtr lakesSrv;
 
     struct TerrainParameters {
-        mathlib::Vec4f hydroLayerAlphas;
+        mathlib::Vec4f hydroLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
+        float contours = 0.0f;
     } terrainParameters;
     ID3D11BufferPtr terrainParametersConstantBuffer;
 

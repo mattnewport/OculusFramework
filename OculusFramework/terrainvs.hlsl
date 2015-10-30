@@ -4,7 +4,7 @@ Texture2D<uint> heightsTex;
 
 void main(in float2 Position : POSITION, in float2 TexCoord : TEXCOORD0,
           out float4 oPosition : SV_Position, out float4 oColor : COLOR0, out float2 oTexCoord : TEXCOORD0,
-          out float3 worldPos : TEXCOORD1, out float3 viewDir : TEXCOORD2)
+          out float3 worldPos : TEXCOORD1, out float3 viewDir : TEXCOORD2, out float3 objectPos : TEXCOORD3)
 {
     int2 heightsTexSize = int2(0, 0);
     heightsTex.GetDimensions(heightsTexSize.x, heightsTexSize.y);
@@ -17,4 +17,5 @@ void main(in float2 Position : POSITION, in float2 TexCoord : TEXCOORD0,
     oColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
     worldPos = wp.xyz;
     viewDir = normalize(camera.eye - worldPos);
+    objectPos = float3(Position.x, height, Position.y);
 }
