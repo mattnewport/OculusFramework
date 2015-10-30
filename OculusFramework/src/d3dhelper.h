@@ -611,6 +611,23 @@ inline auto CreateTexture2DAndShaderResourceView(ID3D11Device* device,
     return std::make_tuple(tex, srv);
 }
 
+inline auto CreateTexture2DShaderResourceViewAndRenderTargetView(ID3D11Device* device,
+                                                                 const D3D11_TEXTURE2D_DESC& desc,
+                                                                 gsl::cstring_view<> name = {}) {
+    auto tex = CreateTexture2D(device, desc, name);
+    auto srv = CreateShaderResourceView(device, tex.Get(), name);
+    auto rtv = CreateRenderTargetView(device, tex.Get(), name);
+    return std::make_tuple(tex, srv, rtv);
+}
+
+inline auto CreateTexture2DAndRenderTargetView(ID3D11Device* device,
+                                               const D3D11_TEXTURE2D_DESC& desc,
+                                               gsl::cstring_view<> name = {}) {
+    auto tex = CreateTexture2D(device, desc, name);
+    auto rtv = CreateRenderTargetView(device, tex.Get(), name);
+    return std::make_tuple(tex, rtv);
+}
+
 inline auto CreateDepthStencilView(ID3D11Device* device, ID3D11Resource* resource,
                                    const D3D11_DEPTH_STENCIL_VIEW_DESC& desc,
                                    gsl::cstring_view<> name = {}) {

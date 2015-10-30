@@ -19,15 +19,12 @@ using namespace util;
 using namespace std;
 
 ImageBuffer::ImageBuffer(const char* name, ID3D11Device* device, ovrSizei size) : Size{size} {
-    Tex = CreateTexture2D(device,
-                          Texture2DDesc(DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h)
-                              .mipLevels(1)
-                              .sampleDesc({4, 0})
-                              .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
-                          "ImageBuffer::Tex - "s + name);
-
-    TexSv = CreateShaderResourceView(device, Tex.Get(), "ImageBuffer::TexSv - "s + name);
-    TexRtv = CreateRenderTargetView(device, Tex.Get(), "ImageBuffer::TexRtv - "s + name);
+    tie(Tex, TexSv, TexRtv) = CreateTexture2DShaderResourceViewAndRenderTargetView(
+        device, Texture2DDesc(DXGI_FORMAT_R16G16B16A16_FLOAT, size.w, size.h)
+                    .mipLevels(1)
+                    .sampleDesc({4, 0})
+                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
+        "ImageBuffer::Tex - "s + name);
 }
 
 DepthBuffer::DepthBuffer(const char* name, ID3D11Device* device, ovrSizei size) {

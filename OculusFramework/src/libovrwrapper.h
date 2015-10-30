@@ -117,8 +117,7 @@ class MirrorTexture {
         DummyMirrorTexture(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc) {
             auto newDesc = desc;
             newDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-            tex = CreateTexture2D(device, newDesc);
-            rtv = CreateRenderTargetView(device, tex.Get());
+            std::tie(tex, rtv) = CreateTexture2DAndRenderTargetView(device, newDesc);
         }
 
         ID3D11Texture2D* d3dTexture() const override { return tex.Get(); }

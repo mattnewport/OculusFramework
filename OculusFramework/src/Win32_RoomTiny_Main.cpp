@@ -123,12 +123,10 @@ struct ToneMapper {
         : width{static_cast<unsigned>(width_)},
           height{static_cast<unsigned>(height_)},
           quadRenderer{directX11, "tonemapps.hlsl"},
-          sourceTex{CreateTexture2D(
+          sourceTex{CreateTexture2DAndShaderResourceView(
               directX11.Device.Get(),
               Texture2DDesc{DXGI_FORMAT_R16G16B16A16_FLOAT, width, height}.mipLevels(1),
               "ToneMapper::sourceTex")},
-          sourceTexSrv{CreateShaderResourceView(directX11.Device.Get(), sourceTex.Get(),
-                                                "ToneMapper::sourceTexSRV")},
           renderTargetTex{CreateTexture2D(
               directX11.Device.Get(),
               Texture2DDesc{DXGI_FORMAT_R8G8B8A8_TYPELESS, width, height}.mipLevels(1).bindFlags(
@@ -146,14 +144,13 @@ struct ToneMapper {
     unsigned height = 0;
 
     QuadRenderer quadRenderer;
-    ID3D11Texture2DPtr sourceTex;
-    ID3D11ShaderResourceViewPtr sourceTexSrv;
+    std::tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr> sourceTex;
     ID3D11Texture2DPtr renderTargetTex;
     ID3D11RenderTargetViewPtr renderTargetView;
 };
 
 void ToneMapper::render(ID3D11ShaderResourceView* avgLogLuminance) {
-    quadRenderer.render(*renderTargetView.Get(), {sourceTexSrv.Get(), avgLogLuminance}, 0, 0, width,
+    quadRenderer.render(*renderTargetView.Get(), {get<1>(sourceTex).Get(), avgLogLuminance}, 0, 0, width,
                         height);
 }
 
@@ -165,17 +162,12 @@ struct LuminanceRangeFinder {
           logAverageRenderer{directX11, "luminancerangeps.hlsl"},
           luminanceBlender{directX11, "loglumblendps.hlsl"} {
         auto makeLumTex = [&directX11](unsigned texWidth, unsigned texHeight) {
-            auto tex = CreateTexture2D(
+            return CreateTexture2DShaderResourceViewAndRenderTargetView(
                 directX11.Device.Get(),
                 Texture2DDesc{DXGI_FORMAT_R16_FLOAT, texWidth, max(1u, texHeight)}
                     .mipLevels(1)
                     .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
                 "LuminanceRangeFinder::tex");
-            auto srv = CreateShaderResourceView(directX11.Device.Get(), tex.Get(),
-                                                "LuminanceRangeFinder::srv");
-            auto rtv = CreateRenderTargetView(directX11.Device.Get(), tex.Get(),
-                                              "LuminanceRangeFinder::rtv");
-            return make_tuple(tex, srv, rtv);
         };
         for (auto texWidth = 1024u, texHeight = 1024u; texWidth > 0u;
              texWidth = texWidth >> 1, texHeight = texHeight >> 1) {
@@ -212,8 +204,7 @@ void LuminanceRangeFinder::render(ID3D11ShaderResourceView* sourceSRV) {
 
 struct ImGuiHelper {
     int width, height;
-    ID3D11ShaderResourceViewPtr srv;
-    ID3D11RenderTargetViewPtr rtv;
+    tuple<ID3D11Texture2DPtr, ID3D11ShaderResourceViewPtr, ID3D11RenderTargetViewPtr> renderTex;
     QuadRenderer renderer;
     bool active = false;
 
@@ -223,14 +214,12 @@ struct ImGuiHelper {
         ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4{0.0f, 0.9f, 0.0f, 1.0f};
 
         // Create a render target for IMGUI
-        auto tex =
-            CreateTexture2D(DX11.Device.Get(),
-                            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, to<UINT>(width), to<UINT>(height)}
-                                .mipLevels(1)
-                                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
-                            "ImGuiHelper::tex");
-        srv = CreateShaderResourceView(DX11.Device.Get(), tex.Get(), "ImGuiHelper::srv");
-        rtv = CreateRenderTargetView(DX11.Device.Get(), tex.Get(), "ImGuiHelper::rtv");
+        renderTex = CreateTexture2DShaderResourceViewAndRenderTargetView(
+            DX11.Device.Get(),
+            Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM, to<UINT>(width), to<UINT>(height)}
+                .mipLevels(1)
+                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET),
+            "ImGuiHelper::renderTex");
     }
 
     ~ImGuiHelper() { ImGui_ImplDX11_Shutdown(); }
@@ -239,8 +228,8 @@ struct ImGuiHelper {
                 ovrVector2i rightEyePos) {
         if (active) {
             float clearColor[] = {0.0f, 0.0f, 0.0f, 0.0f};
-            DX11.Context->ClearRenderTargetView(rtv.Get(), clearColor);
-            OMSetRenderTargets(DX11.Context, {rtv.Get()});
+            DX11.Context->ClearRenderTargetView(get<2>(renderTex).Get(), clearColor);
+            OMSetRenderTargets(DX11.Context, {get<2>(renderTex).Get()});
             DX11.setViewport({{0, 0}, {width, height}});
             ImVec2 displaySize{static_cast<float>(width), static_cast<float>(height)};
             ImGui_ImplDX11_NewFrame(displaySize);
@@ -251,9 +240,10 @@ struct ImGuiHelper {
             showGui(scene);
             // ImGui::ShowTestWindow();
             ImGui::Render();
-            renderer.render(*toneMapperRtv, {srv.Get(), nullptr}, 0, 0, width, height);
-            renderer.render(*toneMapperRtv, {srv.Get(), nullptr}, rightEyePos.x, rightEyePos.y,
-                            width, height);
+            renderer.render(*toneMapperRtv, {get<1>(renderTex).Get(), nullptr}, 0, 0, width,
+                            height);
+            renderer.render(*toneMapperRtv, {get<1>(renderTex).Get(), nullptr}, rightEyePos.x,
+                            rightEyePos.y, width, height);
 
             if (!ImGui::IsAnyItemActive() && DX11.keyPressed[VK_ESCAPE]) {
                 DX11.keyPressed[VK_ESCAPE] = false;
@@ -486,9 +476,10 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             roomScene.Render(DX11, finalEye.xyz(), view, proj);
         }
 
-        DX11.Context->ResolveSubresource(toneMapper.sourceTex.Get(), 0, EyeRenderTexture.Tex.Get(),
-                                         0, DXGI_FORMAT_R16G16B16A16_FLOAT);
-        luminanceRangeFinder.render(toneMapper.sourceTexSrv.Get());
+        DX11.Context->ResolveSubresource(get<0>(toneMapper.sourceTex).Get(), 0,
+                                         EyeRenderTexture.Tex.Get(), 0,
+                                         DXGI_FORMAT_R16G16B16A16_FLOAT);
+        luminanceRangeFinder.render(get<1>(toneMapper.sourceTex).Get());
         toneMapper.render(get<1>(luminanceRangeFinder.textureChain.back()).Get());
 
         // IMGUI update/rendering

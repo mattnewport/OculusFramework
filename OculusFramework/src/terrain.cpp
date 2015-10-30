@@ -434,19 +434,17 @@ void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
 void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     ID3D11DeviceContext* context,
     PipelineStateObjectManager& pipelineStateObjectManager) {
-    ID3D11Texture2DPtr tex = CreateTexture2D(
+    auto renderTex = CreateTexture2DAndRenderTargetView(
         device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
                               to<UINT>(heightFieldHeight)}
                     .bindFlags(D3D11_BIND_RENDER_TARGET)
                     .mipLevels(1)
                     .sampleDesc({8, 0}),
         "HeightField::creeks render target texture");
-    ID3D11RenderTargetViewPtr creeksRtv =
-        CreateRenderTargetView(device, tex.Get(), "HeightField::creeks texture rtv");
     const auto longestArcLength =
         std::max_element(begin(creeks), end(creeks), [](const auto& x, const auto& y) {
-        return x.latLongs.size() < y.latLongs.size();
-    })->latLongs.size();
+            return x.latLongs.size() < y.latLongs.size();
+        })->latLongs.size();
 
     ID3D11BufferPtr vb = CreateBuffer(
         device,
@@ -467,10 +465,10 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     auto pso = pipelineStateObjectManager.get(psod);
     dx11.applyState(*context, *pso.get());
     PSSetShaderResources(context, 0u, { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr });
-    context->ClearRenderTargetView(creeksRtv.Get(), std::data({0.0f, 0.0f, 0.0f, 0.0f}));
-    OMSetRenderTargets(context, { creeksRtv.Get() });
-    RSSetViewports(context, { { 0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
-        0.0f, 1.0f } });
+    context->ClearRenderTargetView(get<1>(renderTex).Get(), std::data({0.0f, 0.0f, 0.0f, 0.0f}));
+    OMSetRenderTargets(context, {get<1>(renderTex).Get()});
+    RSSetViewports(context, {{0.0f, 0.0f, to<float>(heightFieldWidth), to<float>(heightFieldHeight),
+                              0.0f, 1.0f}});
     for (const auto& c : creeks) {
         IASetVertexBuffers(context, 0u, { nullptr }, { 0u });
         {
@@ -486,7 +484,8 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
         context->Draw(c.latLongs.size(), 0);
     }
     OMSetRenderTargets(context, { nullptr });
-    context->ResolveSubresource(creeksTex.Get(), 0, tex.Get(), 0, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+    context->ResolveSubresource(creeksTex.Get(), 0, get<0>(renderTex).Get(), 0,
+                                DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     context->GenerateMips(creeksSrv.Get());
 }
 
@@ -505,18 +504,16 @@ void HeightField::generateLakesTexture(DirectX11& dx11, ID3D11Device* device,
 void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
     ID3D11DeviceContext* context,
     PipelineStateObjectManager& /*pipelineStateObjectManager*/) {
-    ID3D11Texture2DPtr tex = CreateTexture2D(
-        device, Texture2DDesc{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
-        to<UINT>(heightFieldHeight) }
-        .bindFlags(D3D11_BIND_RENDER_TARGET)
-        .mipLevels(1)
-        .sampleDesc({ 8, 0 }),
+    auto renderTex = CreateTexture2D(
+        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
+                              to<UINT>(heightFieldHeight)}
+                    .bindFlags(D3D11_BIND_RENDER_TARGET)
+                    .mipLevels(1)
+                    .sampleDesc({8, 0}),
         "HeightField::lakes render target texture");
-    ID3D11RenderTargetViewPtr lakesRtv =
-        CreateRenderTargetView(device, tex.Get(), "HeightField::lakes texture rtv");
 
     IDXGIResource1Ptr dxgiResource1;
-    ThrowOnFailure(tex.As(&dxgiResource1));
+    ThrowOnFailure(renderTex.As(&dxgiResource1));
     IDXGISurface2Ptr dxgiSurface2;
     ThrowOnFailure(dxgiResource1->CreateSubresourceSurface(0, dxgiSurface2.ReleaseAndGetAddressOf()));
     IDXGISurface1Ptr dxgiSurface1;
@@ -564,7 +561,8 @@ void HeightField::renderLakesTexture(DirectX11& /*dx11*/, ID3D11Device* device,
         d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
     }
     d2d1Rt->EndDraw();
-    context->ResolveSubresource(lakesTex.Get(), 0, tex.Get(), 0, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+    context->ResolveSubresource(lakesTex.Get(), 0, renderTex.Get(), 0,
+                                DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     context->GenerateMips(lakesSrv.Get());
 }
 
