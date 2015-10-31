@@ -9,7 +9,8 @@
 
 class Label {
 public:
-    Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* labelText);
+    Label(ID3D11Device* device, ID3D11DeviceContext* context, ID2D1Factory1* d2d1Factory1,
+          ID2D1DeviceContext* d2d1DeviceContext, const char* labelText);
     ID3D11ShaderResourceView* srv() { return texSrv.Get(); }
     auto getWidth() const { return width; }
     auto getHeight() const { return height; }
@@ -18,9 +19,6 @@ public:
     }
 
 private:
-    // MNTODO: move this somewhere more appropriate
-    ID2D1FactoryPtr d2d1Factory;
-
     ID3D11Texture2DPtr tex;
     ID3D11ShaderResourceViewPtr texSrv;
     DWRITE_TEXT_METRICS textMetrics = {};

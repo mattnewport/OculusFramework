@@ -59,15 +59,15 @@ private:
     void generateHeightFieldGeometry(ID3D11Device* device, const GeoTiff& geoTiff);
     void loadTopographicFeaturesShapeFile();
     void generateLabels(const GeoTiff& geoTiff, ID3D11Device* device, ID3D11DeviceContext* context,
-                        PipelineStateObjectManager& pipelineStateObjectManager);
+                        PipelineStateObjectManager& pipelineStateObjectManager, DirectX11& dx11);
     void loadCreeksShapeFile(const GeoTiff& geoTiff);
     void generateCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                                PipelineStateObjectManager& pipelineStateObjectManager);
     void renderCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                              PipelineStateObjectManager& pipelineStateObjectManager);
     void loadLakesShapeFile(const GeoTiff& geoTiff);
-    void generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context);
-    void renderLakesTexture(ID3D11DeviceContext* context);
+    void generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context, DirectX11& dx11);
+    void renderLakesTexture(ID3D11DeviceContext* context, DirectX11& dx11);
 
     std::unordered_map<int, std::string> initConciscodeNameMap();
 
@@ -120,13 +120,17 @@ private:
     ID3D11ShaderResourceViewPtr creeksSrv;
 
     struct Polygon {
-        std::string laknameen;
-        std::string rivnameen;
         std::vector<mathlib::Vec2f> latLongs;
         std::vector<mathlib::Vec2f> pixPositions;
         std::vector<int> partStarts;
-        std::vector<int> partTypes;
+        std::vector<std::pair<std::string, std::string>> stringAttributes;
     };
+    static std::vector<Polygon> loadPolygonShapeFile(
+        const char* filename, const GeoTiff& geoTiff,
+        const std::vector<std::string>& requestedStringAttributes);
+    static void renderPolygonsToTexture(const std::vector<Polygon>& polygons, ID3D11Texture2D* tex,
+                                        DirectX11& dx11);
+
     std::vector<Polygon> lakes;
     ID3D11Texture2DPtr lakesTex;
     ID3D11ShaderResourceViewPtr lakesSrv;

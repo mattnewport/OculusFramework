@@ -7,7 +7,8 @@
 using namespace std;
 using namespace util;
 
-Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* labelText) {
+Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, ID2D1Factory1* d2d1Factory1,
+             ID2D1DeviceContext* d2d1DeviceContext, const char* labelText) {
     IDWriteFactoryPtr dwriteFactory;
     ThrowOnFailure(
         DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(dwriteFactory),
@@ -32,9 +33,9 @@ Label::Label(ID3D11Device* device, ID3D11DeviceContext* context, const char* lab
                     .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "Label::tex");
 
-    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
     DrawToRenderTargetTexture(
-        d2d1Factory.Get(), tex.Get(), [this, textLayout](ID2D1Factory*, ID2D1RenderTarget* d2d1Rt) {
+        d2d1Factory1, d2d1DeviceContext, tex.Get(),
+        [this, textLayout](ID2D1Factory*, ID2D1RenderTarget* d2d1Rt) {
             auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Black));
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
             d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::White});

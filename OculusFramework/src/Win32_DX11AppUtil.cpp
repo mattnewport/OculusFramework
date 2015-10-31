@@ -187,6 +187,10 @@ bool DirectX11::InitWindowAndDevice(ovrRecti vp, const LUID* pLuid) {
             DXGIDevice1->SetMaximumFrameLatency(1);
     }();
 
+    d2d1Factory1 = CreateD2D1Factory1();
+    tie(d2d1Device, d2d1DeviceContext) =
+        CreateD2D1DeviceAndDeviceContext(Device.Get(), d2d1Factory1.Get());
+
     return true;
 }
 

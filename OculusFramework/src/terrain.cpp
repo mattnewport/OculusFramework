@@ -194,13 +194,13 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
 
     loadTopographicFeaturesShapeFile();
-    generateLabels(geoTiff, device, context, pipelineStateObjectManager);
+    generateLabels(geoTiff, device, context, pipelineStateObjectManager, dx11);
 
     loadCreeksShapeFile(geoTiff);
     generateCreeksTexture(dx11, device, context, pipelineStateObjectManager);
 
     loadLakesShapeFile(geoTiff);
-    generateLakesTexture(device, context);
+    generateLakesTexture(device, context, dx11);
 
     terrainParametersConstantBuffer =
         CreateBuffer(device, BufferDesc{roundUpConstantBufferSize(sizeof(TerrainParameters)),
@@ -292,7 +292,7 @@ public:
         }
     }
 
-    auto readString(int shapeId, const char* fieldName) {
+    auto readStringAttribute(int shapeId, const char* fieldName) {
         assert(to<size_t>(shapeId) < shapes.size());
         assert(fieldInfos.find(fieldName) != end(fieldInfos) &&
                fieldInfos[fieldName].type == FTString);
@@ -301,7 +301,7 @@ public:
         return string{fieldChars};
     };
 
-    auto readDouble(int shapeId, const char* fieldName) {
+    auto readDoubleAttribute(int shapeId, const char* fieldName) {
         assert(to<size_t>(shapeId) < shapes.size());
         assert(fieldInfos.find(fieldName) != end(fieldInfos) &&
                fieldInfos[fieldName].type == FTDouble);
@@ -324,10 +324,10 @@ void HeightField::loadTopographicFeaturesShapeFile() {
     auto shapeFile = ShapeFile{R"(data\canvec_150528_015119_shp\to_1580009_0.shp)"};
 
     for (const auto& shape : shapeFile.getShapes()) {
-        const auto nameen = shapeFile.readString(shape->nShapeId, "nameen");
+        const auto nameen = shapeFile.readStringAttribute(shape->nShapeId, "nameen");
         const auto longitude = float(*shape->padfX);
         const auto latitude = float(*shape->padfY);
-        const auto conciscode = to<int>(shapeFile.readDouble(shape->nShapeId, "conciscode"));
+        const auto conciscode = to<int>(shapeFile.readDoubleAttribute(shape->nShapeId, "conciscode"));
         displayedConciscodes[conciscode] = true;
         topographicFeatures.push_back({Vec2f{latitude, longitude}, nameen, conciscode});
     }
@@ -335,9 +335,11 @@ void HeightField::loadTopographicFeaturesShapeFile() {
 
 void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
                                  ID3D11DeviceContext* context,
-                                 PipelineStateObjectManager& pipelineStateObjectManager) {
+                                 PipelineStateObjectManager& pipelineStateObjectManager,
+                                 DirectX11& dx11) {
     for (const auto& feature : topographicFeatures) {
-        topographicFeatureLabels.emplace_back(device, context, feature.label.c_str());
+        topographicFeatureLabels.emplace_back(device, context, dx11.d2d1Factory1.Get(),
+                                              dx11.d2d1DeviceContext.Get(), feature.label.c_str());
         const auto& label = topographicFeatureLabels.back();
         const auto labelPixelPos =
             Vec2i{geoTiff.latLongToPixXY(feature.latLong.x(), feature.latLong.y())};
@@ -405,7 +407,7 @@ void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
     for (const auto& s : shapeFile.getShapes()) {
         assert(s->nSHPType == SHPT_ARC);
         assert(s->nParts == 1);
-        const auto nameen = shapeFile.readString(s->nShapeId, "nameen");
+        const auto nameen = shapeFile.readStringAttribute(s->nShapeId, "nameen");
         auto arc = Arc{nameen, {vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}};
         for (size_t i = 0; i < arc.latLongs.size(); ++i) {
             arc.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
@@ -428,7 +430,7 @@ void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
     renderCreeksTexture(dx11, device, context, pipelineStateObjectManager);
 }
 
-void HeightField::renderCreeksTexture(DirectX11&, ID3D11Device* device,
+void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
                                       ID3D11DeviceContext* context, PipelineStateObjectManager&) {
     auto renderTex = CreateTexture2DAndRenderTargetView(
         device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
@@ -438,105 +440,52 @@ void HeightField::renderCreeksTexture(DirectX11&, ID3D11Device* device,
                     .sampleDesc({8, 0}),
         "HeightField::creeks render target texture");
 
-    ID2D1FactoryPtr d2d1Factory;
-    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
     DrawToRenderTargetTexture(
-        d2d1Factory.Get(), creeksTex.Get(),
-        [&creeks = creeks, w = heightFieldWidth, h = heightFieldHeight](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
-        auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::White));
-        d2d1Rt->SetTransform(D2D1::IdentityMatrix());
-        d2d1Rt->Clear(D2D1::ColorF{ D2D1::ColorF::Black });
-        auto pathGeometry = CreatePathGeometry(factory);
-        auto geometrySink = Open(pathGeometry.Get());
-        for (const auto& c : creeks) {
-            bool first = true;
-            for (auto pp : c.pixPositions) {
-                auto point = D2D1::Point2F(pp.x(), pp.y());
-                if (first) {
-                    geometrySink->BeginFigure(point, D2D1_FIGURE_BEGIN_HOLLOW);
-                    first = false;
-                } else {
-                    geometrySink->AddLine(point);
-                }
-            }
-            geometrySink->EndFigure(D2D1_FIGURE_END_OPEN);
-        }
-        geometrySink->Close();
-        d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 2.0f);
-    });
-
-    context->GenerateMips(creeksSrv.Get());
-}
-
-void HeightField::generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context) {
-    tie(lakesTex, lakesSrv) = CreateTexture2DAndShaderResourceView(
-        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
-                              to<UINT>(heightFieldHeight)}
-                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
-                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
-        "HeightField::lakes texture");
-    renderLakesTexture(context);
-}
-
-void HeightField::renderLakesTexture(ID3D11DeviceContext* context) {
-    ID2D1FactoryPtr d2d1Factory;
-    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.ReleaseAndGetAddressOf());
-    DrawToRenderTargetTexture(
-        d2d1Factory.Get(), lakesTex.Get(),
-        [&lakes = this->lakes](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
-            auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Red));
-            auto fillBrush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Lime));
+        dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), creeksTex.Get(),
+        [&creeks = creeks](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
+            auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::White));
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
             d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
             auto pathGeometry = CreatePathGeometry(factory);
             auto geometrySink = Open(pathGeometry.Get());
-            for (const auto& c : lakes) {
-                const auto numParts = to<int>(c.partStarts.size());
-                for (int i = 0; i < numParts; ++i) {
-                    const auto startIndex = c.partStarts[i];
-                    const auto startEndPoint = c.pixPositions[startIndex];
-                    geometrySink->BeginFigure(D2D1::Point2F(startEndPoint.x(), startEndPoint.y()),
-                                              D2D1_FIGURE_BEGIN_FILLED);
-                    const auto endIndex =
-                        i + 1 < numParts ? c.partStarts[i + 1] : to<int>(c.pixPositions.size());
-                    for (int j = startIndex + 1; j < endIndex; ++j) {
-                        const auto point = c.pixPositions[j];
-                        geometrySink->AddLine(D2D1::Point2F(point.x(), point.y()));
+            for (const auto& c : creeks) {
+                bool first = true;
+                for (auto pp : c.pixPositions) {
+                    auto point = D2D1::Point2F(pp.x(), pp.y());
+                    if (first) {
+                        geometrySink->BeginFigure(point, D2D1_FIGURE_BEGIN_HOLLOW);
+                        first = false;
+                    } else {
+                        geometrySink->AddLine(point);
                     }
-                    geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
                 }
+                geometrySink->EndFigure(D2D1_FIGURE_END_OPEN);
             }
             geometrySink->Close();
-            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
-            d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
+            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 2.0f);
         });
 
+    context->GenerateMips(creeksSrv.Get());
+}
+
+void HeightField::generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context, DirectX11& dx11) {
+    tie(lakesTex, lakesSrv) = CreateTexture2DAndShaderResourceView(
+        device, Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
+                              to<UINT>(heightFieldHeight)}
+                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
+                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
+        "HeightField::lakes texture");
+    renderLakesTexture(context, dx11);
+}
+
+void HeightField::renderLakesTexture(ID3D11DeviceContext* context, DirectX11& dx11) {
+    renderPolygonsToTexture(lakes, lakesTex.Get(), dx11);
     context->GenerateMips(lakesSrv.Get());
 }
 
 void HeightField::loadLakesShapeFile(const GeoTiff& geoTiff) {
-    auto shapeFile = ShapeFile{R"(data\canvec_150528_015119_shp\hd_1480009_2.shp)"};
-    for (const auto& s : shapeFile.getShapes()) {
-        assert(s->nSHPType == SHPT_POLYGON);
-        const auto laknameen = shapeFile.readString(s->nShapeId, "laknameen");
-        const auto rivnameen = shapeFile.readString(s->nShapeId, "rivnameen");
-        auto poly = Polygon{
-            laknameen, rivnameen, {vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}};
-        assert(s->nParts > 0);
-        for (int i = 0; i < s->nParts; ++i) {
-            poly.partStarts.push_back(s->panPartStart[i]);
-            const auto partType = s->panPartType[i];
-            assert(partType == SHPP_RING);
-            poly.partTypes.push_back(partType);
-        }
-        for (size_t i = 0; i < poly.latLongs.size(); ++i) {
-            poly.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
-            const auto pixelPos =
-                geoTiff.latLongToPixXY(poly.latLongs[i].x(), poly.latLongs[i].y());
-            poly.pixPositions[i] = Vec2f{pixelPos};
-        }
-        lakes.push_back(poly);
-    }
+    lakes = loadPolygonShapeFile(R"(data\canvec_150528_015119_shp\hd_1480009_2.shp)", geoTiff,
+                                 {"laknameen", "rivnameen"});
 }
 
 void HeightField::showGui() {
@@ -703,4 +652,66 @@ std::unordered_map<int, std::string> HeightField::initConciscodeNameMap() {
         {450, "Miscellaneous campsite"},
         {460, "Miscellaneous site"},
     };
+}
+
+std::vector<HeightField::Polygon> HeightField::loadPolygonShapeFile(
+    const char* filename, const GeoTiff& geoTiff,
+    const std::vector<std::string>& requestedStringAttributes) {
+    std::vector<HeightField::Polygon> res;
+    auto shapeFile = ShapeFile{filename};
+    for (const auto& s : shapeFile.getShapes()) {
+        assert(s->nSHPType == SHPT_POLYGON);
+        res.push_back(Polygon{{vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}});
+        auto& poly = res.back();
+        for (const auto& stringAttr : requestedStringAttributes) {
+            poly.stringAttributes.emplace_back(
+                stringAttr, shapeFile.readStringAttribute(s->nShapeId, stringAttr.c_str()));
+        }
+        assert(s->nParts > 0);
+        for (int i = 0; i < s->nParts; ++i) {
+            poly.partStarts.push_back(s->panPartStart[i]);
+            assert(s->panPartType[i] == SHPP_RING);
+        }
+        for (size_t i = 0; i < poly.latLongs.size(); ++i) {
+            poly.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
+            const auto pixelPos =
+                geoTiff.latLongToPixXY(poly.latLongs[i].x(), poly.latLongs[i].y());
+            poly.pixPositions[i] = Vec2f{pixelPos};
+        }
+    }
+    return res;
+}
+
+void HeightField::renderPolygonsToTexture(const std::vector<Polygon>& polygons,
+                                          ID3D11Texture2D* tex, DirectX11& dx11) {
+    DrawToRenderTargetTexture(
+        dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), tex,
+        [&polygons](ID2D1Factory* factory, ID2D1RenderTarget* d2d1Rt) {
+            auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Red));
+            auto fillBrush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Lime));
+            d2d1Rt->Clear(D2D1::ColorF(D2D1::ColorF::Black));
+            d2d1Rt->SetTransform(D2D1::IdentityMatrix());
+            for (const auto& p : polygons) {
+                auto pathGeometry = CreatePathGeometry(factory);
+                auto geometrySink = Open(pathGeometry.Get());
+                const auto numParts = to<int>(p.partStarts.size());
+                for (int i = 0; i < numParts; ++i) {
+                    const auto startIndex = p.partStarts[i];
+                    const auto startPoint = p.pixPositions[startIndex];
+                    geometrySink->BeginFigure(D2D1::Point2F(startPoint.x(), startPoint.y()),
+                                              D2D1_FIGURE_BEGIN_FILLED);
+                    const auto endIndex =
+                        i + 1 < numParts ? p.partStarts[i + 1] : to<int>(p.pixPositions.size());
+                    for (int j = startIndex + 1; j < endIndex; ++j) {
+                        const auto point = p.pixPositions[j];
+                        geometrySink->AddLine(D2D1::Point2F(point.x(), point.y()));
+                    }
+                    geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
+                }
+                geometrySink->Close();
+                d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
+                d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
+                ThrowOnFailure(d2d1Rt->Flush());
+            }
+        });
 }

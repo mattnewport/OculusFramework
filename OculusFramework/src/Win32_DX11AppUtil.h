@@ -29,6 +29,8 @@ limitations under the License.
 
 #include <OVR_CAPI.h>
 
+#include "d3dhelper.h"
+#include "d2dhelper.h"
 #include "d3dresourcemanagers.h"
 #include "pipelinestateobjectmanager.h"
 
@@ -58,6 +60,9 @@ struct DirectX11 {
     IDXGISwapChainPtr SwapChain;
     ID3D11Texture2DPtr BackBuffer;
     ID3D11RenderTargetViewPtr BackBufferRT;
+    ID2D1Factory1Ptr d2d1Factory1;
+    ID2D1DevicePtr d2d1Device;
+    ID2D1DeviceContextPtr d2d1DeviceContext;
 
     std::unique_ptr<StateManagers> stateManagers;
     std::unique_ptr<PipelineStateObjectManager> pipelineStateObjectManager;
