@@ -66,6 +66,9 @@ private:
     void loadLakesShapeFile(const GeoTiff& geoTiff);
     void generateLakesTexture(DirectX11& dx11);
     void renderLakesTexture(DirectX11& dx11);
+    void loadGlaciersShapeFile(const GeoTiff& geoTiff);
+    void generateGlaciersTexture(DirectX11& dx11);
+    void renderGlaciersTexture(DirectX11& dx11);
 
     std::unordered_map<int, std::string> initConciscodeNameMap();
 
@@ -127,11 +130,14 @@ private:
         const char* filename, const GeoTiff& geoTiff,
         const std::vector<std::string>& requestedStringAttributes);
     static void renderPolygonsToTexture(const std::vector<Polygon>& polygons, ID3D11Texture2D* tex,
-                                        DirectX11& dx11);
+                                        DirectX11& dx11, D2D1::ColorF outlineColor,
+                                        D2D1::ColorF fillColor);
 
     std::vector<Polygon> lakes;
-    ID3D11Texture2DPtr lakesTex;
-    ID3D11ShaderResourceViewPtr lakesSrv;
+    ID3D11Texture2DPtr lakesAndGlaciersTex;
+    ID3D11ShaderResourceViewPtr lakesAndGlaciersSrv;
+
+    std::vector<Polygon> glaciers;
 
     struct TerrainParameters {
         mathlib::Vec4f hydroLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};

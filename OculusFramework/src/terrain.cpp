@@ -202,6 +202,9 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
     loadLakesShapeFile(geoTiff);
     generateLakesTexture(dx11);
 
+    loadGlaciersShapeFile(geoTiff);
+    generateGlaciersTexture(dx11);
+
     terrainParametersConstantBuffer =
         CreateBuffer(device, BufferDesc{roundUpConstantBufferSize(sizeof(TerrainParameters)),
                                         D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC}
@@ -233,7 +236,7 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     PSSetConstantBuffers(context, objectConstantBufferOffset, { objectConstantBuffer.Get() });
     PSSetConstantBuffers(context, 3, {terrainParametersConstantBuffer.Get()});
     PSSetShaderResources(context, materialSRVOffset,
-                         {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesSrv.Get()});
+                         {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesAndGlaciersSrv.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
@@ -457,7 +460,7 @@ void HeightField::renderCreeksTexture(DirectX11& dx11) {
 }
 
 void HeightField::generateLakesTexture(DirectX11& dx11) {
-    tie(lakesTex, lakesSrv) = CreateTexture2DAndShaderResourceView(
+    tie(lakesAndGlaciersTex, lakesAndGlaciersSrv) = CreateTexture2DAndShaderResourceView(
         dx11.Device.Get(), Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
                                          to<UINT>(heightFieldWidth), to<UINT>(heightFieldHeight)}
                                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
@@ -467,13 +470,27 @@ void HeightField::generateLakesTexture(DirectX11& dx11) {
 }
 
 void HeightField::renderLakesTexture(DirectX11& dx11) {
-    renderPolygonsToTexture(lakes, lakesTex.Get(), dx11);
-    dx11.Context->GenerateMips(lakesSrv.Get());
+    renderPolygonsToTexture(lakes, lakesAndGlaciersTex.Get(), dx11, D2D1::ColorF(D2D1::ColorF::Red),
+                            D2D1::ColorF(D2D1::ColorF::Lime));
+    dx11.Context->GenerateMips(lakesAndGlaciersSrv.Get());
 }
 
 void HeightField::loadLakesShapeFile(const GeoTiff& geoTiff) {
     lakes = loadPolygonShapeFile(R"(data\canvec_150528_015119_shp\hd_1480009_2.shp)", geoTiff,
                                  {"laknameen", "rivnameen"});
+}
+
+void HeightField::generateGlaciersTexture(DirectX11& dx11) { renderGlaciersTexture(dx11); }
+
+void HeightField::renderGlaciersTexture(DirectX11& dx11) {
+    renderPolygonsToTexture(glaciers, lakesAndGlaciersTex.Get(), dx11,
+                            D2D1::ColorF(D2D1::ColorF::Blue), D2D1::ColorF(D2D1::ColorF::Blue));
+    dx11.Context->GenerateMips(lakesAndGlaciersSrv.Get());
+}
+
+void HeightField::loadGlaciersShapeFile(const GeoTiff& geoTiff) {
+    glaciers =
+        loadPolygonShapeFile(R"(data\canvec_150528_015119_shp\hd_1140009_2.shp)", geoTiff, {});
 }
 
 void HeightField::showGui() {
@@ -489,6 +506,9 @@ void HeightField::showGui() {
         static bool showCreeks = true;
         ImGui::Checkbox("Show creeks", &showCreeks);
         terrainParameters.hydroLayerAlphas.z() = showCreeks ? 1.0f : 0.0f;
+        static bool showGlaciers = true;
+        ImGui::Checkbox("Show glaciers", &showGlaciers);
+        terrainParameters.hydroLayerAlphas.w() = showGlaciers ? 1.0f : 0.0f;
         static bool showContours = false;
         ImGui::Checkbox("Show contours", &showContours);
         terrainParameters.contours = showContours ? 1.0f : 0.0f;
@@ -671,13 +691,13 @@ std::vector<HeightField::Polygon> HeightField::loadPolygonShapeFile(
 }
 
 void HeightField::renderPolygonsToTexture(const std::vector<Polygon>& polygons,
-                                          ID3D11Texture2D* tex, DirectX11& dx11) {
+                                          ID3D11Texture2D* tex, DirectX11& dx11,
+                                          D2D1::ColorF outlineColor, D2D1::ColorF fillColor) {
     DrawToRenderTargetTexture(
         dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), tex,
-        [&polygons](ID2D1Factory* factory, ID2D1RenderTarget* d2d1Rt) {
-            auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Red));
-            auto fillBrush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Lime));
-            d2d1Rt->Clear(D2D1::ColorF(D2D1::ColorF::Black));
+        [&polygons, outlineColor, fillColor](ID2D1Factory* factory, ID2D1RenderTarget* d2d1Rt) {
+            auto brush = CreateSolidColorBrush(d2d1Rt, outlineColor);
+            auto fillBrush = CreateSolidColorBrush(d2d1Rt, fillColor);
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
             auto pathGeometry = CreatePathGeometry(factory);
             auto geometrySink = Open(pathGeometry.Get());

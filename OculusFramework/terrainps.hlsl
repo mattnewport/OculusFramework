@@ -19,8 +19,9 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
 {
     float4 base = float4(0.66, 0.6, 0.6, 1.0);
     float creeks = Creeks.Sample(StandardTexture, TexCoord).r * terrainParameters.hydroLayerAlphas.b;
-    float2 lakes = Lakes.Sample(StandardTexture, TexCoord).rg * terrainParameters.hydroLayerAlphas.rg;
+    float3 lakes = Lakes.Sample(StandardTexture, TexCoord).rgb * terrainParameters.hydroLayerAlphas.rga;
     float4 diffuse = lerp(lerp(lerp(base, float4(0.45f, 0.55f, 0.78f, 1.0f), creeks), float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g);
+    diffuse = lerp(diffuse, float4(0.4f, 0.1f, 0.5f, 1.0f), lakes.b);
     if (terrainParameters.contours > 0) {
         float contour = objectPos.y / 100;
         contour = 0.1 - abs(round(contour) - contour);
