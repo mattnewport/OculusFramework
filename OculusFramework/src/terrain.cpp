@@ -430,14 +430,6 @@ void HeightField::generateCreeksTexture(DirectX11& dx11) {
 }
 
 void HeightField::renderCreeksTexture(DirectX11& dx11) {
-    auto renderTex = CreateTexture2DAndRenderTargetView(
-        dx11.Device.Get(), Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-                                         to<UINT>(heightFieldWidth), to<UINT>(heightFieldHeight)}
-                               .bindFlags(D3D11_BIND_RENDER_TARGET)
-                               .mipLevels(1)
-                               .sampleDesc({8, 0}),
-        "HeightField::creeks render target texture");
-
     DrawToRenderTargetTexture(
         dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), creeksTex.Get(),
         [& creeks = creeks](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
