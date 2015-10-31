@@ -514,53 +514,51 @@ inline auto D3D11CreateDeviceAndSwapChain(IDXGIAdapter* adapter, const DXGI_SWAP
     return res;
 }
 
-inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource,
-                                   gsl::cstring_view<> name = {}) {
-    ID3D11RenderTargetViewPtr res;
-    ThrowOnFailure(device->CreateRenderTargetView(resource, nullptr, &res));
+namespace detail {
+// Helper to wrap boilerplate for all ID3D11Device::Create*() calls.
+template <typename Result, typename CreateFunc, typename... Args>
+inline auto create(ID3D11Device* device, CreateFunc createFunc, gsl::cstring_view<> name,
+                   Args... args) {
+    Microsoft::WRL::ComPtr<Result> res;
+    ThrowOnFailure((device->*createFunc)(args..., res.ReleaseAndGetAddressOf()));
     SetDebugObjectName(res.Get(), name);
     return res;
+}
+}
+
+inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource,
+                                   gsl::cstring_view<> name = {}) {
+    return detail::create<ID3D11RenderTargetView>(device, &ID3D11Device::CreateRenderTargetView,
+                                                  name, resource, nullptr);
 }
 
 inline auto CreateRenderTargetView(ID3D11Device* device, ID3D11Resource* resource,
                                    const D3D11_RENDER_TARGET_VIEW_DESC& desc,
                                    gsl::cstring_view<> name = {}) {
-    ID3D11RenderTargetViewPtr res;
-    ThrowOnFailure(device->CreateRenderTargetView(resource, &desc, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11RenderTargetView>(device, &ID3D11Device::CreateRenderTargetView,
+                                                  name, resource, &desc);
 }
 
 inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc,
                             gsl::cstring_view<> name = {}) {
-    ID3D11Texture2DPtr res;
-    ThrowOnFailure(device->CreateTexture2D(&desc, nullptr, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11Texture2D>(device, &ID3D11Device::CreateTexture2D, name, &desc,
+                                           nullptr);
 }
 
 inline auto CreateTexture2D(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& desc,
                             const D3D11_SUBRESOURCE_DATA& data, gsl::cstring_view<> name = {}) {
-    ID3D11Texture2DPtr res;
-    ThrowOnFailure(device->CreateTexture2D(&desc, &data, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11Texture2D>(device, &ID3D11Device::CreateTexture2D, name, &desc,
+                                           &data);
 }
 
 inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
                          gsl::cstring_view<> name = {}) {
-    ID3D11BufferPtr res;
-    ThrowOnFailure(device->CreateBuffer(&desc, nullptr, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11Buffer>(device, &ID3D11Device::CreateBuffer, name, &desc, nullptr);
 }
 
 inline auto CreateBuffer(ID3D11Device* device, const D3D11_BUFFER_DESC& desc,
                          const D3D11_SUBRESOURCE_DATA& data, gsl::cstring_view<> name = {}) {
-    ID3D11BufferPtr res;
-    ThrowOnFailure(device->CreateBuffer(&desc, &data, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11Buffer>(device, &ID3D11Device::CreateBuffer, name, &desc, &data);
 }
 
 template <typename Vertex>
@@ -581,18 +579,14 @@ inline auto CreateIndexBuffer(ID3D11Device* device, gsl::array_view<const Index>
 inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource,
                                      const D3D11_SHADER_RESOURCE_VIEW_DESC& desc,
                                      gsl::cstring_view<> name = {}) {
-    ID3D11ShaderResourceViewPtr res;
-    ThrowOnFailure(device->CreateShaderResourceView(resource, &desc, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11ShaderResourceView>(device, &ID3D11Device::CreateShaderResourceView,
+                                                    name, resource, &desc);
 }
 
 inline auto CreateShaderResourceView(ID3D11Device* device, ID3D11Resource* resource,
                                      gsl::cstring_view<> name = {}) {
-    ID3D11ShaderResourceViewPtr res;
-    ThrowOnFailure(device->CreateShaderResourceView(resource, nullptr, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11ShaderResourceView>(device, &ID3D11Device::CreateShaderResourceView,
+                                                    name, resource, nullptr);
 }
 
 inline auto CreateTexture2DAndShaderResourceView(ID3D11Device* device,
@@ -632,18 +626,14 @@ inline auto CreateTexture2DAndRenderTargetView(ID3D11Device* device,
 inline auto CreateDepthStencilView(ID3D11Device* device, ID3D11Resource* resource,
                                    const D3D11_DEPTH_STENCIL_VIEW_DESC& desc,
                                    gsl::cstring_view<> name = {}) {
-    ID3D11DepthStencilViewPtr res;
-    ThrowOnFailure(device->CreateDepthStencilView(resource, &desc, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11DepthStencilView>(device, &ID3D11Device::CreateDepthStencilView,
+                                                  name, resource, &desc);
 }
 
 inline auto CreateDepthStencilView(ID3D11Device* device, ID3D11Resource* resource,
                                    gsl::cstring_view<> name = {}) {
-    ID3D11DepthStencilViewPtr res;
-    ThrowOnFailure(device->CreateDepthStencilView(resource, nullptr, &res));
-    SetDebugObjectName(res.Get(), name);
-    return res;
+    return detail::create<ID3D11DepthStencilView>(device, &ID3D11Device::CreateDepthStencilView,
+                                                  name, resource, nullptr);
 }
 
 // Helpers for mapping a buffer
