@@ -61,13 +61,11 @@ private:
     void generateLabels(const GeoTiff& geoTiff, ID3D11Device* device, ID3D11DeviceContext* context,
                         PipelineStateObjectManager& pipelineStateObjectManager, DirectX11& dx11);
     void loadCreeksShapeFile(const GeoTiff& geoTiff);
-    void generateCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
-                               PipelineStateObjectManager& pipelineStateObjectManager);
-    void renderCreeksTexture(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
-                             PipelineStateObjectManager& pipelineStateObjectManager);
+    void generateCreeksTexture(DirectX11& dx11);
+    void renderCreeksTexture(DirectX11& dx11);
     void loadLakesShapeFile(const GeoTiff& geoTiff);
-    void generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context, DirectX11& dx11);
-    void renderLakesTexture(ID3D11DeviceContext* context, DirectX11& dx11);
+    void generateLakesTexture(DirectX11& dx11);
+    void renderLakesTexture(DirectX11& dx11);
 
     std::unordered_map<int, std::string> initConciscodeNameMap();
 

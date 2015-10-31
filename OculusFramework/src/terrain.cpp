@@ -197,10 +197,10 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
     generateLabels(geoTiff, device, context, pipelineStateObjectManager, dx11);
 
     loadCreeksShapeFile(geoTiff);
-    generateCreeksTexture(dx11, device, context, pipelineStateObjectManager);
+    generateCreeksTexture(dx11);
 
     loadLakesShapeFile(geoTiff);
-    generateLakesTexture(device, context, dx11);
+    generateLakesTexture(dx11);
 
     terrainParametersConstantBuffer =
         CreateBuffer(device, BufferDesc{roundUpConstantBufferSize(sizeof(TerrainParameters)),
@@ -418,31 +418,29 @@ void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
     }
 }
 
-void HeightField::generateCreeksTexture(DirectX11& dx11, ID3D11Device* device,
-                                        ID3D11DeviceContext* context,
-                                        PipelineStateObjectManager& pipelineStateObjectManager) {
+void HeightField::generateCreeksTexture(DirectX11& dx11) {
     tie(creeksTex, creeksSrv) = CreateTexture2DAndShaderResourceView(
-        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
-                              to<UINT>(heightFieldHeight)}
-                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
-                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
+        dx11.Device.Get(), Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+                                         to<UINT>(heightFieldWidth), to<UINT>(heightFieldHeight)}
+                               .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
+                               .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "HeightField::creeks texture");
-    renderCreeksTexture(dx11, device, context, pipelineStateObjectManager);
+    renderCreeksTexture(dx11);
+    dx11.Context->GenerateMips(creeksSrv.Get());
 }
 
-void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
-                                      ID3D11DeviceContext* context, PipelineStateObjectManager&) {
+void HeightField::renderCreeksTexture(DirectX11& dx11) {
     auto renderTex = CreateTexture2DAndRenderTargetView(
-        device, Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
-                              to<UINT>(heightFieldHeight)}
-                    .bindFlags(D3D11_BIND_RENDER_TARGET)
-                    .mipLevels(1)
-                    .sampleDesc({8, 0}),
+        dx11.Device.Get(), Texture2DDesc{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+                                         to<UINT>(heightFieldWidth), to<UINT>(heightFieldHeight)}
+                               .bindFlags(D3D11_BIND_RENDER_TARGET)
+                               .mipLevels(1)
+                               .sampleDesc({8, 0}),
         "HeightField::creeks render target texture");
 
     DrawToRenderTargetTexture(
         dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), creeksTex.Get(),
-        [&creeks = creeks](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
+        [& creeks = creeks](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
             auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::White));
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
             d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
@@ -464,23 +462,21 @@ void HeightField::renderCreeksTexture(DirectX11& dx11, ID3D11Device* device,
             geometrySink->Close();
             d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 2.0f);
         });
-
-    context->GenerateMips(creeksSrv.Get());
 }
 
-void HeightField::generateLakesTexture(ID3D11Device* device, ID3D11DeviceContext* context, DirectX11& dx11) {
+void HeightField::generateLakesTexture(DirectX11& dx11) {
     tie(lakesTex, lakesSrv) = CreateTexture2DAndShaderResourceView(
-        device, Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, to<UINT>(heightFieldWidth),
-                              to<UINT>(heightFieldHeight)}
-                    .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
-                    .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
+        dx11.Device.Get(), Texture2DDesc{DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+                                         to<UINT>(heightFieldWidth), to<UINT>(heightFieldHeight)}
+                               .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
+                               .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "HeightField::lakes texture");
-    renderLakesTexture(context, dx11);
+    renderLakesTexture(dx11);
 }
 
-void HeightField::renderLakesTexture(ID3D11DeviceContext* context, DirectX11& dx11) {
+void HeightField::renderLakesTexture(DirectX11& dx11) {
     renderPolygonsToTexture(lakes, lakesTex.Get(), dx11);
-    context->GenerateMips(lakesSrv.Get());
+    dx11.Context->GenerateMips(lakesSrv.Get());
 }
 
 void HeightField::loadLakesShapeFile(const GeoTiff& geoTiff) {
@@ -691,9 +687,9 @@ void HeightField::renderPolygonsToTexture(const std::vector<Polygon>& polygons,
             auto fillBrush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::Lime));
             d2d1Rt->Clear(D2D1::ColorF(D2D1::ColorF::Black));
             d2d1Rt->SetTransform(D2D1::IdentityMatrix());
+            auto pathGeometry = CreatePathGeometry(factory);
+            auto geometrySink = Open(pathGeometry.Get());
             for (const auto& p : polygons) {
-                auto pathGeometry = CreatePathGeometry(factory);
-                auto geometrySink = Open(pathGeometry.Get());
                 const auto numParts = to<int>(p.partStarts.size());
                 for (int i = 0; i < numParts; ++i) {
                     const auto startIndex = p.partStarts[i];
@@ -708,10 +704,9 @@ void HeightField::renderPolygonsToTexture(const std::vector<Polygon>& polygons,
                     }
                     geometrySink->EndFigure(D2D1_FIGURE_END_CLOSED);
                 }
-                geometrySink->Close();
-                d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
-                d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
-                ThrowOnFailure(d2d1Rt->Flush());
             }
+            geometrySink->Close();
+            d2d1Rt->FillGeometry(pathGeometry.Get(), fillBrush.Get());
+            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 3.0f);
         });
 }
