@@ -1,6 +1,8 @@
 #include "lighting.hlsli"
 
 struct TerrainParameters {
+    float2 minMaxTerrainHeight;
+    float2 terrainWidthHeightMeters;
     float4 arcLayerAlphas;
     float4 hydroLayerAlphas;
     float contours;
@@ -10,10 +12,39 @@ cbuffer TerrainConstantBuffer : register(b3) {
     TerrainParameters terrainParameters;
 }
 
-Texture2D Texture : register(t2);
+Texture2D<uint> Heights : register(t2);
 Texture2D Normals : register(t3);
 Texture2D Creeks : register(t4);
 Texture2D Lakes : register(t5);
+
+// Hacky experiment with raytracing shadow in pixel shader, too slow for use
+float terrainShadow(float2 texCoord, float3 lightDir) {
+    lightDir = float3(1.0f, 0.99f, 0.0f);
+    float texWidth, texHeight;
+    Heights.GetDimensions(texWidth, texHeight);
+    if (abs(lightDir.x) > abs(lightDir.z)) {
+        float3 step = lightDir * (1.0f / lightDir.x) * (terrainParameters.terrainWidthHeightMeters.x / texWidth);
+        int2 intCoord = texCoord * int2(texWidth - 1, texHeight - 1);
+        float height = Heights.Load(int3(intCoord, 0)).x;
+        float3 pos = float3(0.0f, height, 0.0f);
+        if (step.x > 0.0) {
+            while (intCoord.x < texWidth) {
+                pos += step;
+                ++intCoord.x;
+                height = Heights.Load(int3(intCoord, 0)).x;
+                if (height > pos.y) return 0.1f;
+                if (pos.y > terrainParameters.minMaxTerrainHeight.y) return 0.9f;
+            }
+            return 1.0f;
+        }
+        else {
+            return 1.0f;
+        }
+    }
+    else {
+        return 1.0f;
+    }
+}
 
 float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
             in float2 TexCoord : TEXCOORD0, in float3 worldPos : TEXCOORD1, in float3 viewDir : TEXCOORD2, in float3 objectPos : TEXCOORD3) : SV_Target

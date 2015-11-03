@@ -92,7 +92,6 @@ private:
     std::vector<uint16_t> Indices;
     std::vector<ID3D11BufferPtr> VertexBuffers;
     ID3D11BufferPtr IndexBuffer;
-    Texture2DManager::ResourceHandle shapesTex;
     ID3D11BufferPtr objectConstantBuffer;
     ID3D11Texture2DPtr heightsTex;
     ID3D11ShaderResourceViewPtr heightsSRV;
@@ -151,6 +150,8 @@ private:
     std::vector<Polygon> glaciers;
 
     struct TerrainParameters {
+        mathlib::Vec2f minMaxTerrainHeight = {0.0f, 0.0f};
+        mathlib::Vec2f terrainWidthHeightMeters = {0.0f, 0.0f};
         mathlib::Vec4f arcLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
         mathlib::Vec4f hydroLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
         float contours = 0.0f;

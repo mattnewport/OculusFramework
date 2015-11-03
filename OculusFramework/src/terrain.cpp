@@ -164,7 +164,7 @@ private:
 
 void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11DeviceContext* context,
                               PipelineStateObjectManager& pipelineStateObjectManager,
-                              Texture2DManager& texture2DManager) {
+                              Texture2DManager& /*texture2DManager*/) {
     auto geoTiff = GeoTiff{R"(data\cdem_dem_150528_015119.tif)"};
     const auto& heights = geoTiff.getHeights();
 
@@ -177,11 +177,13 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
         {heights.data(), geoTiff.getTiffWidth() * sizeof(heights[0])});
     midElevationOffset = translationMat4f(
         {0.0f, -0.5f * (geoTiff.getMaxElevationMeters() - geoTiff.getMinElevationMeters()), 0.0f});
+    terrainParameters.minMaxTerrainHeight =
+        Vec2f{geoTiff.getMinElevationMeters(), geoTiff.getMaxElevationMeters()};
+    terrainParameters.terrainWidthHeightMeters =
+        Vec2f{geoTiff.getWidthMeters(), geoTiff.getHeightMeters()};
 
     generateNormalMap(device, geoTiff);
     generateHeightFieldGeometry(device, geoTiff);
-
-    shapesTex = texture2DManager.get(R"(data\fullarea.dds)");
 
     PipelineStateObjectDesc desc;
     desc.vertexShader = "terrainvs.hlsl";
@@ -239,7 +241,7 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     PSSetConstantBuffers(context, objectConstantBufferOffset, { objectConstantBuffer.Get() });
     PSSetConstantBuffers(context, 3, {terrainParametersConstantBuffer.Get()});
     PSSetShaderResources(context, materialSRVOffset,
-                         {shapesTex.get(), normalsSRV.Get(), creeksSrv.Get(), lakesAndGlaciersSrv.Get()});
+                         {heightsSRV.Get(), normalsSRV.Get(), creeksSrv.Get(), lakesAndGlaciersSrv.Get()});
     for (const auto& vertexBuffer : VertexBuffers) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
