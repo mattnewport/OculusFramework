@@ -63,6 +63,9 @@ private:
     void loadCreeksShapeFile(const GeoTiff& geoTiff);
     void generateCreeksTexture(DirectX11& dx11);
     void renderCreeksTexture(DirectX11& dx11);
+    void loadRoadsShapeFile(const GeoTiff& geoTiff);
+    void generateRoadsTexture(DirectX11& dx11);
+    void renderRoadsTexture(DirectX11& dx11);
     void loadLakesShapeFile(const GeoTiff& geoTiff);
     void generateLakesTexture(DirectX11& dx11);
     void renderLakesTexture(DirectX11& dx11);
@@ -70,7 +73,7 @@ private:
     void generateGlaciersTexture(DirectX11& dx11);
     void renderGlaciersTexture(DirectX11& dx11);
 
-    std::unordered_map<int, std::string> initConciscodeNameMap();
+    static std::unordered_map<int, std::string> initConciscodeNameMap();
 
     struct LabeledPoint {
         mathlib::Vec2f latLong;
@@ -112,13 +115,21 @@ private:
     std::unordered_map<int, bool> displayedConciscodes;
 
     struct Arc {
-        std::string name;
         std::vector<mathlib::Vec2f> latLongs;
         std::vector<mathlib::Vec2f> pixPositions;
+        std::vector<std::pair<std::string, std::string>> stringAttributes;
     };
+    static std::vector<Arc> loadArcShapeFile(
+        const char* filename, const GeoTiff& geoTiff,
+        const std::vector<std::string>& requestedStringAttributes);
+    static void renderArcsToTexture(const std::vector<Arc>& arcs, ID3D11Texture2D* tex,
+                                    DirectX11& dx11, D2D1::ColorF arcColor);
+
     std::vector<Arc> creeks;
     ID3D11Texture2DPtr creeksTex;
     ID3D11ShaderResourceViewPtr creeksSrv;
+
+    std::vector<Arc> roads;
 
     struct Polygon {
         std::vector<mathlib::Vec2f> latLongs;
@@ -140,6 +151,7 @@ private:
     std::vector<Polygon> glaciers;
 
     struct TerrainParameters {
+        mathlib::Vec4f arcLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
         mathlib::Vec4f hydroLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
         float contours = 0.0f;
     } terrainParameters;

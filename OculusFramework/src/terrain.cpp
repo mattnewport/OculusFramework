@@ -199,6 +199,9 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
     loadCreeksShapeFile(geoTiff);
     generateCreeksTexture(dx11);
 
+    loadRoadsShapeFile(geoTiff);
+    generateRoadsTexture(dx11);
+
     loadLakesShapeFile(geoTiff);
     generateLakesTexture(dx11);
 
@@ -405,20 +408,8 @@ void HeightField::generateLabels(const GeoTiff& geoTiff, ID3D11Device* device,
 }
 
 void HeightField::loadCreeksShapeFile(const GeoTiff& geoTiff) {
-    auto shapeFile = ShapeFile{R"(data\canvec_150528_015119_shp\hd_1470009_1.shp)"};
-
-    for (const auto& s : shapeFile.getShapes()) {
-        assert(s->nSHPType == SHPT_ARC);
-        assert(s->nParts == 1);
-        const auto nameen = shapeFile.readStringAttribute(s->nShapeId, "nameen");
-        auto arc = Arc{nameen, {vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}};
-        for (size_t i = 0; i < arc.latLongs.size(); ++i) {
-            arc.latLongs[i] = Vec2f{to<float>(s->padfY[i]), to<float>(s->padfX[i])};
-            const auto pixelPos = geoTiff.latLongToPixXY(arc.latLongs[i].x(), arc.latLongs[i].y());
-            arc.pixPositions[i] = Vec2f{pixelPos};
-        }
-        creeks.push_back(arc);
-    }
+    creeks =
+        loadArcShapeFile(R"(data\canvec_150528_015119_shp\hd_1470009_1.shp)", geoTiff, {"nameen"});
 }
 
 void HeightField::generateCreeksTexture(DirectX11& dx11) {
@@ -428,35 +419,18 @@ void HeightField::generateCreeksTexture(DirectX11& dx11) {
                                .bindFlags(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)
                                .miscFlags(D3D11_RESOURCE_MISC_GENERATE_MIPS),
         "HeightField::creeks texture");
-    renderCreeksTexture(dx11);
+    renderArcsToTexture(creeks, creeksTex.Get(), dx11, D2D1::ColorF(D2D1::ColorF::Red));
     dx11.Context->GenerateMips(creeksSrv.Get());
 }
 
-void HeightField::renderCreeksTexture(DirectX11& dx11) {
-    DrawToRenderTargetTexture(
-        dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), creeksTex.Get(),
-        [& creeks = creeks](ID2D1Factory * factory, ID2D1RenderTarget * d2d1Rt) {
-            auto brush = CreateSolidColorBrush(d2d1Rt, D2D1::ColorF(D2D1::ColorF::White));
-            d2d1Rt->SetTransform(D2D1::IdentityMatrix());
-            d2d1Rt->Clear(D2D1::ColorF{D2D1::ColorF::Black});
-            auto pathGeometry = CreatePathGeometry(factory);
-            auto geometrySink = Open(pathGeometry.Get());
-            for (const auto& c : creeks) {
-                bool first = true;
-                for (auto pp : c.pixPositions) {
-                    auto point = D2D1::Point2F(pp.x(), pp.y());
-                    if (first) {
-                        geometrySink->BeginFigure(point, D2D1_FIGURE_BEGIN_HOLLOW);
-                        first = false;
-                    } else {
-                        geometrySink->AddLine(point);
-                    }
-                }
-                geometrySink->EndFigure(D2D1_FIGURE_END_OPEN);
-            }
-            geometrySink->Close();
-            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 2.0f);
-        });
+void HeightField::loadRoadsShapeFile(const GeoTiff& geoTiff) {
+    roads = loadArcShapeFile(R"(data\canvec_150528_015119_shp\tr_1760009_1.shp)", geoTiff,
+                             {"r_stname"});
+}
+
+void HeightField::generateRoadsTexture(DirectX11& dx11) {
+    renderArcsToTexture(roads, creeksTex.Get(), dx11, D2D1::ColorF(D2D1::ColorF::Lime));
+    dx11.Context->GenerateMips(creeksSrv.Get());
 }
 
 void HeightField::generateLakesTexture(DirectX11& dx11) {
@@ -505,7 +479,10 @@ void HeightField::showGui() {
         terrainParameters.hydroLayerAlphas.y() = showLakes ? 1.0f : 0.0f;
         static bool showCreeks = true;
         ImGui::Checkbox("Show creeks", &showCreeks);
-        terrainParameters.hydroLayerAlphas.z() = showCreeks ? 1.0f : 0.0f;
+        terrainParameters.arcLayerAlphas.x() = showCreeks ? 1.0f : 0.0f;
+        static bool showRoads = true;
+        ImGui::Checkbox("Show roads", &showRoads);
+        terrainParameters.arcLayerAlphas.y() = showRoads ? 1.0f : 0.0f;
         static bool showGlaciers = true;
         ImGui::Checkbox("Show glaciers", &showGlaciers);
         terrainParameters.hydroLayerAlphas.w() = showGlaciers ? 1.0f : 0.0f;
@@ -660,6 +637,53 @@ std::unordered_map<int, std::string> HeightField::initConciscodeNameMap() {
         {450, "Miscellaneous campsite"},
         {460, "Miscellaneous site"},
     };
+}
+
+std::vector<HeightField::Arc> HeightField::loadArcShapeFile(
+    const char* filename, const GeoTiff& geoTiff,
+    const std::vector<std::string>& requestedStringAttributes) {
+    std::vector<HeightField::Arc> res;
+    auto shapeFile = ShapeFile{filename};
+    for (const auto& s : shapeFile.getShapes()) {
+        assert(s->nSHPType == SHPT_ARC);
+        assert(s->nParts == 1);
+        res.push_back(Arc{{vector<Vec2f>(s->nVertices)}, {vector<Vec2f>(s->nVertices)}});
+        auto& arc = res.back();
+        for (const auto& stringAttr : requestedStringAttributes) {
+            arc.stringAttributes.emplace_back(
+                stringAttr, shapeFile.readStringAttribute(s->nShapeId, stringAttr.c_str()));
+        }
+        for (size_t i = 0; i < arc.latLongs.size(); ++i) {
+            arc.latLongs[i] = Vec2f{ to<float>(s->padfY[i]), to<float>(s->padfX[i]) };
+            const auto pixelPos = geoTiff.latLongToPixXY(arc.latLongs[i].x(), arc.latLongs[i].y());
+            arc.pixPositions[i] = Vec2f{ pixelPos };
+        }
+    }
+    return res;
+}
+
+void HeightField::renderArcsToTexture(const std::vector<Arc>& arcs, ID3D11Texture2D* tex,
+                                      DirectX11& dx11, D2D1::ColorF arcColor) {
+    DrawToRenderTargetTexture(
+        dx11.d2d1Factory1.Get(), dx11.d2d1DeviceContext.Get(), tex,
+        [&arcs, arcColor](ID2D1Factory* factory, ID2D1RenderTarget* d2d1Rt) {
+            auto brush = CreateSolidColorBrush(d2d1Rt, arcColor);
+            d2d1Rt->SetTransform(D2D1::IdentityMatrix());
+            auto pathGeometry = CreatePathGeometry(factory);
+            auto geometrySink = Open(pathGeometry.Get());
+            for (const auto& c : arcs) {
+                bool first = true;
+                for (auto pp : c.pixPositions) {
+                    auto point = D2D1::Point2F(pp.x(), pp.y());
+                    first ? geometrySink->BeginFigure(point, D2D1_FIGURE_BEGIN_HOLLOW)
+                          : geometrySink->AddLine(point);
+                    first = false;
+                }
+                geometrySink->EndFigure(D2D1_FIGURE_END_OPEN);
+            }
+            geometrySink->Close();
+            d2d1Rt->DrawGeometry(pathGeometry.Get(), brush.Get(), 2.0f);
+        });
 }
 
 std::vector<HeightField::Polygon> HeightField::loadPolygonShapeFile(

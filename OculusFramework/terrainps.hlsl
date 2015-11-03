@@ -1,6 +1,7 @@
 #include "lighting.hlsli"
 
 struct TerrainParameters {
+    float4 arcLayerAlphas;
     float4 hydroLayerAlphas;
     float contours;
 };
@@ -18,10 +19,13 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
             in float2 TexCoord : TEXCOORD0, in float3 worldPos : TEXCOORD1, in float3 viewDir : TEXCOORD2, in float3 objectPos : TEXCOORD3) : SV_Target
 {
     float4 base = float4(0.66, 0.6, 0.6, 1.0);
-    float creeks = Creeks.Sample(StandardTexture, TexCoord).r * terrainParameters.hydroLayerAlphas.b;
+    float2 creeks = Creeks.Sample(StandardTexture, TexCoord).rg * terrainParameters.arcLayerAlphas.rg;
     float3 lakes = Lakes.Sample(StandardTexture, TexCoord).rgb * terrainParameters.hydroLayerAlphas.rga;
-    float4 diffuse = lerp(lerp(lerp(base, float4(0.45f, 0.55f, 0.78f, 1.0f), creeks), float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r), float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g);
-    diffuse = lerp(diffuse, float4(0.4f, 0.1f, 0.5f, 1.0f), lakes.b);
+    float4 diffuse = lerp(base, float4(0.45f, 0.55f, 0.78f, 1.0f), creeks.r); // creeks
+    diffuse = lerp(diffuse, float4(0.45f, 0.55f, 0.78f, 1.0f), lakes.r); // lake outlines
+    diffuse = lerp(diffuse, float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g); // lake fill
+    diffuse = lerp(diffuse, float4(0.4f, 0.1f, 0.5f, 1.0f), lakes.b); // glaciers
+    diffuse = lerp(diffuse, float4(0.25f, 0.7f, 0.3f, 1.0f), creeks.g); // roads
     if (terrainParameters.contours > 0) {
         float contour = objectPos.y / 100;
         contour = 0.1 - abs(round(contour) - contour);
