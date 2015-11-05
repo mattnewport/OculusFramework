@@ -65,8 +65,8 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
         diffuse = lerp(diffuse, float4(0.5f, 0.15f, 0.05f, 1.0f), contour);
     }
     if (terrainParameters.showContoursChunks.y > 0.0f) {
-        float chunkColor = (((terrainParameters.chunkInfo.w % terrainParameters.chunkInfo.y) & 1) ^ ((terrainParameters.chunkInfo.w / terrainParameters.chunkInfo.y) & 1)) == 0u ? 1.0f : 0.5f;
-        diffuse.rgb *= chunkColor;
+        float chunkColor = (((terrainParameters.chunkInfo.w % terrainParameters.chunkInfo.y) & 1) ^ ((terrainParameters.chunkInfo.w / terrainParameters.chunkInfo.y) & 1)) == 0u ? 1.0f : 0.0f;
+        diffuse.rgb *= 0.5f + chunkColor * 0.5f;
     }
 
     float2 normalTex = Normals.Sample(StandardTexture, TexCoord).xy;

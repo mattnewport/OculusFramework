@@ -550,15 +550,16 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto blockPower = 7;
     const auto blockSize = 1 << blockPower;
 
-    const auto quadCount = square(blockSize - 1);
+    const auto quadCount = square(blockSize);
     const auto indexCount = 6 * quadCount;
     Indices.reserve(indexCount);
-    for (auto y = 0; y < blockSize - 1; ++y) {
-        for (auto x = 0; x < blockSize - 1; ++x) {
-            const auto tl = to<uint16_t>(y * blockSize + x);
+    for (auto y = 0; y < blockSize; ++y) {
+        for (auto x = 0; x < blockSize; ++x) {
+            const auto yStep = blockSize + 1;
+            const auto tl = to<uint16_t>(y * yStep + x);
             const auto tr = to<uint16_t>(tl + 1);
-            const auto bl = to<uint16_t>(tl + blockSize);
-            const auto br = to<uint16_t>(tr + blockSize);
+            const auto bl = to<uint16_t>(tl + yStep);
+            const auto br = to<uint16_t>(tr + yStep);
             Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
         }
     }
@@ -570,16 +571,16 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto gridStepY = geoTiff.getGridStepMetersY();
     const auto xOffset = -0.5f * geoTiff.getWidthMeters();
     const auto yOffset = -0.5f * geoTiff.getHeightMeters();
-    auto vertices = vector<Vertex>(square(blockSize));
-    const auto widthChunks = to<uint32_t>(geoTiff.getTiffWidth() / blockSize) + 1u;
-    const auto heightChunks = to<uint32_t>(geoTiff.getTiffHeight() / blockSize) + 1u;
+    auto vertices = vector<Vertex>(square(blockSize + 1));
+    const auto widthChunks = to<uint32_t>((geoTiff.getTiffWidth() + blockSize - 1) / blockSize);
+    const auto heightChunks = to<uint32_t>((geoTiff.getTiffHeight() + blockSize - 1) / blockSize);
     const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
     terrainParameters.chunkInfo = {numChunks, widthChunks, heightChunks, 0u};
-    for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize - 1) {
-        for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize - 1) {
+    for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize) {
+        for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize) {
             auto destVertex = 0;
-            for (auto blockY = 0; blockY < blockSize; ++blockY) {
-                for (auto blockX = 0; blockX < blockSize; ++blockX) {
+            for (auto blockY = 0; blockY < blockSize + 1; ++blockY) {
+                for (auto blockX = 0; blockX < blockSize + 1; ++blockX) {
                     const auto localX = min(x + blockX, geoTiff.getTiffWidth() - 1);
                     const auto localY = min(y + blockY, geoTiff.getTiffHeight() - 1);
                     vertices[destVertex++] = {
