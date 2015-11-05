@@ -1,11 +1,12 @@
 #include "lighting.hlsli"
 
 struct TerrainParameters {
+    uint4 chunkInfo;
     float2 minMaxTerrainHeight;
     float2 terrainWidthHeightMeters;
     float4 arcLayerAlphas;
     float4 hydroLayerAlphas;
-    float contours;
+    float4 showContoursChunks;
 };
 
 cbuffer TerrainConstantBuffer : register(b3) {
@@ -57,11 +58,15 @@ float4 main(in float4 Position : SV_Position, in float4 Color : COLOR0,
     diffuse = lerp(diffuse, float4(0.65f, 0.75f, 0.98f, 1.0f), lakes.g); // lake fill
     diffuse = lerp(diffuse, float4(0.4f, 0.1f, 0.5f, 1.0f), lakes.b); // glaciers
     diffuse = lerp(diffuse, float4(0.25f, 0.7f, 0.3f, 1.0f), creeks.g); // roads
-    if (terrainParameters.contours > 0) {
+    if (terrainParameters.showContoursChunks.x > 0.0f) {
         float contour = objectPos.y / 100;
         contour = 0.1 - abs(round(contour) - contour);
         contour = smoothstep(0, 0.1, contour) * abs(1.5 - Position.z);
         diffuse = lerp(diffuse, float4(0.5f, 0.15f, 0.05f, 1.0f), contour);
+    }
+    if (terrainParameters.showContoursChunks.y > 0.0f) {
+        float chunkColor = (((terrainParameters.chunkInfo.w % terrainParameters.chunkInfo.y) & 1) ^ ((terrainParameters.chunkInfo.w / terrainParameters.chunkInfo.y) & 1)) == 0u ? 1.0f : 0.5f;
+        diffuse.rgb *= chunkColor;
     }
 
     float2 normalTex = Normals.Sample(StandardTexture, TexCoord).xy;

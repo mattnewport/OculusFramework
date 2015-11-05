@@ -237,20 +237,24 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
         memcpy(mapHandle.mappedSubresource().pData, &object, sizeof(object));
     }();
 
-    [this, &object, &dx11] {
-        auto mapHandle = MapHandle{ dx11.Context.Get(), terrainParametersConstantBuffer.Get(), 0,
-            D3D11_MAP_WRITE_DISCARD, 0 };
+    const auto updateTerrainParameters = [this, &object, &dx11] {
+        PSSetConstantBuffers(dx11.Context.Get(), 3, {nullptr});
+        auto mapHandle = MapHandle{dx11.Context.Get(), terrainParametersConstantBuffer.Get(), 0,
+                                   D3D11_MAP_WRITE_DISCARD, 0};
         memcpy(mapHandle.mappedSubresource().pData, &terrainParameters, sizeof(terrainParameters));
-    }();
+        PSSetConstantBuffers(dx11.Context.Get(), 3, {terrainParametersConstantBuffer.Get()});
+    };
 
     VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
     context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     PSSetConstantBuffers(context, objectConstantBufferOffset, { objectConstantBuffer.Get() });
-    PSSetConstantBuffers(context, 3, {terrainParametersConstantBuffer.Get()});
     PSSetShaderResources(context, materialSRVOffset,
                          {heightsSRV.Get(), normalsSRV.Get(), creeksSrv.Get(), lakesAndGlaciersSrv.Get()});
+    uint32_t chunkIndex = 0;
     for (const auto& vertexBuffer : VertexBuffers) {
+        terrainParameters.chunkInfo.w() = chunkIndex++;
+        updateTerrainParameters();
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
     }
@@ -258,6 +262,7 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     if (showWireframe) {
         dx11.applyState(*context, *wireframePipelineState.get());
         for (const auto& vertexBuffer : VertexBuffers) {
+            updateTerrainParameters();
             IASetVertexBuffers(context, 0, { vertexBuffer.Get() }, { to<UINT>(sizeof(Vertex)) });
             context->DrawIndexed(Indices.size(), 0, 0);
         }
@@ -488,6 +493,9 @@ void HeightField::loadGlaciersShapeFile(const GeoTiff& geoTiff) {
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
         ImGui::Checkbox("Show wireframe", &showWireframe);
+        static bool showChunks = false;
+        ImGui::Checkbox("Show chunks", &showChunks);
+        terrainParameters.showContoursChunks.y() = showChunks ? 1.0f : 0.0f;
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
         ImGui::Checkbox("Show topographic feature labels", &renderLabels);
         static bool showLakeOutlines = true;
@@ -507,7 +515,7 @@ void HeightField::showGui() {
         terrainParameters.hydroLayerAlphas.w() = showGlaciers ? 1.0f : 0.0f;
         static bool showContours = false;
         ImGui::Checkbox("Show contours", &showContours);
-        terrainParameters.contours = showContours ? 1.0f : 0.0f;
+        terrainParameters.showContoursChunks.x() = showContours ? 1.0f : 0.0f;
         if (ImGui::CollapsingHeader("Topographic features")) {
             for (auto& code : displayedConciscodes) {
                 ImGui::Checkbox(conciscodeNameMap[code.first].c_str(), &code.second);
@@ -588,6 +596,10 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto xOffset = -0.5f * geoTiff.getWidthMeters();
     const auto yOffset = -0.5f * geoTiff.getHeightMeters();
     auto vertices = vector<Vertex>(square(blockSize + 1));
+    const auto widthChunks = to<uint32_t>(geoTiff.getTiffWidth() / blockSize) + 1u;
+    const auto heightChunks = to<uint32_t>(geoTiff.getTiffHeight() / blockSize) + 1u;
+    const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
+    terrainParameters.chunkInfo = {numChunks, widthChunks, heightChunks, 0u};
     for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize) {
         for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize) {
             auto destVertex = 0;

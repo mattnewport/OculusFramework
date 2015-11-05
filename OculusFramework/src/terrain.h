@@ -152,11 +152,12 @@ private:
     std::vector<Polygon> glaciers;
 
     struct TerrainParameters {
+        mathlib::Vector<uint32_t, 4> chunkInfo = {0u, 0u, 0u, 0u};
         mathlib::Vec2f minMaxTerrainHeight = {0.0f, 0.0f};
         mathlib::Vec2f terrainWidthHeightMeters = {0.0f, 0.0f};
         mathlib::Vec4f arcLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
         mathlib::Vec4f hydroLayerAlphas = {1.0f, 1.0f, 1.0f, 1.0f};
-        float contours = 0.0f;
+        mathlib::Vec4f showContoursChunks = {0.0f, 0.0f, 0.0f, 0.0f};
     } terrainParameters;
     ID3D11BufferPtr terrainParametersConstantBuffer;
 
