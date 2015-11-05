@@ -87,10 +87,10 @@ public:
 
     auto getTiffWidth() const { return tifWidth; }
     auto getWidthMeters() const { return widthMeters; }
-    auto getGridStepMetersX() const { return widthMeters / tifWidth; }
+    auto getGridStepMetersX() const { return widthMeters / (tifWidth - 1); }
     auto getTiffHeight() const { return tifHeight; }
     auto getHeightMeters() const { return heightMeters; }
-    auto getGridStepMetersY() const { return heightMeters / tifHeight; }
+    auto getGridStepMetersY() const { return heightMeters / (tifHeight - 1); }
     auto getMinElevationMeters() const { return minElevationMeters; }
     auto getMaxElevationMeters() const { return maxElevationMeters; }
     const auto& getHeights() const { return heights; }
@@ -547,45 +547,20 @@ void HeightField::generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff
 }
 
 void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTiff& geoTiff) {
-    const auto blockPower = 6;
+    const auto blockPower = 7;
     const auto blockSize = 1 << blockPower;
 
-    // Use Hilbert curve for better vertex cache efficiency
-    auto d2xy = [](int n, int d, int* x, int* y) {
-        auto rot = [](int n, int* x, int* y, int rx, int ry) {
-            if (ry == 0) {
-                if (rx == 1) {
-                    *x = n - 1 - *x;
-                    *y = n - 1 - *y;
-                }
-
-                swap(*x, *y);
-            }
-        };
-
-        int rx, ry, s, t = d;
-        *x = *y = 0;
-        for (s = 1; s < n; s *= 2) {
-            rx = 1 & (t / 2);
-            ry = 1 & (t ^ rx);
-            rot(s, x, y, rx, ry);
-            *x += s * rx;
-            *y += s * ry;
-            t /= 4;
-        }
-    };
-
-    const auto quadCount = blockSize * blockSize;
+    const auto quadCount = square(blockSize - 1);
     const auto indexCount = 6 * quadCount;
     Indices.reserve(indexCount);
-    for (auto d = 0; d < quadCount; ++d) {
-        int x, y;
-        d2xy(blockSize, d, &x, &y);
-        const auto tl = uint16_t(y * (blockSize + 1) + x);
-        const auto tr = uint16_t(tl + 1);
-        const auto bl = uint16_t(tl + (blockSize + 1));
-        const auto br = uint16_t(tr + (blockSize + 1));
-        Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
+    for (auto y = 0; y < blockSize - 1; ++y) {
+        for (auto x = 0; x < blockSize - 1; ++x) {
+            const auto tl = to<uint16_t>(y * blockSize + x);
+            const auto tr = to<uint16_t>(tl + 1);
+            const auto bl = to<uint16_t>(tl + blockSize);
+            const auto br = to<uint16_t>(tr + blockSize);
+            Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
+        }
     }
     IndexBuffer = CreateIndexBuffer(device, const_array_view(Indices));
 
@@ -595,18 +570,18 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto gridStepY = geoTiff.getGridStepMetersY();
     const auto xOffset = -0.5f * geoTiff.getWidthMeters();
     const auto yOffset = -0.5f * geoTiff.getHeightMeters();
-    auto vertices = vector<Vertex>(square(blockSize + 1));
+    auto vertices = vector<Vertex>(square(blockSize));
     const auto widthChunks = to<uint32_t>(geoTiff.getTiffWidth() / blockSize) + 1u;
     const auto heightChunks = to<uint32_t>(geoTiff.getTiffHeight() / blockSize) + 1u;
     const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
     terrainParameters.chunkInfo = {numChunks, widthChunks, heightChunks, 0u};
-    for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize) {
-        for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize) {
+    for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize - 1) {
+        for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize - 1) {
             auto destVertex = 0;
-            for (auto blockY = 0; blockY <= blockSize; ++blockY) {
-                for (auto blockX = 0; blockX <= blockSize; ++blockX) {
-                    const auto localX = min(x + blockX, geoTiff.getTiffWidth());
-                    const auto localY = min(y + blockY, geoTiff.getTiffHeight());
+            for (auto blockY = 0; blockY < blockSize; ++blockY) {
+                for (auto blockX = 0; blockX < blockSize; ++blockX) {
+                    const auto localX = min(x + blockX, geoTiff.getTiffWidth() - 1);
+                    const auto localY = min(y + blockY, geoTiff.getTiffHeight() - 1);
                     vertices[destVertex++] = {
                         {localX * gridStepX + xOffset, localY * gridStepY + yOffset},
                         {(localX + 0.5f) * uvStepX, (localY + 0.5f) * uvStepY}};

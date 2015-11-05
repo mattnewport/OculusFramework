@@ -43,6 +43,13 @@ constexpr std::uint32_t to<std::uint32_t, int>(int x) noexcept {
 }
 
 template <>
+constexpr std::uint16_t to<std::uint16_t, int>(int x) noexcept {
+    return x < 0 ? throw std::invalid_argument{""} : x > std::numeric_limits<uint16_t>::max()
+                                                         ? throw std::invalid_argument{""}
+                                                         : static_cast<std::uint16_t>(x);
+}
+
+template <>
 constexpr uint32_t to<uint32_t, std::size_t>(std::size_t x) noexcept {
     return x > std::numeric_limits<uint32_t>::max() ? throw std::invalid_argument{""}
                                                     : static_cast<uint32_t>(x);
