@@ -191,6 +191,14 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
     desc.inputElementDescs = HeightFieldVertexInputElementDescs;
     pipelineStateObject = pipelineStateObjectManager.get(desc);
 
+    PipelineStateObjectDesc wireframeDesc;
+    wireframeDesc.depthStencilState = DepthStencilDesc{}.depthFunc(D3D11_COMPARISON_LESS_EQUAL);
+    wireframeDesc.rasterizerState = RasterizerDesc{}.fillMode(D3D11_FILL_WIREFRAME);
+    wireframeDesc.vertexShader = "terrainvs.hlsl";
+    wireframeDesc.pixelShader = "terrainwireframeps.hlsl";
+    wireframeDesc.inputElementDescs = HeightFieldVertexInputElementDescs;
+    wireframePipelineState = pipelineStateObjectManager.get(wireframeDesc);
+
     objectConstantBuffer = CreateBuffer(
         device, BufferDesc{roundUpConstantBufferSize(sizeof(Object)), D3D11_BIND_CONSTANT_BUFFER,
                            D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE});
@@ -245,6 +253,14 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
     for (const auto& vertexBuffer : VertexBuffers) {
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
         context->DrawIndexed(Indices.size(), 0, 0);
+    }
+
+    if (showWireframe) {
+        dx11.applyState(*context, *wireframePipelineState.get());
+        for (const auto& vertexBuffer : VertexBuffers) {
+            IASetVertexBuffers(context, 0, { vertexBuffer.Get() }, { to<UINT>(sizeof(Vertex)) });
+            context->DrawIndexed(Indices.size(), 0, 0);
+        }
     }
 
     if (renderLabels) {
@@ -471,6 +487,7 @@ void HeightField::loadGlaciersShapeFile(const GeoTiff& geoTiff) {
 
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
+        ImGui::Checkbox("Show wireframe", &showWireframe);
         ImGui::SliderFloat("Scale", &scale, 1e-5f, 1e-3f, "scale = %.6f", 3.0f);
         ImGui::Checkbox("Show topographic feature labels", &renderLabels);
         static bool showLakeOutlines = true;

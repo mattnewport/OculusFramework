@@ -98,6 +98,8 @@ private:
     ID3D11Texture2DPtr normalsTex;
     ID3D11ShaderResourceViewPtr normalsSRV;
     float scale = 1e-4f;
+    bool showWireframe = false;
+    PipelineStateObjectManager::ResourceHandle wireframePipelineState;
 
     std::vector<LabeledPoint> topographicFeatures;
     std::vector<Label> topographicFeatureLabels;
