@@ -193,7 +193,7 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
 
     PipelineStateObjectDesc wireframeDesc;
     wireframeDesc.depthStencilState = DepthStencilDesc{}.depthFunc(D3D11_COMPARISON_LESS_EQUAL);
-    wireframeDesc.rasterizerState = RasterizerDesc{}.fillMode(D3D11_FILL_WIREFRAME);
+    wireframeDesc.rasterizerState = RasterizerDesc{}.fillMode(D3D11_FILL_WIREFRAME).depthBias(2);
     wireframeDesc.vertexShader = "terrainvs.hlsl";
     wireframeDesc.pixelShader = "terrainwireframeps.hlsl";
     wireframeDesc.inputElementDescs = HeightFieldVertexInputElementDescs;
@@ -578,7 +578,10 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                                    prevLevelView[{idx[0] + 1, idx[1]}],
                                    prevLevelView[{idx[0] + 1, idx[1] + 1}]};
                 const auto mine = *min_element(begin(prevLevel), end(prevLevel));
-                if (mine < i - 1) continue;
+                if (mine < i - 1) {
+                    currLevelView[{to<size_t>(y), to<size_t>(x)}] = mine;
+                    continue;
+                }
                 const auto h = [i, &geoTiff](int x, int y) {
                     x = min(x << i, geoTiff.getTiffWidth() - 1);
                     y = min(y << i, geoTiff.getTiffHeight() - 1);
@@ -592,7 +595,21 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 }
                 if (((heights[1] + heights[0]) / 2 == geoTiff.getHeightsView()[(indices[1] + indices[0]) / 2]) &&
                     ((heights[2] + heights[0]) / 2 == geoTiff.getHeightsView()[(indices[2] + indices[0]) / 2])) {
-                    currLevelView[{to<size_t>(y), to<size_t>(x)}] = i;
+                    // Don't increase level by more than one over quads to left and above or quads from the next level down to right and below
+                    const auto levelLeft =
+                        x > 0 ? currLevelView[{to<size_t>(y), to<size_t>(x - 1)}] : i;
+                    const auto levelAbove =
+                        y > 0 ? currLevelView[{to<size_t>(y - 1), to<size_t>(x)}] : i;
+                    const auto prevLevelRight = idx[1] + 2u < to<size_t>(levelWidth << 1)
+                                                    ? min(prevLevelView[{idx[0], idx[1] + 2}],
+                                                          prevLevelView[{idx[0] + 1, idx[1] + 2}])
+                                                    : i;
+                    const auto prevLevelBelow = idx[0] + 2u < to<size_t>(levelHeight << 1)
+                                                    ? min(prevLevelView[{idx[0] + 2, idx[1]}],
+                                                          prevLevelView[{idx[0] + 2, idx[1] + 1}])
+                                                    : i;
+                    currLevelView[{to<size_t>(y), to<size_t>(x)}] = min(
+                        {i, levelLeft + 1, levelAbove + 1, prevLevelRight + 1, prevLevelBelow + 1});
                 }
             }
         }
