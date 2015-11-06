@@ -557,7 +557,7 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto widthChunks = to<uint32_t>((geoTiff.getTiffWidth() + blockSize - 1) / blockSize);
     const auto heightChunks = to<uint32_t>((geoTiff.getTiffHeight() + blockSize - 1) / blockSize);
     const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
-    terrainParameters.chunkInfo = { numChunks, widthChunks, heightChunks, 0u };
+    terrainParameters.chunkInfo = {numChunks, widthChunks, heightChunks, 0u};
 
     auto quadLevels = vector<vector<int>>(blockPower);
     const auto roundupWidth = widthChunks * blockSize;
@@ -569,8 +569,8 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
         if (i == 0) continue;
         auto prevLevelView = gsl::as_array_view(
             quadLevels[i - 1].data(), gsl::dim<>(levelHeight << 1), gsl::dim<>(levelWidth << 1));
-        auto currLevelView =
-            gsl::as_array_view(quadLevels[i].data(), gsl::dim<>(levelHeight), gsl::dim<>(levelWidth));
+        auto currLevelView = gsl::as_array_view(quadLevels[i].data(), gsl::dim<>(levelHeight),
+                                                gsl::dim<>(levelWidth));
         for (int y = 0; y < levelHeight; ++y) {
             for (int x = 0; x < levelWidth; ++x) {
                 const auto idx = gsl::index<2>{to<size_t>(y * 2), to<size_t>(x * 2)};
@@ -593,9 +593,12 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 for (int j = 0; j < 4; ++j) {
                     heights[j] = geoTiff.getHeightsView()[indices[j]];
                 }
-                if (((heights[1] + heights[0]) / 2 == geoTiff.getHeightsView()[(indices[1] + indices[0]) / 2]) &&
-                    ((heights[2] + heights[0]) / 2 == geoTiff.getHeightsView()[(indices[2] + indices[0]) / 2])) {
-                    // Don't increase level by more than one over quads to left and above or quads from the next level down to right and below
+                if (((heights[1] + heights[0]) / 2 ==
+                     geoTiff.getHeightsView()[(indices[1] + indices[0]) / 2]) &&
+                    ((heights[2] + heights[0]) / 2 ==
+                     geoTiff.getHeightsView()[(indices[2] + indices[0]) / 2])) {
+                    // Don't increase level by more than one over quads to left and above or quads
+                    // from the next level down to right and below
                     const auto levelLeft =
                         x > 0 ? currLevelView[{to<size_t>(y), to<size_t>(x - 1)}] : i;
                     const auto levelAbove =
@@ -664,14 +667,14 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 const int level = blockPower - 1 - i;
                 const int levelWidth = roundupWidth >> level;
                 const int levelHeight = roundupHeight >> level;
-                auto currLevelView =
-                    gsl::as_array_view(quadLevels[level].data(), gsl::dim<>(levelHeight), gsl::dim<>(levelWidth));
+                auto currLevelView = gsl::as_array_view(
+                    quadLevels[level].data(), gsl::dim<>(levelHeight), gsl::dim<>(levelWidth));
 
                 const auto currLevelSize = to<size_t>(blockSize >> level);
                 const auto levelX = to<size_t>(chunkX << (i + 1));
                 const auto levelY = to<size_t>(chunkY << (i + 1));
-                auto currLevelChunkView = currLevelView.section(
-                    {levelY, levelX}, { currLevelSize, currLevelSize });
+                auto currLevelChunkView =
+                    currLevelView.section({levelY, levelX}, {currLevelSize, currLevelSize});
                 const auto nextLevel = level > 0 ? level - 1 : 0;
                 auto nextLevelView = gsl::as_array_view(quadLevels[nextLevel].data(),
                                                         gsl::dim<>(roundupHeight >> nextLevel),
@@ -698,17 +701,14 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                                 if (x2 > 0 && nextLevelChunkView[{y2 * 2, x2 * 2 - 1}] < level) {
                                     if (y2 > 0 &&
                                         nextLevelChunkView[{y2 * 2 - 1, x2 * 2}] < level) {
-                                        Indices.insert(end(Indices), {tl, tm, lm});
-                                        Indices.insert(end(Indices), {tm, tr, bl});
-                                        Indices.insert(end(Indices), {lm, tm, bl});
+                                        Indices.insert(end(Indices),
+                                                       {tl, tm, lm, tm, tr, bl, lm, tm, bl});
                                     } else {
-                                        Indices.insert(end(Indices), {tl, tr, lm});
-                                        Indices.insert(end(Indices), {lm, tr, bl});
+                                        Indices.insert(end(Indices), {tl, tr, lm, lm, tr, bl});
                                     }
                                 } else if (y2 > 0 &&
                                            nextLevelChunkView[{y2 * 2 - 1, x2 * 2}] < level) {
-                                    Indices.insert(end(Indices), {tl, tm, bl});
-                                    Indices.insert(end(Indices), {tm, tr, bl});
+                                    Indices.insert(end(Indices), {tl, tm, bl, tm, tr, bl});
                                 } else {
                                     Indices.insert(end(Indices), {tl, tr, bl});
                                 }
@@ -729,7 +729,7 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                                     Indices.insert(end(Indices), {tr, br, bl});
                                 }
                             } else {
-                                Indices.insert(end(Indices), { tl, tr, bl, tr, br, bl });
+                                Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
                             }
                         }
                     }
