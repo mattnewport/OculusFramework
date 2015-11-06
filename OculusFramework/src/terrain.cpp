@@ -193,7 +193,7 @@ void HeightField::AddVertices(DirectX11& dx11, ID3D11Device* device, ID3D11Devic
 
     PipelineStateObjectDesc wireframeDesc;
     wireframeDesc.depthStencilState = DepthStencilDesc{}.depthFunc(D3D11_COMPARISON_LESS_EQUAL);
-    wireframeDesc.rasterizerState = RasterizerDesc{}.fillMode(D3D11_FILL_WIREFRAME).depthBias(2);
+    wireframeDesc.rasterizerState = RasterizerDesc{}.fillMode(D3D11_FILL_WIREFRAME).depthBias(4);
     wireframeDesc.vertexShader = "terrainvs.hlsl";
     wireframeDesc.pixelShader = "terrainwireframeps.hlsl";
     wireframeDesc.inputElementDescs = HeightFieldVertexInputElementDescs;
@@ -672,6 +672,15 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 const auto levelY = to<size_t>(chunkY << (i + 1));
                 auto currLevelChunkView = currLevelView.section(
                     {levelY, levelX}, { currLevelSize, currLevelSize });
+                const auto nextLevel = level > 0 ? level - 1 : 0;
+                auto nextLevelView = gsl::as_array_view(quadLevels[nextLevel].data(),
+                                                        gsl::dim<>(roundupHeight >> nextLevel),
+                                                        gsl::dim<>(roundupWidth >> nextLevel));
+                const auto nextLevelSize = to<size_t>(blockSize >> nextLevel);
+                const auto nextLevelX = to<size_t>(chunkX << (blockPower - nextLevel));
+                const auto nextLevelY = to<size_t>(chunkY << (blockPower - nextLevel));
+                auto nextLevelChunkView =
+                    nextLevelView.section({nextLevelY, nextLevelX}, {nextLevelSize, nextLevelSize});
                 for (size_t y2 = 0; y2 < currLevelSize; ++y2) {
                     for (size_t x2 = 0; x2 < currLevelSize; ++x2) {
                         if (currLevelChunkView[{y2, x2}] == level) {
@@ -680,7 +689,48 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                             const auto tr = to<uint16_t>(tl + (1 << level));
                             const auto bl = to<uint16_t>(tl + yStep * (1 << level));
                             const auto br = to<uint16_t>(tr + yStep * (1 << level));
-                            Indices.insert(end(Indices), { tl, tr, bl, tr, br, bl });
+                            if (nextLevel != level) {
+                                const auto tm = to<uint16_t>((tl + tr) / 2);
+                                const auto bm = to<uint16_t>((bl + br) / 2);
+                                const auto lm = to<uint16_t>((tl + bl) / 2);
+                                const auto rm = to<uint16_t>((tr + br) / 2);
+                                // May have to split tris to match bordering quads
+                                if (x2 > 0 && nextLevelChunkView[{y2 * 2, x2 * 2 - 1}] < level) {
+                                    if (y2 > 0 &&
+                                        nextLevelChunkView[{y2 * 2 - 1, x2 * 2}] < level) {
+                                        Indices.insert(end(Indices), {tl, tm, lm});
+                                        Indices.insert(end(Indices), {tm, tr, bl});
+                                        Indices.insert(end(Indices), {lm, tm, bl});
+                                    } else {
+                                        Indices.insert(end(Indices), {tl, tr, lm});
+                                        Indices.insert(end(Indices), {lm, tr, bl});
+                                    }
+                                } else if (y2 > 0 &&
+                                           nextLevelChunkView[{y2 * 2 - 1, x2 * 2}] < level) {
+                                    Indices.insert(end(Indices), {tl, tm, bl});
+                                    Indices.insert(end(Indices), {tm, tr, bl});
+                                } else {
+                                    Indices.insert(end(Indices), {tl, tr, bl});
+                                }
+
+                                if (x2 * 2 + 2 < nextLevelSize &&
+                                    nextLevelChunkView[{y2 * 2, x2 * 2 + 2}] < level) {
+                                    Indices.insert(end(Indices), {tr, rm, bl});
+                                    if (y2 * 2 + 2 < nextLevelSize &&
+                                        nextLevelChunkView[{y2 * 2 + 2, x2 * 2}] < level) {
+                                        Indices.insert(end(Indices), {bl, rm, bm, rm, br, bm});
+                                    } else {
+                                        Indices.insert(end(Indices), {bl, rm, br});
+                                    }
+                                } else if (y2 * 2 + 2 < nextLevelSize &&
+                                           nextLevelChunkView[{y2 * 2 + 2, x2 * 2}] < level) {
+                                    Indices.insert(end(Indices), {bl, tr, bm, bm, tr, br});
+                                } else {
+                                    Indices.insert(end(Indices), {tr, br, bl});
+                                }
+                            } else {
+                                Indices.insert(end(Indices), { tl, tr, bl, tr, br, bl });
+                            }
                         }
                     }
                 }
