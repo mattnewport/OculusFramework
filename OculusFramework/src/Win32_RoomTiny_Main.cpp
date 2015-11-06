@@ -32,9 +32,10 @@ limitations under the License.
 #include "OVR_CAPI_D3D.h"  // Include SDK-rendered code for the D3D version
 #pragma warning(pop)
 
+#include "frp.h"
+#include "libovrwrapper.h"
 #include "pipelinestateobject.h"
 #include "scene.h"
-#include "libovrwrapper.h"
 #include "util.h"
 
 #include "imgui/imgui.h"
@@ -272,6 +273,86 @@ struct ImGuiHelper {
     }
 };
 
+struct GamepadBehaviours {
+    static auto stickPos(const SHORT thumbX, const SHORT thumbY,
+        const SHORT thumbDeadzone) {
+        auto handleDeadzone = [](float x, float y, float deadzone) {
+            const auto v = Vec2f{ x, y };
+            const auto mag = magnitude(v);
+            if (mag > deadzone) {
+                const auto n = v * 1.0f / mag;
+                const auto s =
+                    saturate((mag - deadzone) / (numeric_limits<SHORT>::max() - deadzone));
+                return n * s;
+            }
+            return Vec2f{ 0.0f };
+        };
+        return handleDeadzone(thumbX, thumbY, thumbDeadzone);
+    };
+
+    GamepadBehaviours()
+        : leftThumb{ frp::map(gp,
+            [](XINPUT_STATE state) {
+        return stickPos(state.Gamepad.sThumbLX,
+            state.Gamepad.sThumbLY,
+            XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+    }) },
+        rightThumb{ frp::map(gp,
+            [](XINPUT_STATE state) {
+        return stickPos(state.Gamepad.sThumbRX,
+            state.Gamepad.sThumbRY,
+            XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+    }) },
+        leftTrigger{ frp::map(gp, [](auto state) { return state.Gamepad.bLeftTrigger; }) },
+        rightTrigger{
+        frp::map(gp, [](auto state) { return state.Gamepad.bRightTrigger; }) } {
+        for (auto b :
+        { XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN, XINPUT_GAMEPAD_DPAD_LEFT,
+            XINPUT_GAMEPAD_DPAD_RIGHT, XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_BACK,
+            XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB,
+            XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_A,
+            XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y }) {
+            buttonReleasedMap[b] = b;
+            buttonReleased[b] = frp::map(gp, ref(buttonReleasedMap[b]));
+            buttonDown[b] =
+                frp::map(gp, [b](auto state) { return (state.Gamepad.wButtons & b) == b; });
+        }
+    }
+
+    frp::Behaviour<XINPUT_STATE> gp{ [](frp::TimeS) {
+        XINPUT_STATE state{};
+        for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
+            const auto res = XInputGetState(i, &state);
+            if (res == ERROR_SUCCESS) break;
+        }
+        return state;
+    } };
+    frp::Behaviour<Vec2f> leftThumb;
+    frp::Behaviour<Vec2f> rightThumb;
+    frp::Behaviour<BYTE> leftTrigger;
+    frp::Behaviour<BYTE> rightTrigger;
+
+    struct ButtonReleased {
+        ButtonReleased() = default;
+        ButtonReleased(uint32_t buttonMask_) : buttonMask{ buttonMask_ } {}
+        bool operator()(const XINPUT_STATE& state) {
+            if (state.Gamepad.wButtons & buttonMask) {
+                buttonDownLastFrame = true;
+            }
+            else if (buttonDownLastFrame) {
+                buttonDownLastFrame = false;
+                return true;
+            }
+            return false;
+        }
+        uint32_t buttonMask = 0;
+        bool buttonDownLastFrame = false;
+    };
+    unordered_map<uint32_t, ButtonReleased> buttonReleasedMap;
+    unordered_map<uint32_t, frp::Behaviour<bool>> buttonReleased;
+    unordered_map<uint32_t, frp::Behaviour<bool>> buttonDown;
+};
+
 int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _In_ int) {
     auto argMap = parseArgs(args);
 
@@ -340,9 +421,12 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto playerYaw = 0.0f;
     auto pos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
 
+    auto gamepadBehaviours = GamepadBehaviours{};
+
     // MAIN LOOP
     // =========
     while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
+        const auto frameTimeS = hmd->getTimeInSeconds();
         DX11.HandleMessages();
 
         ovrVector3f useHmdToEyeViewOffset[2] = {EyeRenderDesc[ovrEye_Left].HmdToEyeViewOffset,
@@ -372,74 +456,40 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         if (DX11.Key['A']) pos += Vec4f{-0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
 
         // gamepad inputs
-        for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
-            XINPUT_STATE state{};
-            const auto res = XInputGetState(i, &state);
-            if (res == ERROR_SUCCESS) {
-                auto handleDeadzone = [](float x, float y, float deadzone) {
-                    const auto v = Vec2f{x, y};
-                    const auto mag = magnitude(v);
-                    if (mag > deadzone) {
-                        const auto n = v * 1.0f / mag;
-                        const auto s = saturate(
-                            (mag - deadzone) /
-                            (numeric_limits<decltype(XINPUT_GAMEPAD::sThumbLX)>::max() - deadzone));
-                        return n * s;
-                    }
-                    return Vec2f{0.0f};
-                };
-                const auto& gp = state.Gamepad;
-                const auto ls =
-                    handleDeadzone(gp.sThumbLX, gp.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-                const auto rs =
-                    handleDeadzone(gp.sThumbRX, gp.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-                const auto positionDelta = Vec3f{ls.x(), 0.0f, -ls.y()};
+        {
+            const auto leftStickVal = gamepadBehaviours.leftThumb(frameTimeS);
+            const auto positionDelta = Vec3f{leftStickVal.x(), 0.0f, -leftStickVal.y()};
+            const auto rightStickVal = gamepadBehaviours.rightThumb(frameTimeS);
 
-                static bool movePlayer = false;
-                static bool buttonBPressed = false;
-                if (gp.wButtons & XINPUT_GAMEPAD_B) {
-                    buttonBPressed = true;
-                } else if (buttonBPressed) {
-                    movePlayer = !movePlayer;
-                    buttonBPressed = false;
-                }
-                if (movePlayer) {
-                    playerYaw += -0.04f * rs.x();
-                    pos += Vec4f{positionDelta * 0.04f, 0.0f} * rotationMat;
-                } else {
-                    roomScene.heightField->setPosition(roomScene.heightField->getPosition() +
-                                                       positionDelta * 0.025f);
-                }
+            static bool movePlayer = false;
+            if (gamepadBehaviours.buttonReleased[XINPUT_GAMEPAD_B](frameTimeS))
+                movePlayer = !movePlayer;
 
-                roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
-                                                        0.00002f * gp.bLeftTrigger);
-                roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() -
-                                                        0.00002f * gp.bRightTrigger);
-                if (gp.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
-                    roomScene.heightField->setTerrainScale(
-                        roomScene.heightField->getTerrainScale() * (1 - 1e-2f));
-                else if (gp.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
-                    roomScene.heightField->setTerrainScale(
-                        roomScene.heightField->getTerrainScale() * (1 + 1e-2f));
-
-                static bool buttonAPressed = false;
-                if (gp.wButtons & XINPUT_GAMEPAD_A) {
-                    buttonAPressed = true;
-                } else if (buttonAPressed) {
-                    roomScene.heightField->toggleRenderLabels();
-                    buttonAPressed = false;
-                }
-
-                static bool menuButtonPressed = false;
-                if (gp.wButtons & XINPUT_GAMEPAD_START) {
-                    menuButtonPressed = true;
-                } else if (menuButtonPressed) {
-                    imguiHelper.active = !imguiHelper.active;
-                    menuButtonPressed = false;
-                }
-
-                break; // only take input from the first connected pad
+            if (movePlayer) {
+                playerYaw += -0.04f * rightStickVal.x();
+                pos += Vec4f{positionDelta * 0.04f, 0.0f} * rotationMat;
+            } else {
+                roomScene.heightField->setPosition(roomScene.heightField->getPosition() +
+                                                   positionDelta * 0.025f);
             }
+
+            roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
+                                                    0.00002f *
+                                                        gamepadBehaviours.leftTrigger(frameTimeS));
+            roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() -
+                                                    0.00002f *
+                                                        gamepadBehaviours.rightTrigger(frameTimeS));
+            if (gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_LEFT_SHOULDER](frameTimeS))
+                roomScene.heightField->setTerrainScale(roomScene.heightField->getTerrainScale() *
+                                                       (1 - 1e-2f));
+            else if (gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_RIGHT_SHOULDER](frameTimeS))
+                roomScene.heightField->setTerrainScale(roomScene.heightField->getTerrainScale() *
+                                                       (1 + 1e-2f));
+
+            if (gamepadBehaviours.buttonReleased[XINPUT_GAMEPAD_A](frameTimeS))
+                roomScene.heightField->toggleRenderLabels();
+            if (gamepadBehaviours.buttonReleased[XINPUT_GAMEPAD_START](frameTimeS))
+                imguiHelper.active = !imguiHelper.active;
         }
 
         pos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y());

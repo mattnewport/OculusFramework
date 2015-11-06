@@ -110,6 +110,7 @@
     <ClInclude Include="src\DDSTextureLoader.h" />
     <ClInclude Include="src\DirectXHelpers.h" />
     <ClInclude Include="src\farmhash.h" />
+    <ClInclude Include="src\frp.h" />
     <ClInclude Include="src\hashhelpers.h" />
     <ClInclude Include="src\hlslmacros.h" />
     <ClInclude Include="src\imgui\imconfig.h" />
