@@ -593,10 +593,19 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 for (int j = 0; j < 4; ++j) {
                     heights[j] = geoTiff.getHeightsView()[indices[j]];
                 }
-                if (((heights[1] + heights[0]) / 2 ==
-                     geoTiff.getHeightsView()[(indices[1] + indices[0]) / 2]) &&
-                    ((heights[2] + heights[0]) / 2 ==
-                     geoTiff.getHeightsView()[(indices[2] + indices[0]) / 2])) {
+                const auto withinTolerance = [](int a, int b) { return abs(a - b) < 2; };
+                const auto avgH = [&heights](int idx0, int idx1) {
+                    return (heights[idx0] + heights[idx1]) / 2;
+                };
+                const auto midH = [hv = geoTiff.getHeightsView(), &indices](auto idx0, auto idx1) {
+                    return hv[(indices[idx0] + indices[idx1]) / 2];
+                };
+                if (withinTolerance(avgH(1, 0), midH(1, 0)) &&
+                    withinTolerance(avgH(2, 0), midH(2, 0)) &&
+                    withinTolerance(avgH(3, 1), midH(3, 1)) &&
+                    withinTolerance(avgH(2, 3), midH(2, 3)) &&
+                    withinTolerance(avgH(0, 3), midH(0, 3)) &&
+                    withinTolerance(avgH(1, 2), midH(1, 2))) {
                     // Don't increase level by more than one over quads to left and above or quads
                     // from the next level down to right and below
                     const auto levelLeft =
