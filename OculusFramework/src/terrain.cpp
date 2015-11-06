@@ -535,7 +535,7 @@ void HeightField::generateNormalMap(ID3D11Device* device, const GeoTiff& geoTiff
     const auto height = geoTiff.getTiffHeight();
     const auto gridStepX = geoTiff.getGridStepMetersX();
     const auto gridStepY = geoTiff.getGridStepMetersY();
-    vector<Vec2f> normals(width * height);
+    normals = vector<Vec2f>(width * height);
     auto normalsView = gsl::as_array_view(normals.data(), gsl::dim<>(height), gsl::dim<>(width));
     for (auto idx : normalsView.bounds()) {
         const auto normal = normalize(Vec3f{
@@ -647,6 +647,9 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
         }
     }
 
+    auto normalsView = gsl::as_array_view(normals.data(), gsl::dim<>(geoTiff.getTiffHeight()),
+                                          gsl::dim<>(geoTiff.getTiffWidth()));
+
     const auto uvStepX = 1.0f / geoTiff.getTiffWidth();
     const auto uvStepY = 1.0f / geoTiff.getTiffHeight();
     const auto gridStepX = geoTiff.getGridStepMetersX();
@@ -702,6 +705,14 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                     y = clamp(y + to<int>(nextLevelY), 0, height);
                     return nextLevelView[{to<size_t>(y), to<size_t>(x)}];
                 };
+                const auto normalVal = 
+                    [normalsView, level, xOff = chunkX << blockPower, yOff = chunkY << blockPower](int x, int y) {
+                    const auto width = to<int>(normalsView.bounds().index_bounds()[1] - 1);
+                    x = clamp((x << level) + xOff, 0, width);
+                    const auto height = to<int>(normalsView.bounds().index_bounds()[0] - 1);
+                    y = clamp((y << level) + yOff, 0, height);
+                    return normalsView[{to<size_t>(y), to<size_t>(x)}];
+                };
                 for (size_t y2 = 0; y2 < currLevelSize; ++y2) {
                     for (size_t x2 = 0; x2 < currLevelSize; ++x2) {
                         if (currLevelChunkView[{y2, x2}] == level) {
@@ -742,7 +753,13 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                                     Indices.insert(end(Indices), {tr, br, bl});
                                 }
                             } else {
-                                Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
+                                // pick triangle split based on normals
+                                if (magnitude(normalVal(x2, y2) - normalVal(x2 + 1, y2 + 1)) <
+                                    magnitude(normalVal(x2 + 1, y2) - normalVal(x2, y2 + 1))) {
+                                    Indices.insert(end(Indices), {tl, br, bl, tl, tr, br});
+                                } else {
+                                    Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
+                                }
                             }
                         }
                     }

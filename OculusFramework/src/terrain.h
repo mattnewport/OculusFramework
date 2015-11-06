@@ -95,6 +95,7 @@ private:
     ID3D11BufferPtr objectConstantBuffer;
     ID3D11Texture2DPtr heightsTex;
     ID3D11ShaderResourceViewPtr heightsSRV;
+    std::vector<mathlib::Vec2f> normals;
     ID3D11Texture2DPtr normalsTex;
     ID3D11ShaderResourceViewPtr normalsSRV;
     float scale = 1e-4f;
