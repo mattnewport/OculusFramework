@@ -89,9 +89,9 @@ private:
 
     PipelineStateObjectManager::ResourceHandle pipelineStateObject;
 
-    std::vector<uint16_t> Indices;
     std::vector<ID3D11BufferPtr> VertexBuffers;
-    ID3D11BufferPtr IndexBuffer;
+    std::vector<ID3D11BufferPtr> IndexBuffers;
+    std::vector<uint32_t> indexCounts;
     ID3D11BufferPtr objectConstantBuffer;
     ID3D11Texture2DPtr heightsTex;
     ID3D11ShaderResourceViewPtr heightsSRV;

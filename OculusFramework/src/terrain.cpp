@@ -247,24 +247,28 @@ void HeightField::Render(DirectX11& dx11, ID3D11DeviceContext* context) {
 
     VSSetConstantBuffers(context, objectConstantBufferOffset, {objectConstantBuffer.Get()});
     VSSetShaderResources(context, 0, {heightsSRV.Get()});
-    context->IASetIndexBuffer(IndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     PSSetConstantBuffers(context, objectConstantBufferOffset, { objectConstantBuffer.Get() });
     PSSetShaderResources(context, materialSRVOffset,
                          {heightsSRV.Get(), normalsSRV.Get(), creeksSrv.Get(), lakesAndGlaciersSrv.Get()});
     uint32_t chunkIndex = 0;
     for (const auto& vertexBuffer : VertexBuffers) {
-        terrainParameters.chunkInfo.w() = chunkIndex++;
+        terrainParameters.chunkInfo.w() = chunkIndex;
         updateTerrainParameters();
         IASetVertexBuffers(context, 0, {vertexBuffer.Get()}, {to<UINT>(sizeof(Vertex))});
-        context->DrawIndexed(Indices.size(), 0, 0);
+        context->IASetIndexBuffer(IndexBuffers[chunkIndex].Get(), DXGI_FORMAT_R16_UINT, 0);
+        context->DrawIndexed(indexCounts[chunkIndex], 0, 0);
+        ++chunkIndex;
     }
 
     if (showWireframe) {
         dx11.applyState(*context, *wireframePipelineState.get());
+        chunkIndex = 0;
         for (const auto& vertexBuffer : VertexBuffers) {
             updateTerrainParameters();
             IASetVertexBuffers(context, 0, { vertexBuffer.Get() }, { to<UINT>(sizeof(Vertex)) });
-            context->DrawIndexed(Indices.size(), 0, 0);
+            context->IASetIndexBuffer(IndexBuffers[chunkIndex].Get(), DXGI_FORMAT_R16_UINT, 0);
+            context->DrawIndexed(indexCounts[chunkIndex], 0, 0);
+            ++chunkIndex;
         }
     }
 
@@ -550,20 +554,67 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto blockPower = 7;
     const auto blockSize = 1 << blockPower;
 
-    const auto quadCount = square(blockSize);
-    const auto indexCount = 6 * quadCount;
-    Indices.reserve(indexCount);
-    for (auto y = 0; y < blockSize; ++y) {
-        for (auto x = 0; x < blockSize; ++x) {
-            const auto yStep = blockSize + 1;
-            const auto tl = to<uint16_t>(y * yStep + x);
-            const auto tr = to<uint16_t>(tl + 1);
-            const auto bl = to<uint16_t>(tl + yStep);
-            const auto br = to<uint16_t>(tr + yStep);
-            Indices.insert(end(Indices), {tl, tr, bl, tr, br, bl});
+    const auto widthChunks = to<uint32_t>((geoTiff.getTiffWidth() + blockSize - 1) / blockSize);
+    const auto heightChunks = to<uint32_t>((geoTiff.getTiffHeight() + blockSize - 1) / blockSize);
+    const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
+    terrainParameters.chunkInfo = { numChunks, widthChunks, heightChunks, 0u };
+
+    auto quadLevels = vector<vector<int>>(blockPower);
+    const auto roundupWidth = widthChunks * blockSize;
+    const auto roundupHeight = heightChunks * blockSize;
+    for (int i = 0; i < blockPower; ++i) {
+        const int levelWidth = roundupWidth >> i;
+        const int levelHeight = roundupHeight >> i;
+        quadLevels[i] = vector<int>(levelWidth * levelHeight);
+        if (i == 0) continue;
+        auto prevLevelView = gsl::as_array_view(
+            quadLevels[i - 1].data(), gsl::dim<>(levelHeight << 1), gsl::dim<>(levelWidth << 1));
+        auto currLevelView =
+            gsl::as_array_view(quadLevels[i].data(), gsl::dim<>(levelHeight), gsl::dim<>(levelWidth));
+        for (int y = 0; y < levelHeight; ++y) {
+            for (int x = 0; x < levelWidth; ++x) {
+                const auto idx = gsl::index<2>{to<size_t>(y * 2), to<size_t>(x * 2)};
+                int prevLevel[] = {prevLevelView[idx], prevLevelView[{idx[0], idx[1] + 1}],
+                                   prevLevelView[{idx[0] + 1, idx[1]}],
+                                   prevLevelView[{idx[0] + 1, idx[1] + 1}]};
+                const auto mine = *min_element(begin(prevLevel), end(prevLevel));
+                if (mine < i - 1) continue;
+                const auto h = [i, &geoTiff](int x, int y) {
+                    x = min(x << i, geoTiff.getTiffWidth() - 1);
+                    y = min(y << i, geoTiff.getTiffHeight() - 1);
+                    return gsl::index<2>{to<size_t>(y), to<size_t>(x)};
+                };
+                const gsl::index<2> indices[] = {h(x, y), h(x + 1, y), h(x, y + 1),
+                                                 h(x + 1, y + 1)};
+                int heights[4] = {};
+                for (int j = 0; j < 4; ++j) {
+                    heights[j] = geoTiff.getHeightsView()[indices[j]];
+                }
+                if (((heights[1] + heights[0]) / 2 == geoTiff.getHeightsView()[(indices[1] + indices[0]) / 2]) &&
+                    ((heights[2] + heights[0]) / 2 == geoTiff.getHeightsView()[(indices[2] + indices[0]) / 2])) {
+                    currLevelView[{to<size_t>(y), to<size_t>(x)}] = i;
+                }
+            }
         }
     }
-    IndexBuffer = CreateIndexBuffer(device, const_array_view(Indices));
+
+    for (int i = 0; i < blockPower; ++i) {
+        const auto level = blockPower - 1 - i;
+        const int levelWidth = roundupWidth >> level;
+        const int levelHeight = roundupHeight >> level;
+        if (level == blockPower - 1) continue;
+        auto prevLevelView =
+            gsl::as_array_view(quadLevels[level + 1].data(), gsl::dim<>(levelHeight >> 1),
+                               gsl::dim<>(levelWidth >> 1));
+        auto currLevelView = gsl::as_array_view(quadLevels[level].data(), gsl::dim<>(levelHeight),
+                                                gsl::dim<>(levelWidth));
+        for (int y = 0; y < levelHeight; ++y) {
+            for (int x = 0; x < levelWidth; ++x) {
+                const auto idx = gsl::index<2>{to<size_t>(y), to<size_t>(x)};
+                if (prevLevelView[idx / 2] > level) currLevelView[idx] = prevLevelView[idx / 2];
+            }
+        }
+    }
 
     const auto uvStepX = 1.0f / geoTiff.getTiffWidth();
     const auto uvStepY = 1.0f / geoTiff.getTiffHeight();
@@ -572,10 +623,6 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto xOffset = -0.5f * geoTiff.getWidthMeters();
     const auto yOffset = -0.5f * geoTiff.getHeightMeters();
     auto vertices = vector<Vertex>(square(blockSize + 1));
-    const auto widthChunks = to<uint32_t>((geoTiff.getTiffWidth() + blockSize - 1) / blockSize);
-    const auto heightChunks = to<uint32_t>((geoTiff.getTiffHeight() + blockSize - 1) / blockSize);
-    const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
-    terrainParameters.chunkInfo = {numChunks, widthChunks, heightChunks, 0u};
     for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize) {
         for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize) {
             auto destVertex = 0;
@@ -589,6 +636,40 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
                 }
             }
             VertexBuffers.push_back(CreateVertexBuffer(device, const_array_view(vertices)));
+
+            const auto chunkX = x / blockSize;
+            const auto chunkY = y / blockSize;
+            const auto quadCount = square(blockSize);
+            const auto indexCount = 6 * quadCount;
+            std::vector<uint16_t> Indices;
+            Indices.reserve(indexCount);
+            for (int i = 0; i < blockPower; ++i) {
+                const int level = blockPower - 1 - i;
+                const int levelWidth = roundupWidth >> level;
+                const int levelHeight = roundupHeight >> level;
+                auto currLevelView =
+                    gsl::as_array_view(quadLevels[level].data(), gsl::dim<>(levelHeight), gsl::dim<>(levelWidth));
+
+                const auto currLevelSize = to<size_t>(blockSize >> level);
+                const auto levelX = to<size_t>(chunkX << (i + 1));
+                const auto levelY = to<size_t>(chunkY << (i + 1));
+                auto currLevelChunkView = currLevelView.section(
+                    {levelY, levelX}, { currLevelSize, currLevelSize });
+                for (size_t y2 = 0; y2 < currLevelSize; ++y2) {
+                    for (size_t x2 = 0; x2 < currLevelSize; ++x2) {
+                        if (currLevelChunkView[{y2, x2}] == level) {
+                            const auto yStep = blockSize + 1;
+                            const auto tl = to<uint16_t>((y2 << level) * yStep + (x2 << level));
+                            const auto tr = to<uint16_t>(tl + (1 << level));
+                            const auto bl = to<uint16_t>(tl + yStep * (1 << level));
+                            const auto br = to<uint16_t>(tr + yStep * (1 << level));
+                            Indices.insert(end(Indices), { tl, tr, bl, tr, br, bl });
+                        }
+                    }
+                }
+            }
+            IndexBuffers.push_back(CreateIndexBuffer(device, const_array_view(Indices)));
+            indexCounts.push_back(to<uint32_t>(Indices.size()));
         }
     }
 }
