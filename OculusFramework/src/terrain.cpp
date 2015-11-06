@@ -561,6 +561,8 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     const auto numChunks = to<uint32_t>(widthChunks * heightChunks);
     terrainParameters.chunkInfo = {numChunks, widthChunks, heightChunks, 0u};
 
+    // Build a kind of mip pyrmaid for quads where quads at each level have the index of the
+    // coarsest subdivision level to use for the current quad
     auto quadLevels = vector<vector<int>>(blockPower);
     const auto roundupWidth = widthChunks * blockSize;
     const auto roundupHeight = heightChunks * blockSize;
@@ -629,6 +631,8 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
         }
     }
 
+    // Propagate values back up the quad 'mip chain' so that the finest level contains for every
+    // quad the index of the quad level to use for that quad
     for (int i = 0; i < blockPower; ++i) {
         const auto level = blockPower - 1 - i;
         const int levelWidth = roundupWidth >> level;
@@ -659,6 +663,9 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
     auto vertices = vector<Vertex>(square(blockSize + 1));
     for (auto y = 0; y < geoTiff.getTiffHeight(); y += blockSize) {
         for (auto x = 0; x < geoTiff.getTiffWidth(); x += blockSize) {
+            // Fill out vertex buffer - this should go away since we don't really need to store any
+            // vertex information, it can all be worked out implicitly from the index and
+            // information on the chunk size etc.
             auto destVertex = 0;
             for (auto blockY = 0; blockY < blockSize + 1; ++blockY) {
                 for (auto blockX = 0; blockX < blockSize + 1; ++blockX) {
@@ -671,6 +678,10 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
             }
             VertexBuffers.push_back(CreateVertexBuffer(device, const_array_view(vertices)));
 
+            // Generate indices from our quad 'mip pyramid' - work through each level of the pyramid
+            // from coarsest to finest, outputting triangles for quads at the coarsest level
+            // possible. We have to make sure that quads correctly match the tesselation level of
+            // adjacent quads so we don't get any cracks or T-junctions in the meshes.
             const auto chunkX = x / blockSize;
             const auto chunkY = y / blockSize;
             const auto quadCount = square(blockSize);
