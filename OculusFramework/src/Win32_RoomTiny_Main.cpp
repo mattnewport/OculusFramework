@@ -422,6 +422,11 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto pos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
 
     auto gamepadBehaviours = GamepadBehaviours{};
+    auto positionBehaviour =
+        frp::eulerIntegrate(roomScene.heightField->getPosition().xz(),
+                            frp::map(gamepadBehaviours.leftThumb, frp::always(Vec2f{2.0f, -2.0f}),
+                                     [](auto x, auto y) { return x.memberwiseMultiply(y); }),
+                            hmd->getTimeInSeconds());
 
     // MAIN LOOP
     // =========
@@ -469,8 +474,10 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                 playerYaw += -0.04f * rightStickVal.x();
                 pos += Vec4f{positionDelta * 0.04f, 0.0f} * rotationMat;
             } else {
-                roomScene.heightField->setPosition(roomScene.heightField->getPosition() +
-                                                   positionDelta * 0.025f);
+                const auto heightFieldY = roomScene.heightField->getPosition().y();
+                const auto heightFieldPosXZ = positionBehaviour(frameTimeS);
+                roomScene.heightField->setPosition(
+                    Vec3f{heightFieldPosXZ.x(), heightFieldY, heightFieldPosXZ.y()});
             }
 
             roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
