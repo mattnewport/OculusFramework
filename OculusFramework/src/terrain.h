@@ -100,6 +100,8 @@ private:
     float scale = 1e-4f;
     bool showWireframe = false;
     PipelineStateObjectManager::ResourceHandle wireframePipelineState;
+    int naiveTris = 0;
+    int reducedTris = 0;
 
     std::vector<LabeledPoint> topographicFeatures;
     std::vector<Label> topographicFeatureLabels;

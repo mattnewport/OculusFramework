@@ -496,6 +496,8 @@ void HeightField::loadGlaciersShapeFile(const GeoTiff& geoTiff) {
 
 void HeightField::showGui() {
     if (ImGui::CollapsingHeader("Terrain")) {
+        ImGui::Text("Naive tris: %d", naiveTris);
+        ImGui::Text("Reduced tris: %d", reducedTris);
         ImGui::Checkbox("Show wireframe", &showWireframe);
         static bool showChunks = false;
         ImGui::Checkbox("Show chunks", &showChunks);
@@ -748,6 +750,8 @@ void HeightField::generateHeightFieldGeometry(ID3D11Device* device, const GeoTif
             }
             IndexBuffers.push_back(CreateIndexBuffer(device, const_array_view(Indices)));
             indexCounts.push_back(to<uint32_t>(Indices.size()));
+            naiveTris += indexCount;
+            reducedTris += to<int>(Indices.size());
         }
     }
 }
