@@ -314,14 +314,12 @@ struct GamepadBehaviours {
         leftTrigger{ frp::map(gp, [](auto state) { return state.Gamepad.bLeftTrigger; }) },
         rightTrigger{
         frp::map(gp, [](auto state) { return state.Gamepad.bRightTrigger; }) } {
-        for (auto b :
-        { XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN, XINPUT_GAMEPAD_DPAD_LEFT,
-            XINPUT_GAMEPAD_DPAD_RIGHT, XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_BACK,
-            XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB,
-            XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_A,
-            XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y }) {
-            buttonReleasedMap[b] = b;
-            buttonReleased[b] = frp::map(gp, ref(buttonReleasedMap[b]));
+        for (auto b : {XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN, XINPUT_GAMEPAD_DPAD_LEFT,
+                       XINPUT_GAMEPAD_DPAD_RIGHT, XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_BACK,
+                       XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB,
+                       XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER,
+                       XINPUT_GAMEPAD_A, XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y}) {
+            buttonReleased[b] = frp::map(gp, ButtonReleased{to<uint32_t>(b)});
             buttonDown[b] =
                 frp::map(gp, [b](auto state) { return (state.Gamepad.wButtons & b) == b; });
         }
@@ -334,7 +332,6 @@ struct GamepadBehaviours {
     frp::Behaviour<BYTE> rightTrigger;
 
     struct ButtonReleased {
-        ButtonReleased() = default;
         ButtonReleased(uint32_t buttonMask_) : buttonMask{buttonMask_} {}
         bool operator()(const XINPUT_STATE& state) {
             if (state.Gamepad.wButtons & buttonMask) {
@@ -348,21 +345,13 @@ struct GamepadBehaviours {
         uint32_t buttonMask = 0;
         bool buttonDownLastFrame = false;
     };
-    unordered_map<uint32_t, ButtonReleased> buttonReleasedMap;
     unordered_map<uint32_t, frp::Behaviour<bool>> buttonReleased;
     unordered_map<uint32_t, frp::Behaviour<bool>> buttonDown;
 
-    struct Toggle {
-        Toggle() = default;
-        Toggle(bool init) : value{init} {}
-        bool operator()(bool toggle) {
-            if (toggle) value = !value;
-            return value;
-        }
-        bool value = false;
-    };
-    auto makeToggleBehaviour(uint32_t button, Toggle& toggle) {
-        return frp::map(buttonReleased[button], ref(toggle));
+    auto makeToggleBehaviour(uint32_t button, bool init) {
+        return frp::map(buttonReleased[button], [value = init](bool toggle) mutable {
+            return toggle ? value = !value : value;
+        });
     }
 };
 
@@ -437,9 +426,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
     auto gamepadBehaviours = GamepadBehaviours{};
 
-    auto moveTerrainToggle = GamepadBehaviours::Toggle{true};
-    auto moveTerrainBehaviour =
-        gamepadBehaviours.makeToggleBehaviour(XINPUT_GAMEPAD_B, moveTerrainToggle);
+    auto moveTerrainBehaviour = gamepadBehaviours.makeToggleBehaviour(XINPUT_GAMEPAD_B, true);
 
     auto terrainPositionsRate =
         frp::map(gamepadBehaviours.leftThumb,
