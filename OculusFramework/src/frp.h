@@ -44,19 +44,14 @@ auto always(T x) {
     return Behaviour<T>{[x](TimeS) { return x; }};
 }
 
-template <typename T, typename F>
-auto map(Behaviour<T> b, F f) {
-    return makeBehaviour([b, f](TimeS t) mutable { return f(b(t)); });
-}
-
-template <typename T, typename U, typename F>
-auto map(Behaviour<T> b0, Behaviour<U> b1, F f) {
-    return makeBehaviour([b0, b1, f](TimeS t) mutable { return f(b0(t), b1(t)); });
+template <typename F, typename... Ts>
+auto map(F f, Behaviour<Ts>... bs) {
+    return makeBehaviour([f, bs...](TimeS t) mutable { return f(bs(t)...); });
 }
 
 template <typename T>
 auto choice(Behaviour<bool> b, T whenTrue, T whenFalse) {
-    return map(b, [whenTrue, whenFalse](bool x) { return x ? whenTrue : whenFalse; });
+    return map([whenTrue, whenFalse](bool x) { return x ? whenTrue : whenFalse; }, b);
 }
 
 template <typename T, typename U>
@@ -84,8 +79,8 @@ inline auto makeTimeDeltaBehaviour(TimeS startTime) {
 
 template <typename T>
 auto eulerIntegrate(T init, Behaviour<T> rate, TimeS start) {
-    return map(map(rate, makeTimeDeltaBehaviour(start), std::multiplies<>{}),
-               [value = init](auto delta) mutable { return value += delta; });
+    return map([value = init](auto delta) mutable { return value += delta; },
+               map(std::multiplies<>{}, rate, makeTimeDeltaBehaviour(start)));
 }
 
 }  // namespace frp

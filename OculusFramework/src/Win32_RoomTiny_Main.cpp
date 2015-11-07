@@ -299,26 +299,28 @@ struct GamepadBehaviours {
     };
 
     GamepadBehaviours()
-        : leftThumb{frp::map(gp,
-                             [](XINPUT_STATE state) {
-                                 return stickPos(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY,
-                                                 XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-                             })},
-          rightThumb{frp::map(gp,
-                              [](XINPUT_STATE state) {
-                                  return stickPos(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY,
-                                                  XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-                              })},
-          leftTrigger{frp::map(gp, [](auto state) { return state.Gamepad.bLeftTrigger; })},
-          rightTrigger{frp::map(gp, [](auto state) { return state.Gamepad.bRightTrigger; })} {
+        : leftThumb{frp::map(
+              [](XINPUT_STATE state) {
+                  return stickPos(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY,
+                                  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+              },
+              gp)},
+          rightThumb{frp::map(
+              [](XINPUT_STATE state) {
+                  return stickPos(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY,
+                                  XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+              },
+              gp)},
+          leftTrigger{frp::map([](auto state) { return state.Gamepad.bLeftTrigger; }, gp)},
+          rightTrigger{frp::map([](auto state) { return state.Gamepad.bRightTrigger; }, gp)} {
         for (auto b : {XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN, XINPUT_GAMEPAD_DPAD_LEFT,
                        XINPUT_GAMEPAD_DPAD_RIGHT, XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_BACK,
                        XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB,
                        XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER,
                        XINPUT_GAMEPAD_A, XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y}) {
-            buttonReleased[b] = frp::map(gp, ButtonReleased{to<uint32_t>(b)});
+            buttonReleased[b] = frp::map(ButtonReleased{to<uint32_t>(b)}, gp);
             buttonDown[b] =
-                frp::map(gp, [b](auto state) { return (state.Gamepad.wButtons & b) == b; });
+                frp::map([b](auto state) { return (state.Gamepad.wButtons & b) == b; }, gp);
         }
     }
 
@@ -346,9 +348,9 @@ struct GamepadBehaviours {
     unordered_map<uint32_t, frp::Behaviour<bool>> buttonDown;
 
     auto makeToggleBehaviour(uint32_t button, bool init) {
-        return frp::map(buttonReleased[button], [value = init](bool toggle) mutable {
-            return toggle ? value = !value : value;
-        });
+        return frp::map(
+            [value = init](bool toggle) mutable { return toggle ? value = !value : value; },
+            buttonReleased[button]);
     }
 };
 
@@ -429,19 +431,20 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     // If moveTerrain toggle is true, left stick moves terrain in x and z, right stick in y
     const auto startTime = hmd->getTimeInSeconds();
     auto terrainPositionsRate =
-        frp::map(frp::map(gamepadBehaviours.leftThumb, gamepadBehaviours.rightThumb,
-                          [](auto x, auto y) {
-                              return Vec3f{x.x(), y.y(), x.y()};
-                          }),
-                 frp::choice(moveTerrainBehaviour, Vec3f{2.0f, 2.0f, -2.0f}, Vec3f{0.0f}),
-                 [](auto x, auto y) { return memberwiseMultiply(x, y); });
+        frp::map([](auto x, auto y) { return memberwiseMultiply(x, y); },
+                 frp::map(
+                     [](auto x, auto y) {
+                         return Vec3f{x.x(), y.y(), x.y()};
+                     },
+                     gamepadBehaviours.leftThumb, gamepadBehaviours.rightThumb),
+                 frp::choice(moveTerrainBehaviour, Vec3f{2.0f, 2.0f, -2.0f}, Vec3f{0.0f}));
     auto terrainPositionBehaviour =
         frp::eulerIntegrate(roomScene.heightField->getPosition(), terrainPositionsRate, startTime);
 
     // Left and right triggers rotate the terrain
     auto terrainRotationRate =
-        frp::map(gamepadBehaviours.leftTrigger - gamepadBehaviours.rightTrigger,
-                 [](auto x) { return to<float>(x) * 0.002f; });
+        frp::map([](auto x) { return to<float>(x) * 0.002f; },
+                 gamepadBehaviours.leftTrigger - gamepadBehaviours.rightTrigger);
     auto terrainRotation = frp::eulerIntegrate(roomScene.heightField->getRotationAngle(),
                                                terrainRotationRate, startTime);
 
@@ -451,8 +454,8 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto rightShoulder =
         frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_RIGHT_SHOULDER], 1.0f, 0.0f);
     auto terrainScaleRate = frp::map(
-        leftShoulder + rightShoulder,
-        [hf = roomScene.heightField.get()](auto x) { return hf->getTerrainScale() * x * 0.75f; });
+        [hf = roomScene.heightField.get()](auto x) { return hf->getTerrainScale() * x * 0.75f; },
+        leftShoulder + rightShoulder);
     auto terrainScale =
         frp::eulerIntegrate(roomScene.heightField->getTerrainScale(), terrainScaleRate, startTime);
 
@@ -465,11 +468,11 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         return res;
     });
     auto playerYawGamepad =
-        frp::map(gamepadBehaviours.rightThumb, frp::choice(moveTerrainBehaviour, 0.0f, -1.0f),
-                 [](auto rightStick, auto rate) { return rightStick.x() * rate; });
+        frp::map([](auto rightStick, auto rate) { return rightStick.x() * rate; },
+                 gamepadBehaviours.rightThumb, frp::choice(moveTerrainBehaviour, 0.0f, -1.0f));
     auto playerYawRate = playerYawKeyboard + playerYawGamepad;
     auto playerYawBehaviour = frp::eulerIntegrate(playerYaw, playerYawRate, startTime);
-    auto rotationMatBehaviour = frp::map(playerYawBehaviour, rotationYMat4f);
+    auto rotationMatBehaviour = frp::map(rotationYMat4f, playerYawBehaviour);
 
     // WASD keys and left thumb stick (if moveTerrain toggle is false) control player movement
     auto playerPositionKeyboard = frp::makeBehaviour([&DX11](frp::TimeS) {
@@ -480,20 +483,21 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         if (DX11.Key['D']) res.x() += 2.0f;
         return res;
     });
-    auto playerPositionGamepad =
-        frp::map(gamepadBehaviours.leftThumb,
-                 frp::choice(moveTerrainBehaviour, Vec2f{0.0f}, Vec2f{2.0f, -2.0f}),
-                 [](auto x, auto y) { return memberwiseMultiply(x, y); });
+    auto playerPositionGamepad = frp::map(
+        [](auto x, auto y) { return memberwiseMultiply(x, y); }, gamepadBehaviours.leftThumb,
+        frp::choice(moveTerrainBehaviour, Vec2f{0.0f}, Vec2f{2.0f, -2.0f}));
     auto playerPosition = playerPositionKeyboard + playerPositionGamepad;
-    auto playerPositionsRate = frp::map(playerPosition, rotationMatBehaviour, [](auto x, auto m) {
-        const auto delta = Vec4f{x.x(), 0.0f, x.y(), 0.0f} * m;
-        return delta.xz();
-    });
-    auto playerPositionBehaviour =
-        frp::map(frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, startTime),
-                 [y = hmd->getProperty(OVR_KEY_EYE_HEIGHT, playerPos.y())](auto x) {
-                     return Vec4f{x.x(), y, x.y(), 1.0f};
-                 });
+    auto playerPositionsRate = frp::map(
+        [](auto x, auto m) {
+            const auto delta = Vec4f{x.x(), 0.0f, x.y(), 0.0f} * m;
+            return delta.xz();
+        },
+        playerPosition, rotationMatBehaviour);
+    auto playerPositionBehaviour = frp::map(
+        [y = hmd->getProperty(OVR_KEY_EYE_HEIGHT, playerPos.y())](auto x) {
+            return Vec4f{x.x(), y, x.y(), 1.0f};
+        },
+        frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, startTime));
 
     // frp Behaviour for animated cube
     auto cubeBehaviour = frp::makeBehaviour([](frp::TimeS t) {
