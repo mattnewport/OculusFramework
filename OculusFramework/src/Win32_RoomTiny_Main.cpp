@@ -423,32 +423,41 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto playerYaw = 0.0f;
     auto playerPos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
 
+    // Set up frp Behaviours for input / controls
     auto gamepadBehaviours = GamepadBehaviours{};
 
+    // B button toggles moving terrain or moving player with left thumb stick
     auto moveTerrainBehaviour = gamepadBehaviours.makeToggleBehaviour(XINPUT_GAMEPAD_B, true);
 
+    // If moveTerrain toggle is true, left stick moves terrain in x and z
+    const auto startTime = hmd->getTimeInSeconds();
     auto terrainPositionsRate =
         frp::map(gamepadBehaviours.leftThumb,
-                 frp::choice(moveTerrainBehaviour, Vec2f{2.0f, -2.0f}, Vec2f{0.0f, 0.0f}),
-                 [](auto x, auto y) { return x.memberwiseMultiply(y); });
-    auto terrainPositionBehaviour = frp::eulerIntegrate(
-        roomScene.heightField->getPosition().xz(), terrainPositionsRate, hmd->getTimeInSeconds());
+                 frp::choice(moveTerrainBehaviour, Vec2f{2.0f, -2.0f}, Vec2f{0.0f}),
+                 [](auto x, auto y) { return memberwiseMultiply(x, y); });
+    auto terrainPositionBehaviour = frp::eulerIntegrate(roomScene.heightField->getPosition().xz(),
+                                                        terrainPositionsRate, startTime);
 
+    // Left and right triggers rotate the terrain
     auto terrainRotationRate =
         frp::map(gamepadBehaviours.leftTrigger - gamepadBehaviours.rightTrigger,
                  [](auto x) { return to<float>(x) * 0.002f; });
     auto terrainRotation = frp::eulerIntegrate(roomScene.heightField->getRotationAngle(),
-                                               terrainRotationRate, hmd->getTimeInSeconds());
+                                               terrainRotationRate, startTime);
 
-    auto leftShoulder = frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_LEFT_SHOULDER], -1.0f, 0.0f);
-    auto rightShoulder = frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_RIGHT_SHOULDER], 1.0f, 0.0f);
-    auto terrainScaleRate =
-        frp::map(leftShoulder + rightShoulder, [hf = roomScene.heightField.get()](auto x) {
-            return hf->getTerrainScale() * x * 0.75f;
-        });
-    auto terrainScale = frp::eulerIntegrate(roomScene.heightField->getTerrainScale(),
-                                            terrainScaleRate, hmd->getTimeInSeconds());
+    // Left and right shoulder buttons perform logarithmic scaling up and down on terrain
+    auto leftShoulder =
+        frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_LEFT_SHOULDER], -1.0f, 0.0f);
+    auto rightShoulder =
+        frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_RIGHT_SHOULDER], 1.0f, 0.0f);
+    auto terrainScaleRate = frp::map(
+        leftShoulder + rightShoulder,
+        [hf = roomScene.heightField.get()](auto x) { return hf->getTerrainScale() * x * 0.75f; });
+    auto terrainScale =
+        frp::eulerIntegrate(roomScene.heightField->getTerrainScale(), terrainScaleRate, startTime);
 
+    // Left and right arrows on the keyboard and right thumb stick (if moveTerrain toggle is false)
+    // control player yaw
     auto playerYawKeyboard = frp::makeBehaviour([&DX11](frp::TimeS) {
         float res = 0.0f;
         if (DX11.Key[VK_LEFT]) res += 1.0f;
@@ -459,11 +468,10 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         frp::map(gamepadBehaviours.rightThumb, frp::choice(moveTerrainBehaviour, 0.0f, -1.0f),
                  [](auto rightStick, auto rate) { return rightStick.x() * rate; });
     auto playerYawRate = playerYawKeyboard + playerYawGamepad;
-    auto playerYawBehaviour =
-        frp::eulerIntegrate(playerYaw, playerYawRate, hmd->getTimeInSeconds());
-    auto rotationMatBehaviour =
-        frp::map(playerYawBehaviour, [](auto x) { return rotationYMat4f(x); });
+    auto playerYawBehaviour = frp::eulerIntegrate(playerYaw, playerYawRate, startTime);
+    auto rotationMatBehaviour = frp::map(playerYawBehaviour, rotationYMat4f);
 
+    // WASD keys and left thumb stick (if moveTerrain toggle is false) control player movement
     auto playerPositionKeyboard = frp::makeBehaviour([&DX11](frp::TimeS) {
         Vec2f res{0.0f};
         if (DX11.Key['W'] || DX11.Key[VK_UP]) res.y() -= 2.0f;
@@ -474,7 +482,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     });
     auto playerPositionGamepad =
         frp::map(gamepadBehaviours.leftThumb,
-                 frp::choice(moveTerrainBehaviour, Vec2f{0.0f, 0.0f}, Vec2f{2.0f, -2.0f}),
+                 frp::choice(moveTerrainBehaviour, Vec2f{0.0f}, Vec2f{2.0f, -2.0f}),
                  [](auto x, auto y) { return memberwiseMultiply(x, y); });
     auto playerPosition = playerPositionKeyboard + playerPositionGamepad;
     auto playerPositionsRate = frp::map(playerPosition, rotationMatBehaviour, [](auto x, auto m) {
@@ -482,13 +490,12 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         return delta.xz();
     });
     auto playerPositionBehaviour =
-        frp::map(frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, hmd->getTimeInSeconds()),
+        frp::map(frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, startTime),
                  [y = hmd->getProperty(OVR_KEY_EYE_HEIGHT, playerPos.y())](auto x) {
                      return Vec4f{x.x(), y, x.y(), 1.0f};
                  });
 
-    // MAIN LOOP
-    // =========
+    // Main update loop
     while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
         const auto frameTimeS = hmd->getTimeInSeconds();
         DX11.HandleMessages();
