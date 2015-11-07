@@ -422,7 +422,6 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
     auto playerYaw = 0.0f;
     auto playerPos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
-    auto rotationMat = identityMatrix<Mat4f>();
 
     auto gamepadBehaviours = GamepadBehaviours{};
 
@@ -450,6 +449,21 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto terrainScale = frp::eulerIntegrate(roomScene.heightField->getTerrainScale(),
                                             terrainScaleRate, hmd->getTimeInSeconds());
 
+    auto playerYawKeyboard = frp::makeBehaviour([&DX11](frp::TimeS) {
+        float res = 0.0f;
+        if (DX11.Key[VK_LEFT]) res += 1.0f;
+        if (DX11.Key[VK_RIGHT]) res -= 1.0f;
+        return res;
+    });
+    auto playerYawGamepad =
+        frp::map(gamepadBehaviours.rightThumb, frp::choice(moveTerrainBehaviour, 0.0f, -1.0f),
+                 [](auto rightStick, auto rate) { return rightStick.x() * rate; });
+    auto playerYawRate = playerYawKeyboard + playerYawGamepad;
+    auto playerYawBehaviour =
+        frp::eulerIntegrate(playerYaw, playerYawRate, hmd->getTimeInSeconds());
+    auto rotationMatBehaviour =
+        frp::map(playerYawBehaviour, [](auto x) { return rotationYMat4f(x); });
+
     auto playerPositionKeyboard = frp::makeBehaviour([&DX11](frp::TimeS) {
         Vec2f res{0.0f};
         if (DX11.Key['W'] || DX11.Key[VK_UP]) res.y() -= 2.0f;
@@ -463,18 +477,15 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                  frp::choice(moveTerrainBehaviour, Vec2f{0.0f, 0.0f}, Vec2f{2.0f, -2.0f}),
                  [](auto x, auto y) { return memberwiseMultiply(x, y); });
     auto playerPosition = playerPositionKeyboard + playerPositionGamepad;
-    auto playerPositionsRate = frp::map(playerPosition, [&rotationMat](auto x) {
-        const auto delta = Vec4f{x.x(), 0.0f, x.y(), 0.0f} * rotationMat;
+    auto playerPositionsRate = frp::map(playerPosition, rotationMatBehaviour, [](auto x, auto m) {
+        const auto delta = Vec4f{x.x(), 0.0f, x.y(), 0.0f} * m;
         return delta.xz();
     });
     auto playerPositionBehaviour =
-        frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, hmd->getTimeInSeconds());
-
-    auto playerYawRate =
-        frp::map(gamepadBehaviours.rightThumb, frp::choice(moveTerrainBehaviour, 0.0f, -3.0f),
-                 [](auto rightStick, auto rate) { return rightStick.x() * rate; });
-    auto playerYawBehaviour =
-        frp::eulerIntegrate(playerYaw, playerYawRate, hmd->getTimeInSeconds());
+        frp::map(frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, hmd->getTimeInSeconds()),
+                 [y = hmd->getProperty(OVR_KEY_EYE_HEIGHT, playerPos.y())](auto x) {
+                     return Vec4f{x.x(), y, x.y(), 1.0f};
+                 });
 
     // MAIN LOOP
     // =========
@@ -494,10 +505,6 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             DX11.stateManagers->pixelShaderManager.recreateAll();
         }
 
-        // Keyboard inputs to adjust player orientation
-        if (DX11.Key[VK_LEFT]) playerYaw += 0.02f;
-        if (DX11.Key[VK_RIGHT]) playerYaw -= 0.02f;
-
         // process input
         {
             const auto heightFieldY = roomScene.heightField->getPosition().y();
@@ -505,11 +512,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             roomScene.heightField->setPosition(
                 Vec3f{heightFieldPosXZ.x(), heightFieldY, heightFieldPosXZ.y()});
 
-            playerYaw = playerYawBehaviour(frameTimeS);
-            rotationMat = rotationYMat4f(playerYaw);
-            const auto playerPosY = playerPos.y();
-            const auto playerPosXZ = playerPositionBehaviour(frameTimeS);
-            playerPos = Vec4f{playerPosXZ.x(), playerPosY, playerPosXZ.y(), 1.0f};
+            playerPos = playerPositionBehaviour(frameTimeS);
 
             roomScene.heightField->setRotationAngle(terrainRotation(frameTimeS));
             roomScene.heightField->setTerrainScale(terrainScale(frameTimeS));
@@ -519,8 +522,6 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             if (gamepadBehaviours.buttonReleased[XINPUT_GAMEPAD_START](frameTimeS))
                 imguiHelper.active = !imguiHelper.active;
         }
-
-        playerPos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, playerPos.y());
 
         // Animate the cube
         roomScene.Models[0]->Pos =
@@ -538,7 +539,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             const auto useEyePose = &eyePoses.first[eye];
 
             // Get view and projection matrices (note near Z to reduce eye strain)
-            const auto rollPitchYaw = rotationYMat4f(playerYaw);
+            const auto rollPitchYaw = rotationMatBehaviour(frameTimeS);
             const auto finalRollPitchYaw =
                 Mat4FromQuat(Quatf{&useEyePose->Orientation.x}) * rollPitchYaw;
             const auto finalUp = basisVector<Vec4f>(Y) * finalRollPitchYaw;
