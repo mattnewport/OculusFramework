@@ -81,6 +81,16 @@ auto operator*(Behaviour<T>& x, Behaviour<U>& y) {
     return map(x, y, std::multiplies<>{});
 }
 
+template <typename T, typename U>
+auto operator+(Behaviour<T>& x, Behaviour<U>& y) {
+    return map(x, y, std::plus<>{});
+}
+
+template <typename T, typename U>
+auto operator-(Behaviour<T>& x, Behaviour<U>& y) {
+    return map(x, y, std::minus<>{});
+}
+
 struct TimeDelta {
     TimeDelta(TimeS startTime) : lastTime{startTime} {}
     float operator()(TimeS t) {

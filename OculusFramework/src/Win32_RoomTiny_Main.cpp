@@ -435,6 +435,21 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto terrainPositionBehaviour = frp::eulerIntegrate(
         roomScene.heightField->getPosition().xz(), terrainPositionsRate, hmd->getTimeInSeconds());
 
+    auto terrainRotationRate =
+        frp::map(gamepadBehaviours.leftTrigger - gamepadBehaviours.rightTrigger,
+                 [](auto x) { return to<float>(x) * 0.002f; });
+    auto terrainRotation = frp::eulerIntegrate(roomScene.heightField->getRotationAngle(),
+                                               terrainRotationRate, hmd->getTimeInSeconds());
+
+    auto leftShoulder = frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_LEFT_SHOULDER], -1.0f, 0.0f);
+    auto rightShoulder = frp::choice(gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_RIGHT_SHOULDER], 1.0f, 0.0f);
+    auto terrainScaleRate =
+        frp::map(leftShoulder + rightShoulder, [hf = roomScene.heightField.get()](auto x) {
+            return hf->getTerrainScale() * x * 0.75f;
+        });
+    auto terrainScale = frp::eulerIntegrate(roomScene.heightField->getTerrainScale(),
+                                            terrainScaleRate, hmd->getTimeInSeconds());
+
     auto playerPositionsRate =
         frp::map(gamepadBehaviours.leftThumb,
                  frp::choice(moveTerrainBehaviour, Vec2f{0.0f, 0.0f}, Vec2f{2.0f, -2.0f}),
@@ -486,10 +501,6 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
         // gamepad inputs
         {
-            const auto leftStickVal = gamepadBehaviours.leftThumb(frameTimeS);
-            const auto positionDelta = Vec3f{leftStickVal.x(), 0.0f, -leftStickVal.y()};
-            const auto rightStickVal = gamepadBehaviours.rightThumb(frameTimeS);
-
             const auto heightFieldY = roomScene.heightField->getPosition().y();
             const auto heightFieldPosXZ = terrainPositionBehaviour(frameTimeS);
             roomScene.heightField->setPosition(
@@ -500,18 +511,8 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             const auto playerPosXZ = playerPositionBehaviour(frameTimeS);
             playerPos = Vec4f{playerPosXZ.x(), playerPosY, playerPosXZ.y(), 1.0f};
 
-            roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
-                                                    0.00002f *
-                                                        gamepadBehaviours.leftTrigger(frameTimeS));
-            roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() -
-                                                    0.00002f *
-                                                        gamepadBehaviours.rightTrigger(frameTimeS));
-            if (gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_LEFT_SHOULDER](frameTimeS))
-                roomScene.heightField->setTerrainScale(roomScene.heightField->getTerrainScale() *
-                                                       (1 - 1e-2f));
-            else if (gamepadBehaviours.buttonDown[XINPUT_GAMEPAD_RIGHT_SHOULDER](frameTimeS))
-                roomScene.heightField->setTerrainScale(roomScene.heightField->getTerrainScale() *
-                                                       (1 + 1e-2f));
+            roomScene.heightField->setRotationAngle(terrainRotation(frameTimeS));
+            roomScene.heightField->setTerrainScale(terrainScale(frameTimeS));
 
             if (gamepadBehaviours.buttonReleased[XINPUT_GAMEPAD_A](frameTimeS))
                 roomScene.heightField->toggleRenderLabels();
