@@ -91,29 +91,18 @@ auto operator-(Behaviour<T>& x, Behaviour<U>& y) {
     return map(x, y, std::minus<>{});
 }
 
-struct TimeDelta {
-    TimeDelta(TimeS startTime) : lastTime{startTime} {}
-    float operator()(TimeS t) {
+inline auto makeTimeDeltaBehaviour(TimeS startTime) {
+    return makeBehaviour([lastTime = startTime](TimeS t) mutable {
         const auto delta = t - lastTime;
         lastTime = t;
         return static_cast<float>(delta);
-    }
-    TimeS lastTime = std::numeric_limits<TimeS>::min();
-};
-
-inline auto makeTimeDeltaBehaviour(TimeS startTime) { return makeBehaviour(TimeDelta{startTime}); }
-
-template <typename T>
-struct EulerIntegrator {
-    EulerIntegrator(T init) : value{init} {}
-    T operator()(T delta) { return value += delta; }
-    T value;
-};
+    });
+}
 
 template <typename T>
 auto eulerIntegrate(T init, Behaviour<T>& rate, TimeS start) {
     return map(map(rate, makeTimeDeltaBehaviour(start), std::multiplies<>{}),
-               EulerIntegrator<T>{init});
+               [value = init](auto delta) mutable { return value += delta; });
 }
 
 }  // namespace frp
