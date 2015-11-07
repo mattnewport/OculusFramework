@@ -495,6 +495,11 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                      return Vec4f{x.x(), y, x.y(), 1.0f};
                  });
 
+    // frp Behaviour for animated cube
+    auto cubeBehaviour = frp::makeBehaviour([](frp::TimeS t) {
+        return Vec3f{9.0f * to<float>(sin(0.75 * t)), 3.0f, 9.0f * to<float>(cos(0.75 * t))};
+    });
+
     // Main update loop
     while (!(DX11.Key['Q'] && DX11.Key[VK_CONTROL])) {
         const auto frameTimeS = hmd->getTimeInSeconds();
@@ -531,8 +536,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         }
 
         // Animate the cube
-        roomScene.Models[0]->Pos =
-            mathlib::Vec3f(9.0f * sin(0.01f * appClock), 3.0f, 9.0f * cos(0.01f * appClock));
+        roomScene.Models[0]->Pos = cubeBehaviour(frameTimeS);
 
         // Get both eye poses simultaneously, with IPD offset already included.
         const auto sensorSampleTime = hmd->getTimeInSeconds();
