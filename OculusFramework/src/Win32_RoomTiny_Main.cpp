@@ -450,14 +450,23 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     auto terrainScale = frp::eulerIntegrate(roomScene.heightField->getTerrainScale(),
                                             terrainScaleRate, hmd->getTimeInSeconds());
 
-    auto playerPositionsRate =
+    auto playerPositionKeyboard = frp::makeBehaviour([&DX11](frp::TimeS) {
+        Vec2f res{0.0f};
+        if (DX11.Key['W'] || DX11.Key[VK_UP]) res.y() -= 2.0f;
+        if (DX11.Key['S'] || DX11.Key[VK_DOWN]) res.y() += 2.0f;
+        if (DX11.Key['A']) res.x() -= 2.0f;
+        if (DX11.Key['D']) res.x() += 2.0f;
+        return res;
+    });
+    auto playerPositionGamepad =
         frp::map(gamepadBehaviours.leftThumb,
                  frp::choice(moveTerrainBehaviour, Vec2f{0.0f, 0.0f}, Vec2f{2.0f, -2.0f}),
-                 [&rotationMat](auto x, auto y) {
-                     const auto lt = memberwiseMultiply(x, y);
-                     const auto delta = Vec4f{lt.x(), 0.0f, lt.y(), 0.0f} * rotationMat;
-                     return delta.xz();
-                 });
+                 [](auto x, auto y) { return memberwiseMultiply(x, y); });
+    auto playerPosition = playerPositionKeyboard + playerPositionGamepad;
+    auto playerPositionsRate = frp::map(playerPosition, [&rotationMat](auto x) {
+        const auto delta = Vec4f{x.x(), 0.0f, x.y(), 0.0f} * rotationMat;
+        return delta.xz();
+    });
     auto playerPositionBehaviour =
         frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, hmd->getTimeInSeconds());
 
@@ -489,17 +498,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
         if (DX11.Key[VK_LEFT]) playerYaw += 0.02f;
         if (DX11.Key[VK_RIGHT]) playerYaw -= 0.02f;
 
-        // Keyboard inputs to adjust player position
-        const auto speed = 1.0f;    // Can adjust the movement speed.
-        rotationMat = rotationYMat4f(playerYaw);
-        if (DX11.Key['W'] || DX11.Key[VK_UP])
-            playerPos += Vec4f{0.0f, 0.0f, -0.05f, 0.0f} * speed * rotationMat;
-        if (DX11.Key['S'] || DX11.Key[VK_DOWN])
-            playerPos += Vec4f{0.0f, 0.0f, 0.05f, 0.0f} * speed * rotationMat;
-        if (DX11.Key['D']) playerPos += Vec4f{0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
-        if (DX11.Key['A']) playerPos += Vec4f{-0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
-
-        // gamepad inputs
+        // process input
         {
             const auto heightFieldY = roomScene.heightField->getPosition().y();
             const auto heightFieldPosXZ = terrainPositionBehaviour(frameTimeS);
@@ -507,6 +506,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                 Vec3f{heightFieldPosXZ.x(), heightFieldY, heightFieldPosXZ.y()});
 
             playerYaw = playerYawBehaviour(frameTimeS);
+            rotationMat = rotationYMat4f(playerYaw);
             const auto playerPosY = playerPos.y();
             const auto playerPosXZ = playerPositionBehaviour(frameTimeS);
             playerPos = Vec4f{playerPosXZ.x(), playerPosY, playerPosXZ.y(), 1.0f};

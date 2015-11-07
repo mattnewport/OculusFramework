@@ -78,17 +78,17 @@ auto choice(Behaviour<bool>& b, T whenTrue, T whenFalse) {
 
 template <typename T, typename U>
 auto operator*(Behaviour<T>& x, Behaviour<U>& y) {
-    return map(x, y, std::multiplies<>{});
+    return makeBehaviour([&x, &y](TimeS t) mutable { return x(t) * y(t); });
 }
 
 template <typename T, typename U>
 auto operator+(Behaviour<T>& x, Behaviour<U>& y) {
-    return map(x, y, std::plus<>{});
+    return makeBehaviour([&x, &y](TimeS t) mutable { return x(t) + y(t); });
 }
 
 template <typename T, typename U>
 auto operator-(Behaviour<T>& x, Behaviour<U>& y) {
-    return map(x, y, std::minus<>{});
+    return makeBehaviour([&x, &y](TimeS t) mutable { return x(t) - y(t); });
 }
 
 inline auto makeTimeDeltaBehaviour(TimeS startTime) {
