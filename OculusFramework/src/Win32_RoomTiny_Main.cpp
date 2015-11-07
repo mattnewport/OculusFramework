@@ -274,8 +274,16 @@ struct ImGuiHelper {
 };
 
 struct GamepadBehaviours {
-    static auto stickPos(const SHORT thumbX, const SHORT thumbY,
-        const SHORT thumbDeadzone) {
+    static XINPUT_STATE getXInputState() {
+        XINPUT_STATE state{};
+        for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
+            const auto res = XInputGetState(i, &state);
+            if (res == ERROR_SUCCESS) break;
+        }
+        return state;
+    }
+
+    static auto stickPos(const SHORT thumbX, const SHORT thumbY, const SHORT thumbDeadzone) {
         auto handleDeadzone = [](float x, float y, float deadzone) {
             const auto v = Vec2f{ x, y };
             const auto mag = magnitude(v);
@@ -319,14 +327,7 @@ struct GamepadBehaviours {
         }
     }
 
-    frp::Behaviour<XINPUT_STATE> gp{ [](frp::TimeS) {
-        XINPUT_STATE state{};
-        for (auto i = 0; i < XUSER_MAX_COUNT; ++i) {
-            const auto res = XInputGetState(i, &state);
-            if (res == ERROR_SUCCESS) break;
-        }
-        return state;
-    } };
+    frp::Behaviour<XINPUT_STATE> gp{[](frp::TimeS) { return getXInputState(); }};
     frp::Behaviour<Vec2f> leftThumb;
     frp::Behaviour<Vec2f> rightThumb;
     frp::Behaviour<BYTE> leftTrigger;
@@ -334,12 +335,11 @@ struct GamepadBehaviours {
 
     struct ButtonReleased {
         ButtonReleased() = default;
-        ButtonReleased(uint32_t buttonMask_) : buttonMask{ buttonMask_ } {}
+        ButtonReleased(uint32_t buttonMask_) : buttonMask{buttonMask_} {}
         bool operator()(const XINPUT_STATE& state) {
             if (state.Gamepad.wButtons & buttonMask) {
                 buttonDownLastFrame = true;
-            }
-            else if (buttonDownLastFrame) {
+            } else if (buttonDownLastFrame) {
                 buttonDownLastFrame = false;
                 return true;
             }
@@ -351,6 +351,19 @@ struct GamepadBehaviours {
     unordered_map<uint32_t, ButtonReleased> buttonReleasedMap;
     unordered_map<uint32_t, frp::Behaviour<bool>> buttonReleased;
     unordered_map<uint32_t, frp::Behaviour<bool>> buttonDown;
+
+    struct Toggle {
+        Toggle() = default;
+        Toggle(bool init) : value{init} {}
+        bool operator()(bool toggle) {
+            if (toggle) value = !value;
+            return value;
+        }
+        bool value = false;
+    };
+    auto makeToggleBehaviour(uint32_t button, Toggle& toggle) {
+        return frp::map(buttonReleased[button], ref(toggle));
+    }
 };
 
 int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _In_ int) {
@@ -419,14 +432,38 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                     DX11.texture2DManager);
 
     auto playerYaw = 0.0f;
-    auto pos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
+    auto playerPos = Vec4f{0.0f, 1.6f, 5.0f, 1.0f};
+    auto rotationMat = identityMatrix<Mat4f>();
 
     auto gamepadBehaviours = GamepadBehaviours{};
-    auto positionBehaviour =
-        frp::eulerIntegrate(roomScene.heightField->getPosition().xz(),
-                            frp::map(gamepadBehaviours.leftThumb, frp::always(Vec2f{2.0f, -2.0f}),
-                                     [](auto x, auto y) { return x.memberwiseMultiply(y); }),
-                            hmd->getTimeInSeconds());
+
+    auto moveTerrainToggle = GamepadBehaviours::Toggle{true};
+    auto moveTerrainBehaviour =
+        gamepadBehaviours.makeToggleBehaviour(XINPUT_GAMEPAD_B, moveTerrainToggle);
+
+    auto terrainPositionsRate =
+        frp::map(gamepadBehaviours.leftThumb,
+                 frp::choice(moveTerrainBehaviour, Vec2f{2.0f, -2.0f}, Vec2f{0.0f, 0.0f}),
+                 [](auto x, auto y) { return x.memberwiseMultiply(y); });
+    auto terrainPositionBehaviour = frp::eulerIntegrate(
+        roomScene.heightField->getPosition().xz(), terrainPositionsRate, hmd->getTimeInSeconds());
+
+    auto playerPositionsRate =
+        frp::map(gamepadBehaviours.leftThumb,
+                 frp::choice(moveTerrainBehaviour, Vec2f{0.0f, 0.0f}, Vec2f{2.0f, -2.0f}),
+                 [&rotationMat](auto x, auto y) {
+                     const auto lt = memberwiseMultiply(x, y);
+                     const auto delta = Vec4f{lt.x(), 0.0f, lt.y(), 0.0f} * rotationMat;
+                     return delta.xz();
+                 });
+    auto playerPositionBehaviour =
+        frp::eulerIntegrate(playerPos.xz(), playerPositionsRate, hmd->getTimeInSeconds());
+
+    auto playerYawRate =
+        frp::map(gamepadBehaviours.rightThumb, frp::choice(moveTerrainBehaviour, 0.0f, -3.0f),
+                 [](auto rightStick, auto rate) { return rightStick.x() * rate; });
+    auto playerYawBehaviour =
+        frp::eulerIntegrate(playerYaw, playerYawRate, hmd->getTimeInSeconds());
 
     // MAIN LOOP
     // =========
@@ -452,13 +489,13 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
         // Keyboard inputs to adjust player position
         const auto speed = 1.0f;    // Can adjust the movement speed.
-        const auto rotationMat = rotationYMat4f(playerYaw);
+        rotationMat = rotationYMat4f(playerYaw);
         if (DX11.Key['W'] || DX11.Key[VK_UP])
-            pos += Vec4f{0.0f, 0.0f, -0.05f, 0.0f} * speed * rotationMat;
+            playerPos += Vec4f{0.0f, 0.0f, -0.05f, 0.0f} * speed * rotationMat;
         if (DX11.Key['S'] || DX11.Key[VK_DOWN])
-            pos += Vec4f{0.0f, 0.0f, 0.05f, 0.0f} * speed * rotationMat;
-        if (DX11.Key['D']) pos += Vec4f{0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
-        if (DX11.Key['A']) pos += Vec4f{-0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
+            playerPos += Vec4f{0.0f, 0.0f, 0.05f, 0.0f} * speed * rotationMat;
+        if (DX11.Key['D']) playerPos += Vec4f{0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
+        if (DX11.Key['A']) playerPos += Vec4f{-0.05f, 0.0f, 0.0f, 0.0f} * speed * rotationMat;
 
         // gamepad inputs
         {
@@ -466,19 +503,15 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
             const auto positionDelta = Vec3f{leftStickVal.x(), 0.0f, -leftStickVal.y()};
             const auto rightStickVal = gamepadBehaviours.rightThumb(frameTimeS);
 
-            static bool movePlayer = false;
-            if (gamepadBehaviours.buttonReleased[XINPUT_GAMEPAD_B](frameTimeS))
-                movePlayer = !movePlayer;
+            const auto heightFieldY = roomScene.heightField->getPosition().y();
+            const auto heightFieldPosXZ = terrainPositionBehaviour(frameTimeS);
+            roomScene.heightField->setPosition(
+                Vec3f{heightFieldPosXZ.x(), heightFieldY, heightFieldPosXZ.y()});
 
-            if (movePlayer) {
-                playerYaw += -0.04f * rightStickVal.x();
-                pos += Vec4f{positionDelta * 0.04f, 0.0f} * rotationMat;
-            } else {
-                const auto heightFieldY = roomScene.heightField->getPosition().y();
-                const auto heightFieldPosXZ = positionBehaviour(frameTimeS);
-                roomScene.heightField->setPosition(
-                    Vec3f{heightFieldPosXZ.x(), heightFieldY, heightFieldPosXZ.y()});
-            }
+            playerYaw = playerYawBehaviour(frameTimeS);
+            const auto playerPosY = playerPos.y();
+            const auto playerPosXZ = playerPositionBehaviour(frameTimeS);
+            playerPos = Vec4f{playerPosXZ.x(), playerPosY, playerPosXZ.y(), 1.0f};
 
             roomScene.heightField->setRotationAngle(roomScene.heightField->getRotationAngle() +
                                                     0.00002f *
@@ -499,7 +532,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                 imguiHelper.active = !imguiHelper.active;
         }
 
-        pos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, pos.y());
+        playerPos.y() = hmd->getProperty(OVR_KEY_EYE_HEIGHT, playerPos.y());
 
         // Animate the cube
         roomScene.Models[0]->Pos =
@@ -522,7 +555,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
                 Mat4FromQuat(Quatf{&useEyePose->Orientation.x}) * rollPitchYaw;
             const auto finalUp = basisVector<Vec4f>(Y) * finalRollPitchYaw;
             const auto finalForward = -basisVector<Vec4f>(Z) * finalRollPitchYaw;
-            const auto finalEye = pos + Vec4f{Vec3f{&useEyePose->Position.x}, 0.0f} * rollPitchYaw;
+            const auto finalEye = playerPos + Vec4f{Vec3f{&useEyePose->Position.x}, 0.0f} * rollPitchYaw;
             const auto finalAt = finalEye + finalForward;
             const auto view = lookAtRhMat4f(finalEye.xyz(), finalAt.xyz(), finalUp.xyz());
             const auto projTemp =
