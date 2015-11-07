@@ -285,7 +285,7 @@ struct GamepadBehaviours {
 
     static auto stickPos(const SHORT thumbX, const SHORT thumbY, const SHORT thumbDeadzone) {
         auto handleDeadzone = [](float x, float y, float deadzone) {
-            const auto v = Vec2f{ x, y };
+            const auto v = Vec2f{x, y};
             const auto mag = magnitude(v);
             if (mag > deadzone) {
                 const auto n = v * 1.0f / mag;
@@ -293,27 +293,24 @@ struct GamepadBehaviours {
                     saturate((mag - deadzone) / (numeric_limits<SHORT>::max() - deadzone));
                 return n * s;
             }
-            return Vec2f{ 0.0f };
+            return Vec2f{0.0f};
         };
         return handleDeadzone(thumbX, thumbY, thumbDeadzone);
     };
 
     GamepadBehaviours()
-        : leftThumb{ frp::map(gp,
-            [](XINPUT_STATE state) {
-        return stickPos(state.Gamepad.sThumbLX,
-            state.Gamepad.sThumbLY,
-            XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-    }) },
-        rightThumb{ frp::map(gp,
-            [](XINPUT_STATE state) {
-        return stickPos(state.Gamepad.sThumbRX,
-            state.Gamepad.sThumbRY,
-            XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-    }) },
-        leftTrigger{ frp::map(gp, [](auto state) { return state.Gamepad.bLeftTrigger; }) },
-        rightTrigger{
-        frp::map(gp, [](auto state) { return state.Gamepad.bRightTrigger; }) } {
+        : leftThumb{frp::map(gp,
+                             [](XINPUT_STATE state) {
+                                 return stickPos(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY,
+                                                 XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+                             })},
+          rightThumb{frp::map(gp,
+                              [](XINPUT_STATE state) {
+                                  return stickPos(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY,
+                                                  XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+                              })},
+          leftTrigger{frp::map(gp, [](auto state) { return state.Gamepad.bLeftTrigger; })},
+          rightTrigger{frp::map(gp, [](auto state) { return state.Gamepad.bRightTrigger; })} {
         for (auto b : {XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN, XINPUT_GAMEPAD_DPAD_LEFT,
                        XINPUT_GAMEPAD_DPAD_RIGHT, XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_BACK,
                        XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB,
@@ -429,14 +426,17 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
     // B button toggles moving terrain or moving player with left thumb stick
     auto moveTerrainBehaviour = gamepadBehaviours.makeToggleBehaviour(XINPUT_GAMEPAD_B, true);
 
-    // If moveTerrain toggle is true, left stick moves terrain in x and z
+    // If moveTerrain toggle is true, left stick moves terrain in x and z, right stick in y
     const auto startTime = hmd->getTimeInSeconds();
     auto terrainPositionsRate =
-        frp::map(gamepadBehaviours.leftThumb,
-                 frp::choice(moveTerrainBehaviour, Vec2f{2.0f, -2.0f}, Vec2f{0.0f}),
+        frp::map(frp::map(gamepadBehaviours.leftThumb, gamepadBehaviours.rightThumb,
+                          [](auto x, auto y) {
+                              return Vec3f{x.x(), y.y(), x.y()};
+                          }),
+                 frp::choice(moveTerrainBehaviour, Vec3f{2.0f, 2.0f, -2.0f}, Vec3f{0.0f}),
                  [](auto x, auto y) { return memberwiseMultiply(x, y); });
-    auto terrainPositionBehaviour = frp::eulerIntegrate(roomScene.heightField->getPosition().xz(),
-                                                        terrainPositionsRate, startTime);
+    auto terrainPositionBehaviour =
+        frp::eulerIntegrate(roomScene.heightField->getPosition(), terrainPositionsRate, startTime);
 
     // Left and right triggers rotate the terrain
     auto terrainRotationRate =
@@ -519,10 +519,7 @@ int WINAPI WinMain(_In_ HINSTANCE hinst, _In_opt_ HINSTANCE, _In_ LPSTR args, _I
 
         // process input
         {
-            const auto heightFieldY = roomScene.heightField->getPosition().y();
-            const auto heightFieldPosXZ = terrainPositionBehaviour(frameTimeS);
-            roomScene.heightField->setPosition(
-                Vec3f{heightFieldPosXZ.x(), heightFieldY, heightFieldPosXZ.y()});
+            roomScene.heightField->setPosition(terrainPositionBehaviour(frameTimeS));
 
             playerPos = playerPositionBehaviour(frameTimeS);
 
